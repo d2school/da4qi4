@@ -1,0 +1,4 @@
+#ifndef FILESYSTEM_DEF_HPP
+#define FILESYSTEM_DEF_HPP
+
+#endif // FILESYSTEM_DEF_HPP
