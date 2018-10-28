@@ -26,7 +26,7 @@ int main()
             fn.push_back(c);
         }
 
-        fn = "./tmp/" + std::to_string(i) + "-" + fn + ".jpg";
+        fn = "./tmp/" + std::to_string(i) + "-" + fn + ".gif";
         Utilities::make_captcha_image(captcha_text, fn);
     }
 

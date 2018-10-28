@@ -28,7 +28,7 @@ bool is_symbol_captcha_char(char c)
 
 std::string get_random_words_for_captcha(size_t len, bool allow_symbol)
 {
-    static std::string const m = "*AaCcdEeFfKkMmNtUuVvWwXxYZ#+34578";
+    static std::string const m = "AaCcdEeFfKkMmNtUuVvWwXxYZ34578*#+";
 
     if (len > max_captcha_size)
     {
@@ -37,27 +37,21 @@ std::string get_random_words_for_captcha(size_t len, bool allow_symbol)
 
     std::string s;
     s.resize(len);
+    size_t m_size = m.size() - (allow_symbol ? 0 : 3);
 
     for (int i = 0; i < len; ++i)
     {
-        int rand_index;
-
-        while (true)
-        {
-            rand_index = std::rand() % m.size();
-            char c = m[rand_index];
-
-            if (!allow_symbol && is_symbol_captcha_char(c))
-            {
-                continue;
-            }
-
-            s[i] = c;
-            break;
-        }
+        int rand_index = std::rand() % m_size;
+        char c = m[rand_index];
+        s[i] = c;
     }
 
     return s;
+}
+
+inline bool is_fat_char(char c)
+{
+    return (c == 'W') || (c == 'M') || (c == 'w') || (c == 'w');
 }
 
 void make_captcha_image(char const* captcha_text, size_t len, char const* filename, bool add_border)
@@ -78,8 +72,9 @@ void make_captcha_image(char const* captcha_text, size_t len, char const* filena
         CImg<unsigned char> tmp;
         *letter = captcha_text[k];
         cimg_forX(color, i) color[i] = (unsigned char)(128 + (std::rand() % 127));
-        tmp.draw_text((int)(2 + 8 * cimg::rand()) //x
-                      , (int)(12 * cimg::rand()) //y
+        int xoffset = 2 + (int)(is_fat_char(*letter) ? 0 : (8 * cimg::rand()));
+        int yoffset = (int)(12 * cimg::rand());
+        tmp.draw_text(xoffset, yoffset
                       , letter
                       , color.data()
                       , 0
@@ -144,7 +139,7 @@ void make_captcha_image(char const* captcha_text, size_t len, char const* filena
     }
 
     captcha |= copy;
-    captcha.noise(10, 2);
+    captcha.noise(8, 2);
 
     if (add_border)
     {
