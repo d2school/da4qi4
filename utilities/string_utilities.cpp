@@ -7,20 +7,26 @@ namespace da4qi4
 namespace Utilities
 {
 
-std::string const& EmptyString()
-{
-    static std::string _empty_string_;
-    return _empty_string_;    
-}
+std::string theEmptyString;
 
-bool IgnoreCaseCompare::operator () (std::string const& l, std::string const& r) const
+bool IgnoreCaseCompare::operator()(std::string const& l, std::string const& r) const
 {
-    return boost::algorithm::ilexicographical_compare(l, r);
+    return iLess(l, r);
 }
 
 bool iStartsWith(std::string const& m, std::string const& s)
 {
     return boost::algorithm::istarts_with(m, s);
+}
+
+bool iEquals(std::string const& l, std::string const& r)
+{
+    return boost::algorithm::iequals(l, r);
+}
+
+bool iLess(std::string const& l, std::string const& r)
+{
+    return boost::algorithm::ilexicographical_compare(l, r);
 }
 
 

@@ -4,25 +4,30 @@
 #include <string>
 #include <map>
 
-#include <boost/optional.hpp>
-
 namespace da4qi4
 {
 namespace Utilities
 {
 
-std::string const& EmptyString();
+extern std::string theEmptyString;
 
 struct IgnoreCaseCompare
 {
-    bool operator () (std::string const& l, std::string const& r) const;
+    bool operator()(std::string const& l, std::string const& r) const;
 };
 
-using OptionalString = boost::optional<std::string>;
-using OptionalStringRef = boost::optional<std::string&>;
-using OptionalStringRefConst = boost::optional<std::string const&>;
+struct IgnoreCaseCompareDESC
+{
+    bool operator()(std::string const& l, std::string const& r) const
+    {
+        IgnoreCaseCompare compare;
+        return compare(r, l); /* DESC : swap l, r */
+    }
+};
 
 bool iStartsWith(std::string const& m, std::string const& s);
+bool iEquals(std::string const& l, std::string const& r);
+bool iLess(std::string const& l, std::string const& r);
 
 } //namespace Utilities
 } //namespace da4qi4
