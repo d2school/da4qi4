@@ -5,11 +5,10 @@ project(da4qi4)
 file(GLOB_RECURSE HEADER_FILES  *.h *.hpp)
 add_custom_target(Include SOURCES ${HEADER_FILES})
 
-link_directories(/home/zhuangyan/software/boost_1_68_0/stage/lib)
-link_libraries(boost_system boost_filesystem pthread)
+find_library(LIBCAPTCHA captcha ./captcha/lib)
+link_libraries(boost_system boost_filesystem pthread ${LIBCAPTCHA})
 
 include_directories(.)
-include_directories(/home/zhuangyan/software/boost_1_68_0)
 
 aux_source_directory(. TOP_SRC_FILES)
 aux_source_directory(./def DEF_SRC_FILES)

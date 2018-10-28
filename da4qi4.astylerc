@@ -1,0 +1,38 @@
+# Allman Coding Style Options
+# Based on an old AStyle release.
+
+# braces and indent
+style=allman
+indent=spaces
+
+# indentation
+min-conditional-indent=0
+max-continuation-indent=80
+indent-switches
+indent-continuation=3
+indent-preproc-block
+indent-preproc-define
+indent-col1-comments
+
+# padding
+pad-oper
+pad-header
+unpad-paren
+align-pointer=type
+break-blocks
+pad-oper
+pad-header
+delete-empty-lines
+align-pointer=type
+align-reference=type
+
+# formatting
+break-one-line-headers
+break-closing-braces
+keep-one-line-statements
+convert-tabs
+add-braces
+close-templates
+max-code-length=120
+
+
