@@ -15,39 +15,48 @@ class Server
     Server(boost::asio::io_context& ioc, short port);
 public:
     using Ptr = std::shared_ptr<Server>;
-    
+
     static Ptr Supply(boost::asio::io_context& ioc, short port);
-    
+
 public:
     void Start();
     void Stop();
-    
+
 public:
     bool AddApp(Application const& app)
     {
         return AppMgr()->Add(app);
     }
-    
+
 public:
+    Application* AddHandler(HandlerMethod m, std::string const& url, Handler h)
+    {
+        return AddHandler(m, router_equals(url), h);
+    }
+
     Application* AddHandler(HandlerMethod m, router_equals r, Handler h);
     Application* AddHandler(HandlerMethod m, router_starts r, Handler h);
     Application* AddHandler(HandlerMethod m, router_regex r, Handler h);
-    
+
+    Application* AddHandler(HandlerMethods ms, std::string const& url, Handler h)
+    {
+        return AddHandler(ms, router_equals(url), h);
+    }
     Application* AddHandler(HandlerMethods ms, router_equals r, Handler h);
     Application* AddHandler(HandlerMethods ms, router_starts r, Handler h);
     Application* AddHandler(HandlerMethods ms, router_regex r, Handler h);
-    
+
     Application* PrepareApp(std::string const& r);
-    
+
 private:
     void do_accept();
-    
+
 private:
     void make_default_app_if_need();
-    
+
 private:
     Tcp::acceptor _acceptor;
-    
+
 private:
 };
 

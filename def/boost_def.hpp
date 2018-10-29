@@ -5,13 +5,13 @@
 
 #include <boost/optional.hpp>
 #include <boost/filesystem.hpp>
-
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 namespace da4qi4
 {
 
 extern boost::none_t NoneObject;
-
 using errorcode = boost::system::error_code;
 namespace fs = boost::filesystem;
 

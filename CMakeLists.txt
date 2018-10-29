@@ -5,7 +5,9 @@ project(da4qi4)
 file(GLOB_RECURSE HEADER_FILES  *.h *.hpp)
 add_custom_target(Include SOURCES ${HEADER_FILES})
 
-link_libraries(boost_system boost_filesystem pthread)
+find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH)
+find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
+link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} pthread)
 
 include_directories(.)
 

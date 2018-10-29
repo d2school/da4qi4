@@ -15,6 +15,7 @@ ApplicationMgr* AppMgr()
 
 Application::Application()
     : _name(default_app_name)
+    , _default_charset("utf-8")
     , _root_url("/")
 {
     init_pathes();
@@ -24,12 +25,26 @@ Application::Application(std::string const& name
                          , std::string const& root_url
                          , fs::path const& root_static
                          , fs::path const& root_template
-                         , fs::path const& root_upload)
+                         , fs::path const& root_upload
+                         , fs::path const& root_temporary)
+    : Application(name, "utf-8", root_url, root_static, root_template, root_upload, root_temporary)
+{
+}
+
+Application::Application(std::string const& name
+                         , std::string const& default_charset
+                         , std::string const& root_url
+                         , fs::path const& root_static
+                         , fs::path const& root_template
+                         , fs::path const& root_upload
+                         , fs::path const& root_temporary)
     : _name(name)
+    , _default_charset(default_charset)
     , _root_url(root_url)
     , _root_static(root_static)
     , _root_template(root_template)
     , _root_upload(root_upload)
+    , _root_temporary(root_temporary)
 {
     init_pathes();
 }
@@ -49,25 +64,26 @@ void Application::Enable()
 }
 
 
-#define assgin_path(dst, path_getter) \
-do \
-{ \
-    if (dst.empty()) \
-    {\
-        errorcode ec; \
-        dst = path_getter(ec); \
-        if (ec) \
-        { \
-            std::cerr << "init default path for " << #dst << " fail. " << ec << "\r\n"; \
-        } \
-    }\
-} while (false)
+#define assign_path(dst, path_getter) \
+    do \
+    { \
+        if (dst.empty()) \
+        {\
+            errorcode ec; \
+            dst = path_getter(ec); \
+            if (ec) \
+            { \
+                std::cerr << "init default path for " << #dst << " fail. " << ec << "\r\n"; \
+            } \
+        }\
+    } while (false)
 
 void Application::init_pathes()
 {
-    assgin_path(_root_static, fs::current_path);
-    assgin_path(_root_template, fs::current_path);
-    assgin_path(_root_upload, fs::temp_directory_path);
+    assign_path(_root_static, fs::current_path);
+    assign_path(_root_template, fs::current_path);
+    assign_path(_root_upload, fs::temp_directory_path);
+    assign_path(_root_temporary, fs::temp_directory_path);
 }
 
 bool ApplicationMgr::CreateDefaultIfEmpty()
@@ -77,7 +93,7 @@ bool ApplicationMgr::CreateDefaultIfEmpty()
         _set.insert(Application());
         return true;
     }
-    
+
     return false;
 }
 
@@ -88,14 +104,14 @@ bool ApplicationMgr::Add(Application const& app)
         _set.insert(app);
         return true;
     }
-    
+
     return false;
 }
 
 void ApplicationMgr::Enable(std::string const& name)
 {
     auto app = this->FindByName(name);
-    
+
     if (app && !app->IsEnable())
     {
         app->Enable();
@@ -105,7 +121,7 @@ void ApplicationMgr::Enable(std::string const& name)
 void ApplicationMgr::Disable(std::string const& name)
 {
     auto app = FindByName(name);
-    
+
     if (app && app->IsEnable())
     {
         app->Disable();
@@ -127,19 +143,19 @@ Application* ApplicationMgr::FindByURL(std::string const& url)
 {
     auto dst(Application::ForCompareUrl(url));
     auto l = _set.upper_bound(dst);
-    
+
     if (l == _set.end())
     {
         return nullptr;
     }
-    
+
     if (Utilities::iStartsWith(url, l->GetUrlRoot()))
     {
         return const_cast<Application*>(&(*l));
     }
-    
+
     auto u = _set.lower_bound(dst);
-    
+
     for (auto it = ++l; it != u && it != _set.end(); ++it)
     {
         if (Utilities::iStartsWith(url, it->GetUrlRoot()))
@@ -147,7 +163,7 @@ Application* ApplicationMgr::FindByURL(std::string const& url)
             return const_cast<Application*>(&(*l)); //(set's element is always const)
         }
     }
-    
+
     return nullptr;
 }
 
@@ -160,7 +176,7 @@ Application* ApplicationMgr::FindByName(std::string const& name)
             return const_cast<Application*>(&a);
         }
     }
-    
+
     return nullptr;
 }
 
@@ -173,7 +189,7 @@ Application const* ApplicationMgr::FindByName(std::string const& name) const
             return &a;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -185,13 +201,13 @@ std::string join_app_path(std::string const& app_root, std::string const& path)
         {
             return app_root + path.substr(1, path.size() - 1);
         }
-        
+
         if (*app_root.rbegin() != '/' && *path.begin() != '/')
         {
             return app_root + "/" + path;
         }
     }
-    
+
     return app_root + path;
 }
 
@@ -234,43 +250,40 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
 Handler Application::FindHandler(Context ctx)
 {
     HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
-    
+
     if (m == HandlerMethod::UNSUPPORT)
     {
         return theEmptyHandler;
     }
-    
+
     std::string const& url = ctx->Req().GetUrl().full;
     Handler h = _equalRouter.Search(url, m);
-    
+
     if (!h)
     {
         h = _startwithsRouter.Search(url, m);
-        
+
         if (!h)
         {
             h = _regexRouter.Search(url, m);
         }
     }
-    
+
     return h;
 }
 
 void Application::Handle(Context ctx)
 {
     Handler h = FindHandler(ctx);
-    
+
     if (!h)
     {
         //404
-        ctx->Res().SetStatusCode(HTTP_STATUS_NOT_FOUND);
-        ctx->Res().AddHeader("Context-Type", "text/html");
-        ctx->Res().SetBody("<!DOCTYPE html><html lang = \"zh-cn\"><body><h1>404 NO FOUND</h1></body></html>");
+        ctx->Res().Nofound();
         ctx->Bye();
-        
         return;
     }
-    
+
     h(ctx);
 }
 
