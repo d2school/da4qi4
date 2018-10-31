@@ -74,7 +74,9 @@ void Connection::update_request_after_header_parsed()
     _request.MarkUpgrade(_parser->upgrade);
     _request.SetMethod(_parser->method);
     _request.SetVersion(_parser->http_major, _parser->http_minor);
+    _response.SetVersion(_parser->http_major, _parser->http_minor);
     try_commit_reading_request_header();
+    _request.TransferHeadersToCookies();
     _request.ParseContentType();
 }
 
@@ -409,7 +411,7 @@ void Connection::free_multipart_parser(mp_free_flag flag)
         _mp_parser_setting = nullptr;
     }
 
-    if (_mp_parser && will_free_mp_parser)
+    if (_mp_parser && (flag & will_free_mp_parser))
     {
         multipart_parser_free(_mp_parser);
         _mp_parser = nullptr;
@@ -432,7 +434,7 @@ void Connection::do_read()
             return;
         }
 
-        int parsed = http_parser_execute(_parser, &_parser_setting, _buffer.data(), bytes_transferred);
+        auto parsed = http_parser_execute(_parser, &_parser_setting, _buffer.data(), bytes_transferred);
 
         if (parsed != bytes_transferred)
         {
@@ -448,13 +450,12 @@ void Connection::do_read()
             return;
         }
 
-        bool must_have_a_app_after_message_read_complete = (_app != nullptr);
-        assert(must_have_a_app_after_message_read_complete);
+        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER MESSAGE READ COMPLETED.");
 
         if (_request.IsFormData())
         {
             auto const& options = _app->GetUploadFileSaveOptions();
-            std::string dir = _app->GetUploadTempPath().native();
+            std::string dir = _app->GetUploadRoot().native();
             _request.TransferMultiPartsToFormData(options, dir);
         }
 
@@ -508,6 +509,7 @@ void Connection::do_write()
 
         if (self->_request.IsKeepAlive() && self->_response.IsKeepAlive())
         {
+            self->_response.Reset();
             self->do_read();
         }
     });

@@ -1,10 +1,12 @@
-#ifndef ASIO_UTILITIES_HPP
-#define ASIO_UTILITIES_HPP
+#ifndef DAQI_ASIO_UTILITIES_HPP
+#define DAQI_ASIO_UTILITIES_HPP
 
 #include "def/asio_def.hpp"
 
-namespace da4qi4 {
-namespace Utilities {
+namespace da4qi4
+{
+namespace Utilities
+{
 
 Tcp::endpoint make_endpoint(char const* host, unsigned short port);
 
@@ -12,4 +14,4 @@ Tcp::endpoint make_endpoint(char const* host, unsigned short port);
 } //namespace da4qi4
 
 
-#endif // ASIO_UTILITIES_HPP
+#endif // DAQI_ASIO_UTILITIES_HPP

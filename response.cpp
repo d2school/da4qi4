@@ -100,9 +100,110 @@ char const* HttpStatusSummaryGetter(int code)
     return (cit == rsm._map.cend()) ? "" : cit->second;
 }
 
+Cookie& Cookie::SetExpires(std::time_t a_time_point)
+{
+    std::time_t now(std::time(nullptr));
+    _max_age = a_time_point - now;
+    return *this;
+}
+
+struct QV
+{
+    QV(std::string const& v, char const* q = "")
+        : v(v), q(q)
+    {}
+
+    std::string const& v;
+    std::string q;
+};
+
+std::ostream& operator << (std::ostream& os, QV const& qv)
+{
+    if (qv.q.empty())
+    {
+        return os << qv.v;
+    }
+
+    bool need_esc = qv.v.find(qv.q) != std::string::npos;
+
+    if (!need_esc)
+    {
+        return os << qv.q << qv.v << qv.q;
+    }
+
+    std::string dst = std::string("\\") + qv.q;
+    std::string esc = Utilities::ReplaceAll(qv.v, qv.q, dst);
+    return os << qv.q << esc << qv.q;
+}
+
+std::ostream& operator << (std::ostream& os, Cookie const& c)
+{
+    char const* qs[] = {"", "\""};
+    char const* q = qs[!!c._old_version];
+    os << c._name << '=' << QV(c._value, q);
+
+    if (c.IsExpiredImmediately())
+    {
+        os << ((!c._old_version) ? "; Max-Age=-1" : "; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+    }
+    else if (!c.IsExpiredAfterBrowerClose())
+    {
+        if (!c._old_version)
+        {
+            os << "; Max-Age=" << QV(std::to_string(c._max_age), q);
+        }
+        else
+        {
+            std::time_t expires = std::time(nullptr) + c._max_age;
+            os << "; Expires=" << QV(Utilities::GMTFormatTime(expires), q);
+        }
+    }
+
+    if (!c._domain.empty())
+    {
+        os << "; Domain=" << QV(c._domain, q);
+    }
+
+    if (!c._path.empty())
+    {
+        os << "; Path=" << QV(c._path, q);
+    }
+
+    if (!c._old_version)
+    {
+        if (c._samesite != Cookie::SameSite::none)
+        {
+            std::string v = (c._samesite == Cookie::SameSite::lax) ? "Lax" : "Strict";
+            os << "; SameSite=" << QV(v, q);
+        }
+    }
+
+    if (c._secure)
+    {
+        os << "; Secure";
+    }
+
+    if (c._http_only)
+    {
+        os << "; HttpOnly";
+    }
+
+    return os;
+}
+
 Response::Response()
 {
     _headers["Server"] = "da4qi4/0.99";
+}
+
+void Response::Reset()
+{
+    _status_code = HTTP_STATUS_OK;
+    _headers.clear();
+    _body.clear();
+    _charset = "UTF-8";
+    _version_major  = _version_minor = 1;
+    _cookies.clear();
 }
 
 void Response::AppendHeader(std::string const& field, std::string const& value)
@@ -118,22 +219,18 @@ void Response::AppendHeader(std::string const& field, std::string const& value)
         _headers.insert(std::make_pair(std::move(field), std::move(value)));
     }
 }
-
 bool Response::IsExistsHeader(std::string const& field) const
 {
     return Utilities::IsExistsHeader(_headers, field);
 }
-
 std::string const& Response::GetHeader(std::string const& field) const
 {
     return Utilities::GetHeader(_headers, field);
 }
-
 OptionalStringRefConst Response::TryGetHeader(std::string const& field) const
 {
     return Utilities::TryGetHeader(_headers, field);
 }
-
 std::pair<std::string, std::string> split_content_type_value(std::string const& value)
 {
     auto pair = std::make_pair(value, std::string());
@@ -151,7 +248,6 @@ std::pair<std::string, std::string> split_content_type_value(std::string const& 
 
     return pair;
 }
-
 std::string Response::GetContentType(ContentTypeValuePart part) const
 {
     std::string value = GetHeader("Content-Type");
@@ -163,7 +259,7 @@ std::string Response::GetContentType(ContentTypeValuePart part) const
 
     if (!value.empty())
     {
-        auto pos = value.find(" ;");
+        auto pos = value.find(";");
 
         if (pos != std::string::npos)
         {
@@ -173,12 +269,10 @@ std::string Response::GetContentType(ContentTypeValuePart part) const
 
     return value;
 }
-
 bool is_content_type_need_charset(std::string const& content_type)
 {
     return Utilities::iStartsWith(content_type, "text/");
 }
-
 void Response::SetCharset(std::string const& charset)
 {
     _charset = charset;
@@ -195,7 +289,6 @@ void Response::SetCharset(std::string const& charset)
         }
     }
 }
-
 void Response::SetContentType(std::string const& content_type)
 {
     std::string field_value;
@@ -204,37 +297,31 @@ void Response::SetContentType(std::string const& content_type)
 
     if (is_content_type_need_charset(content_type) && !_charset.empty())
     {
-        field_value += ("; " + _charset);
+        field_value += ("; charset=" + _charset);
     }
 
-    AppendHeader("Context-Type", field_value);
+    AppendHeader("Content-Type", field_value);
 }
-
 void Response::SetContentType(std::string const& content_type
                               , std::string const& content_charset)
 {
     std::string field_value;
-    field_value.reserve(content_type.size() + content_charset.size() + 2);
-    field_value = content_type + "; " + content_charset;
-    AppendHeader("Context-Type", field_value);
+    field_value = content_type + "; charset=" + content_charset;
+    AppendHeader("Content-Type", field_value);
 }
-
 bool Response::IsChunked() const
 {
     auto item = TryGetHeader("Transfer-charset");
     return (item && Utilities::iEquals(*item, "chunked"));
 }
-
 void Response::MarkKeepAlive()
 {
     AppendHeader("Connection", "keep-alive");
 }
-
 void Response::MarkClose()
 {
     AppendHeader("Connection", "close");
 }
-
 bool Response::IsKeepAlive() const
 {
     auto value = TryGetHeader("Connection");
@@ -248,17 +335,16 @@ bool Response::IsKeepAlive() const
         return (!value || !Utilities::iEquals(*value, "close"));
     }
 }
-
 bool Response::IsClose() const
 {
     return !IsKeepAlive();
 }
 
-void Response::set_or_default_body(std::string const& body, bool provide_default_if_body_is_empty)
+void Response::set_or_default_body(std::string body, bool provide_default_if_body_is_empty)
 {
     if (!body.empty())
     {
-        SetBody(body);
+        SetBody(std::move(body));
         return;
     }
 
@@ -268,130 +354,170 @@ void Response::set_or_default_body(std::string const& body, bool provide_default
         SetBody(HttpStatusSummaryGetter(_status_code));
     }
 }
-
-void Response::Status(int code, std::string const& body)
+void Response::Status(int code, std::string body)
 {
     _status_code = code;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::Ok(std::string const& body)
+void Response::Ok(std::string body)
 {
     _status_code = HTTP_STATUS_OK;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::Nofound(std::string const& body)
+void Response::Nofound(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_FOUND;
     set_or_default_body(body, false);
 }
 
-void Response::Gone(std::string const& body)
+void Response::Gone(std::string body)
 {
     _status_code = HTTP_STATUS_GONE;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::Unauthorized(std::string const& body)
+void Response::Unauthorized(std::string body)
 {
     _status_code = HTTP_STATUS_UNAUTHORIZED;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::NoAuthoritativeInformation(std::string const& body)
+void Response::NoAuthoritativeInformation(std::string body)
 {
     _status_code = HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::BadRequest(std::string const& body)
+void Response::BadRequest(std::string body)
 {
     _status_code = HTTP_STATUS_BAD_REQUEST;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::RangeNotSatisfiable(std::string const& body)
+void Response::RangeNotSatisfiable(std::string body)
 {
     _status_code = HTTP_STATUS_RANGE_NOT_SATISFIABLE;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::Forbidden(std::string const& body)
+void Response::Forbidden(std::string body)
 {
     _status_code = HTTP_STATUS_FORBIDDEN;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::MethodNotAllowed(std::string const& body)
+void Response::MethodNotAllowed(std::string body)
 {
     _status_code = HTTP_STATUS_METHOD_NOT_ALLOWED;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::HttpVersionNotSupported(std::string const& body)
+void Response::HttpVersionNotSupported(std::string body)
 {
     _status_code = HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::PayloadTooLarge(std::string const& body)
+void Response::PayloadTooLarge(std::string body)
 {
     _status_code = HTTP_STATUS_PAYLOAD_TOO_LARGE;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::UriTooLong(std::string const& body)
+void Response::UriTooLong(std::string body)
 {
     _status_code = HTTP_STATUS_URI_TOO_LONG;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::TooManyRequests(std::string const& body)
+void Response::TooManyRequests(std::string body)
 {
     _status_code = HTTP_STATUS_TOO_MANY_REQUESTS;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::NotImplemented(std::string const& body)
+void Response::NotImplemented(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_IMPLEMENTED;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::UnsupportedMediaType(std::string const& body)
+void Response::UnsupportedMediaType(std::string body)
 {
     _status_code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::ServiceUnavailable(std::string const& body)
+void Response::ServiceUnavailable(std::string body)
 {
     _status_code = HTTP_STATUS_SERVICE_UNAVAILABLE;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::InternalServerError(std::string const& body)
+void Response::InternalServerError(std::string body)
 {
     _status_code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
-void Response::MovedPermanently(std::string const& dst_location, std::string const& body)
+void Response::MovedPermanently(std::string const& dst_location, std::string body)
 {
     _status_code = HTTP_STATUS_MOVED_PERMANENTLY;
     SetLocation(dst_location);
-    set_or_default_body(body);
+    set_or_default_body(std::move(body));
 }
 
 void Response::Redirect(std::string const& dst_location
                         , RedirectType type
-                        , std::string const& body)
+                        , std::string body)
 {
     _status_code = (type != RedirectType::permanent) ? HTTP_STATUS_PERMANENT_REDIRECT
                    : HTTP_STATUS_TEMPORARY_REDIRECT;
     SetLocation(dst_location);
     set_or_default_body(body, false);
+}
+
+void Response::SetCookie(Cookie const& cookie)
+{
+    for (auto& c : _cookies)
+    {
+        if (Utilities::iEquals(c.GetName(), cookie.GetName())
+            && Utilities::iEquals(c.GetDomain(), cookie.GetDomain())
+            && Utilities::iEquals(c.GetPath(), cookie.GetPath()))
+        {
+            c = cookie;
+            return;
+        }
+    }
+
+    _cookies.push_back(cookie);
+}
+
+void Response::SetCookieExpiredImmediately(std::string const& name,
+                                           std::string const& domain, std::string const& path)
+{
+    bool found = false;
+
+    for (auto& c : _cookies)
+    {
+        if (Utilities::iEquals(c.GetName(), name)
+            && Utilities::iEquals(c.GetDomain(), domain)
+            && Utilities::iEquals(c.GetPath(), path))
+        {
+            c.SetValue("").SetExpiredImmediately();
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        Cookie cookie(name, "", domain, path);
+        cookie.SetExpiredImmediately();
+        _cookies.push_back(cookie);
+    }
 }
 
 std::ostream& operator << (std::ostream& os, Response const& res)
@@ -406,9 +532,13 @@ std::ostream& operator << (std::ostream& os, Response const& res)
         os << h.first << ":" << h.second << "\r\n";
     }
 
+    for (auto const& cookie : res.GetCookies())
+    {
+        os << "Set-Cookie:" << cookie << "\r\n";
+    }
+
     os << "Content-Length:" << res.GetBody().size() << "\r\n\r\n";
     os << res.GetBody();
     return os;
 }
-
 }

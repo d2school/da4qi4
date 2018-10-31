@@ -1,5 +1,5 @@
-#ifndef CONTEXT_HPP
-#define CONTEXT_HPP
+#ifndef DAQI_CONTEXT_HPP
+#define DAQI_CONTEXT_HPP
 
 #include <memory>
 #include <functional>
@@ -25,17 +25,22 @@ class ContextIMP
 public:
     static Context Make(ConnectionPtr cnt);
     ~ContextIMP();
-    
+
     ContextIMP(ContextIMP const&) = delete;
     ContextIMP& operator = (ContextIMP const&) = delete;
-    
+
     Request const& Req();
     Response& Res();
-    
+
+    std::string const& Req(std::string const& name)
+    {
+        return this->Req()[name];
+    }
+
     Application& App();
-    
+
     void Bye();
-    
+
 private:
     ConnectionPtr _cnt;
 };
@@ -44,4 +49,4 @@ private:
 } //namespace da4qi4
 
 
-#endif // CONTEXT_HPP
+#endif // DAQI_CONTEXT_HPP

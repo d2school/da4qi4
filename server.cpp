@@ -18,9 +18,8 @@ Server::Server(boost::asio::io_context& ioc, short port)
 
 std::string extract_app_path(std::string const& app_root, std::string const& path)
 {
-    bool _path_must_startswith_app_root_ = Utilities::iStartsWith(path, app_root);
-    assert(_path_must_startswith_app_root_);
-    
+    assert((Utilities::iStartsWith(path, app_root)) && "URL MUST STARTSWITH APPLICATION ROOT");
+
     return path.substr(app_root.size());
 }
 
@@ -28,17 +27,17 @@ template<typename R, typename M>
 Application* ServerAddHandler(Server* s, M m, R r, Handler h)
 {
     Application* app = s->PrepareApp(r.s);
-    
+
     if (app)
     {
         r.s = extract_app_path(app->GetUrlRoot(), r.s);
-        
+
         if (app->AddHandler(m, r, h))
         {
             return app;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -76,12 +75,14 @@ Application* Server::PrepareApp(std::string const& r)
 {
     make_default_app_if_need();
     auto app = AppMgr()->FindByURL(r);
-    
+
     if (!app)
     {
         std::cerr << "no found a app for URL. " << r << std::endl;
         return nullptr;
     }
+
+    return app;
 }
 
 void Server::make_default_app_if_need()
@@ -101,9 +102,9 @@ void Server::Start()
 void Server::do_accept()
 {
     auto self = this->shared_from_this();
-    
+
     this->_acceptor.async_accept(
-        [self](errorcode ec, boost::asio::ip::tcp::socket socket)
+                [self](errorcode ec, boost::asio::ip::tcp::socket socket)
     {
         if (ec)
         {
@@ -115,7 +116,7 @@ void Server::do_accept()
             auto cnt = std::make_shared<Connection>(std::move(socket));
             cnt->Start();
         }
-        
+
         self->do_accept();
     });
 }

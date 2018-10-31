@@ -1,5 +1,5 @@
-#ifndef DEF_HPP
-#define DEF_HPP
+#ifndef DAQI_DEF_HPP
+#define DAQI_DEF_HPP
 
 #include <string>
 #include <map>
@@ -8,6 +8,8 @@
 #include <list>
 #include <vector>
 #include <set>
+
+#include "nlohmann/json_fwd.hpp"
 
 #include "utilities/string_utilities.hpp"
 
@@ -37,6 +39,8 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
+using json = nlohmann::json;
+
 } //namespace da4qi4
 
-#endif // DEF_HPP
+#endif // DAQI_DEF_HPP

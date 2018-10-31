@@ -1,5 +1,5 @@
-#ifndef SERVER_HPP
-#define SERVER_HPP
+#ifndef DAQI_SERVER_HPP
+#define DAQI_SERVER_HPP
 
 #include "def/asio_def.hpp"
 
@@ -62,4 +62,4 @@ private:
 
 }
 
-#endif // SERVER_HPP
+#endif // DAQI_SERVER_HPP

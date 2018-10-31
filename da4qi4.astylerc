@@ -22,7 +22,6 @@ align-pointer=type
 break-blocks
 pad-oper
 pad-header
-delete-empty-lines
 align-pointer=type
 align-reference=type
 

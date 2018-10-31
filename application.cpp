@@ -27,24 +27,13 @@ Application::Application(std::string const& name
                          , fs::path const& root_template
                          , fs::path const& root_upload
                          , fs::path const& root_temporary)
-    : Application(name, "utf-8", root_url, root_static, root_template, root_upload, root_temporary)
-{
-}
-
-Application::Application(std::string const& name
-                         , std::string const& default_charset
-                         , std::string const& root_url
-                         , fs::path const& root_static
-                         , fs::path const& root_template
-                         , fs::path const& root_upload
-                         , fs::path const& root_temporary)
     : _name(name)
-    , _default_charset(default_charset)
     , _root_url(root_url)
     , _root_static(root_static)
     , _root_template(root_template)
     , _root_upload(root_upload)
     , _root_temporary(root_temporary)
+
 {
     init_pathes();
 }
@@ -63,27 +52,50 @@ void Application::Enable()
     _disabled = false;
 }
 
-
-#define assign_path(dst, path_getter) \
-    do \
-    { \
-        if (dst.empty()) \
-        {\
-            errorcode ec; \
-            dst = path_getter(ec); \
-            if (ec) \
-            { \
-                std::cerr << "init default path for " << #dst << " fail. " << ec << "\r\n"; \
-            } \
-        }\
-    } while (false)
-
 void Application::init_pathes()
 {
-    assign_path(_root_static, fs::current_path);
-    assign_path(_root_template, fs::current_path);
-    assign_path(_root_upload, fs::temp_directory_path);
-    assign_path(_root_temporary, fs::temp_directory_path);
+    try
+    {
+        if (_root_static.empty())
+        {
+            _root_static = fs::current_path();
+        }
+        else if (!_root_static.is_absolute())
+        {
+            _root_static = fs::absolute(_root_static);
+        }
+
+        if (_root_template.empty())
+        {
+            _root_template = fs::current_path();
+        }
+        else if (!_root_template.is_absolute())
+        {
+            _root_template = fs::absolute(_root_template);
+        }
+
+        if (_root_upload.empty())
+        {
+            _root_upload = fs::temp_directory_path();
+        }
+        else if (!_root_upload.is_absolute())
+        {
+            _root_upload = fs::absolute(_root_upload);
+        }
+
+        if (_root_temporary.empty())
+        {
+            _root_temporary = fs::current_path();
+        }
+        else if (!_root_temporary.is_absolute())
+        {
+            _root_temporary = fs::absolute(_root_temporary);
+        }
+    }
+    catch (fs::filesystem_error const& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
 }
 
 bool ApplicationMgr::CreateDefaultIfEmpty()
@@ -238,7 +250,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h)
 bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h)
 {
     r.s = join_app_path(_root_url, r.s);
-    _startwithsRouter.Add(r, ms, h);
+    return _startwithsRouter.Add(r, ms, h);
 }
 
 bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)

@@ -16,7 +16,7 @@ public:
     {}
 
     size_t Preload();
-    inja::Template const* const const& Get(std::string const& name);
+    inja::Template const* Get(std::string const& name);
 
 private:
     std::map<std::string, inja::Template> _templates;

@@ -1,5 +1,5 @@
-#ifndef CONTAINER_UTILITIES_HPP
-#define CONTAINER_UTILITIES_HPP
+#ifndef DAQI_CONTAINER_UTILITIES_HPP
+#define DAQI_CONTAINER_UTILITIES_HPP
 
 #include "def/def.hpp"
 #include "def/boost_def.hpp"
@@ -35,5 +35,5 @@ OptionalStringRefConst TryGetHeader(HeadersT const& headers, std::string const& 
 } //namespace Utilities
 } //namespace da4qi4
 
-#endif // CONTAINER_UTILITIES_HPP
+#endif // DAQI_CONTAINER_UTILITIES_HPP
 

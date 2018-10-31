@@ -1,5 +1,5 @@
-#ifndef APPLICATION_HPP
-#define APPLICATION_HPP
+#ifndef DAQI_APPLICATION_HPP
+#define DAQI_APPLICATION_HPP
 
 #include <set>
 
@@ -41,32 +41,45 @@ public:
                 , fs::path const& root_temporary = ""
                );
 
-    Application(std::string const& name
-                , std::string const& default_encoding
-                , std::string const& root_url
-                , fs::path const& root_static = ""
-                , fs::path const& root_template = ""
-                , fs::path const& root_upload = ""
-                , fs::path const& root_temporary = ""
-               );
-
     Application(Application const&) = default;
     Application& operator = (Application const&) = delete;
 
     ~Application();
 
+    Application& SetStaticRoot(std::string const& root_static)
+    {
+        _root_static = root_static;
+        return *this;
+    }
+
+    Application& SetTemplateRoot(std::string const& root_template)
+    {
+        _root_template = root_template;
+        return *this;
+    }
+
+    Application& SetDefaultCharset(std::string const& charset)
+    {
+        _default_charset = charset;
+        return *this;
+    }
+
+    Application& SetUploadRoot(std::string const& root_upload)
+    {
+        _root_upload = root_upload;
+        return *this;
+    }
+
     std::string const& GetName() const
     {
         return _name;
     }
+
     std::string const& GetDefaultCharset() const
     {
         return _default_charset;
     }
-    void SetDefaultCharset(std::string const& charset)
-    {
-        _default_charset = charset;
-    }
+
     std::string const& GetUrlRoot() const
     {
         return _root_url;
@@ -76,11 +89,13 @@ public:
     {
         return _root_static;
     }
-    fs::path const& GetTemplateRootPath() const
+
+    fs::path const& GetTemplateRoot() const
     {
         return _root_template;
     }
-    fs::path const& GetUploadTempPath() const
+
+    fs::path const& GetUploadRoot() const
     {
         return _root_upload;
     }
@@ -142,7 +157,7 @@ private:
     bool _disabled = false;
 
     std::string _name;
-    std::string _default_charset;
+    std::string _default_charset = "UTF-8";
 
     std::string _root_url;
     fs::path _root_static;
@@ -192,6 +207,7 @@ struct ApplicationMgr
     {
         return _set.size();
     }
+
 private:
     ApplicationSet _set;
 };
@@ -200,4 +216,4 @@ ApplicationMgr* AppMgr();
 
 } // namespace da4qi4
 
-#endif // APPLICATION_HPP
+#endif // DAQI_APPLICATION_HPP

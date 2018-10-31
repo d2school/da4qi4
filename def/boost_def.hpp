@@ -1,5 +1,5 @@
-#ifndef FILESYSTEM_DEF_HPP
-#define FILESYSTEM_DEF_HPP
+#ifndef DAQI_BOOST_DEF_HPP
+#define DAQI_BOOST_DEF_HPP
 
 #include <string>
 
@@ -21,4 +21,4 @@ using OptionalStringRefConst = boost::optional<std::string const&>;
 
 } //namesapce da4qi4
 
-#endif // FILESYSTEM_DEF_HPP
+#endif // DAQI_BOOST_DEF_HPP

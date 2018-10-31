@@ -1,7 +1,5 @@
 #include "request.hpp"
 
-#include <boost/algorithm/string.hpp>
-
 #include "def/debug_def.hpp"
 #include "utilities/string_utilities.hpp"
 #include "utilities/file_utilities.hpp"
@@ -151,6 +149,9 @@ std::string const& Request::GetParameter(std::string const& name) const
 
         case fromCookie:
             return GetCookie(name);
+
+        case fromUnknown:
+            break;
     }
 
     return Utilities::theEmptyString;
@@ -173,6 +174,9 @@ OptionalStringRefConst Request::TryGetParameter(std::string const& name) const
 
         case fromCookie:
             return TryGetCookie(name);
+
+        case fromUnknown:
+            break;
     }
 
     return OptionalStringRefConst(NoneObject);
@@ -319,8 +323,7 @@ void Request::SetMultiPartBoundary(char const* at, size_t length)
 
 void MultiPartSplitSubHeadersFromValue(std::string const& value, MultiPart::SubHeaders& sub_headers)
 {
-    std::vector<std::string> parts;
-    boost::algorithm::split(parts, value, boost::is_any_of(";"));
+    std::vector<std::string> parts = Utilities::SplitByChar(value, ';');
     sub_headers.value.clear();
 
     for (auto p : parts)
@@ -337,9 +340,9 @@ void MultiPartSplitSubHeadersFromValue(std::string const& value, MultiPart::SubH
         else
         {
             std::string f = p.substr(0, pos);
-            boost::trim(f);
+            Utilities::Trim(f);
             std::string v = p.substr(pos + 1);
-            boost::trim(v);
+            Utilities::Trim(v);
             size_t vl = v.size();
 
             if (vl >= 2)
@@ -369,6 +372,28 @@ MultiPart::SubHeaders MultiPart::GetSubHeaders(std::string const& field)
     }
 
     return h;
+}
+
+void Request::TransferHeadersToCookies()
+{
+    auto value = GetHeader("Cookie");
+
+    if (!value.empty())
+    {
+        std::vector<std::string> parts = Utilities::SplitByChar(value, ';');
+
+        for (auto part : parts)
+        {
+            std::vector<std::string> kv = Utilities::SplitByChar(part, '=');
+
+            if (!kv.empty())
+            {
+                std::string const& k = kv[0];
+                std::string const& v = (kv.size() > 1) ? kv[1] : Utilities::theEmptyString;
+                _cookies.emplace(std::move(k), std::move(v));
+            }
+        }
+    }
 }
 
 bool TransferMultiPartToFormDataItem(MultiPart&& mp, FormDataItem& fdi)

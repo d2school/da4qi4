@@ -1,5 +1,5 @@
-#ifndef REQUEST_HPP
-#define REQUEST_HPP
+#ifndef DAQI_REQUEST_HPP
+#define DAQI_REQUEST_HPP
 
 #include <string>
 #include <map>
@@ -205,10 +205,12 @@ public:
     {
         return _url;
     }
+
     http_method GetMethod() const
     {
         return static_cast<http_method>(_method);
     }
+
     std::string GetMethodName() const
     {
         return http_method_str(GetMethod());
@@ -219,7 +221,7 @@ public:
         return _headers;
     }
 
-    Headers const& GetCookies() const
+    ICHeaders const& GetCookies() const
     {
         return _cookies;
     }
@@ -340,6 +342,7 @@ public:
         _multiparts.push_back(std::move(part));
     }
 
+    void TransferHeadersToCookies();
     void TransferMultiPartsToFormData(UploadFileSaveOptions const& options, std::string const& dir);
 
     void Reset();
@@ -369,10 +372,10 @@ private:
     std::string _boundary;
     std::vector<MultiPart> _multiparts;
 
-    Headers _cookies;
+    ICHeaders _cookies;
     std::vector<FormDataItem> _formdata;
 };
 
 } //namespace da4qi4
 
-#endif // REQUEST_HPP
+#endif // DAQI_REQUEST_HPP

@@ -1,5 +1,5 @@
-#ifndef FILE_UTILITIES_HPP
-#define FILE_UTILITIES_HPP
+#ifndef DAQI_FILE_UTILITIES_HPP
+#define DAQI_FILE_UTILITIES_HPP
 
 #include <string>
 
@@ -13,4 +13,4 @@ bool SaveDataToFile(std::string const& data, std::string const& dir, std::string
 } //namesapce Utilities
 } //namespace da4qi4
 
-#endif // FILE_UTILITIES_HPP
+#endif // DAQI_FILE_UTILITIES_HPP

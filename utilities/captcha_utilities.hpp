@@ -1,5 +1,5 @@
-#ifndef CAPTCHA_UTILITIES_HPP
-#define CAPTCHA_UTILITIES_HPP
+#ifndef DAQI_CAPTCHA_UTILITIES_HPP
+#define DAQI_CAPTCHA_UTILITIES_HPP
 
 #include <string>
 
@@ -21,4 +21,4 @@ extern void make_captcha_image(char const* captcha_text
 } //namespace Utilities
 } //namespace da4qi4
 
-#endif // CAPTCHA_UTILITIES_HPP
+#endif // DAQI_CAPTCHA_UTILITIES_HPP

@@ -1,8 +1,10 @@
-#ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+#ifndef DAQI_RESPONSE_HPP
+#define DAQI_RESPONSE_HPP
 
 #include <iostream>
 #include <functional>
+#include <vector>
+#include <limits>
 
 #include "http-parser/http_parser.h"
 
@@ -13,6 +15,177 @@ namespace da4qi4
 {
 
 std::string const&  EmptyBody();
+
+struct Cookie
+{
+    enum class HttpOnly {for_http_and_js = 0, for_http_only = 1};
+    enum class Secure {for_http_and_https = 0, for_https_only = 1};
+    enum class SameSite {none = 0, lax, strict};
+
+    Cookie() = default;
+    Cookie(Cookie const&) = default;
+
+    Cookie(std::string const& name, std::string const& value)
+        : _name(name), _value(value)
+    {}
+
+    Cookie(std::string const& name, std::string const& value, std::string const& domain)
+        : _name(name), _value(value), _domain(domain)
+    {}
+
+    Cookie(std::string const& name, std::string const& value
+           , std::string const& domain, std::string const& path)
+        : _name(name), _value(value), _domain(domain), _path(path)
+    {}
+
+    std::string const& GetName() const
+    {
+        return _name;
+    }
+
+    std::string const& GetDomain() const
+    {
+        return _domain;
+    }
+
+    std::string const& GetPath() const
+    {
+        return _path;
+    }
+
+    std::string const& GetValue() const
+    {
+        return _value;
+    }
+
+    Cookie& SetName(std::string const& name)
+    {
+        _name = name;
+        return *this;
+    }
+
+    Cookie& SetValue(std::string const& value)
+    {
+        _name = value;
+        return *this;
+    }
+
+    Cookie& SetDomain(std::string const& domain)
+    {
+        _domain = domain;
+        return *this;
+    }
+
+    Cookie& SetPath(std::string const& path)
+    {
+        _path = path;
+        return *this;
+    }
+
+    Cookie& ApplyHttpVersion(unsigned short http_version_major, unsigned short http_version_minor)
+    {
+        _old_version = ((http_version_major < 1)
+                        || (http_version_major == 1 && http_version_minor == 0));
+        return *this;
+    }
+
+    Cookie& SetHttpOnly(HttpOnly only)
+    {
+        _http_only = only == HttpOnly::for_http_only;
+        return *this;
+    }
+
+    bool IsHttpOnly() const
+    {
+        return _http_only;
+    }
+
+    Cookie& SetMaxAge(int seconds)
+    {
+        _max_age = (seconds >= 0) ? seconds : 0;
+        return *this;
+    }
+
+    int GetMaxAge() const
+    {
+        return _max_age;
+    }
+
+    Cookie& SetExpires(std::time_t a_time_point);
+
+    Cookie& SetExpiredAfterBrowerClose()
+    {
+        _max_age = expires_after_brower_close;
+        return *this;
+    }
+
+    bool IsExpiredAfterBrowerClose() const
+    {
+        return _max_age == expires_after_brower_close;
+    }
+
+    Cookie& SetExpiredImmediately()
+    {
+        _max_age = expires_immediately;
+        return *this;
+    }
+
+    bool IsExpiredImmediately() const
+    {
+        return _max_age == expires_immediately;
+    }
+
+    bool IsOldVersion() const
+    {
+        return _old_version;
+    }
+
+    bool IsSecure() const
+    {
+        return _secure;
+    }
+
+    Cookie& SetSecure(Secure secure)
+    {
+        _secure = (secure == Secure::for_https_only);
+        return *this;
+    }
+
+    SameSite GetSameSite() const
+    {
+        return _samesite;
+    }
+
+    Cookie& SetSameSite(SameSite ss)
+    {
+        _samesite = ss;
+        return *this;
+    }
+
+private:
+    enum
+    {
+        expires_after_brower_close = std::numeric_limits<int>::min()
+        , expires_immediately
+    };
+
+    bool _old_version = false;
+
+    std::string _name;
+    std::string _value;
+    std::string _domain;
+    std::string _path;
+    int _max_age = expires_after_brower_close;
+
+    bool _http_only = false;
+    bool _secure = false;
+
+    SameSite _samesite = SameSite::none;
+
+    friend std::ostream& operator << (std::ostream& os, Cookie const& c);
+};
+
+std::ostream& operator << (std::ostream& os, Cookie const& c);
 
 class Response
 {
@@ -130,64 +303,159 @@ public:
         }
     }
 
-public:
-    void Status(int code, std::string const& body = EmptyBody());
+    void SetCookie(std::string const& name, std::string const& value)
+    {
+        Cookie cookie(name, value);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
 
-    void Ok(std::string const& body = EmptyBody());
+    void SetSecureCookie(std::string const& name, std::string const& value)
+    {
+        Cookie cookie(name, value);
+        cookie.SetSecure(Cookie::Secure::for_https_only);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetCookie(std::string const& name, std::string const& value, Cookie::HttpOnly http_only)
+    {
+        Cookie cookie(name, value);
+        cookie.SetHttpOnly(http_only);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetSecureCookie(std::string const& name, std::string const& value, Cookie::HttpOnly http_only)
+    {
+        Cookie cookie(name, value);
+        cookie.SetSecure(Cookie::Secure::for_https_only);
+        cookie.SetHttpOnly(http_only);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetCookie(std::string const& name, std::string const& value
+                   , std::size_t max_age, Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js)
+    {
+        Cookie cookie(name, value);
+        cookie.SetMaxAge(max_age);
+        cookie.SetHttpOnly(http_only);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetSecureCookie(std::string const& name, std::string const& value
+                         , std::size_t max_age, Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js)
+    {
+        Cookie cookie(name, value);
+        cookie.SetSecure(Cookie::Secure::for_https_only);
+        cookie.SetMaxAge(max_age);
+        cookie.SetHttpOnly(http_only);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetCookie(std::string const& name, std::string const& value
+                   , std::string const& domain, std::string const& path
+                   , std::size_t max_age, Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js)
+    {
+        Cookie cookie(name, value, domain, path);
+        cookie.SetHttpOnly(http_only);
+        cookie.SetMaxAge(max_age);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetSecureCookie(std::string const& name, std::string const& value
+                         , std::string const& domain, std::string const& path
+                         , std::size_t max_age, Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js)
+    {
+        Cookie cookie(name, value, domain, path);
+        cookie.SetSecure(Cookie::Secure::for_https_only);
+        cookie.SetHttpOnly(http_only);
+        cookie.SetMaxAge(max_age);
+        cookie.ApplyHttpVersion(_version_major, _version_minor);
+        SetCookie(cookie);
+    }
+
+    void SetCookie(Cookie const& cookie);
+
+    void SetCookieExpiredImmediately(std::string const& name
+                                     , std::string const& domain = ""
+                                     , std::string const& path = "");
+
+    std::vector<Cookie> const& GetCookies() const
+    {
+        return _cookies;
+    }
+
+    std::vector<Cookie>& GetCookies()
+    {
+        return _cookies;
+    }
+
+    void Reset();
+
+public:
+    void Status(int code, std::string body = EmptyBody());
+
+    void Ok(std::string body = EmptyBody());
     void Continue()
     {
         _status_code = HTTP_STATUS_CONTINUE;
     }
 
-    void Nofound(std::string const& body = EmptyBody());
-    void Gone(std::string const& body = EmptyBody());
+    void Nofound(std::string body = EmptyBody());
+    void Gone(std::string body = EmptyBody());
 
-    void Unauthorized(std::string const& body = EmptyBody());
-    void NoAuthoritativeInformation(std::string const& body = EmptyBody());
-    void BadRequest(std::string const& body = EmptyBody());
-    void RangeNotSatisfiable(std::string const& body = EmptyBody());
-    void Forbidden(std::string const& body = EmptyBody());
-    void MethodNotAllowed(std::string const& body = EmptyBody());
-    void HttpVersionNotSupported(std::string const& body = EmptyBody());
+    void Unauthorized(std::string body = EmptyBody());
+    void NoAuthoritativeInformation(std::string body = EmptyBody());
+    void BadRequest(std::string body = EmptyBody());
+    void RangeNotSatisfiable(std::string body = EmptyBody());
+    void Forbidden(std::string body = EmptyBody());
+    void MethodNotAllowed(std::string body = EmptyBody());
+    void HttpVersionNotSupported(std::string body = EmptyBody());
 
-    void PayloadTooLarge(std::string const& body = EmptyBody());
-    void UriTooLong(std::string const& body = EmptyBody());
-    void TooManyRequests(std::string const& body = EmptyBody());
+    void PayloadTooLarge(std::string body = EmptyBody());
+    void UriTooLong(std::string body = EmptyBody());
+    void TooManyRequests(std::string body = EmptyBody());
     void LengthRequired()
     {
         _status_code = HTTP_STATUS_LENGTH_REQUIRED;
     }
 
-    void NotImplemented(std::string const& body = EmptyBody());
-    void UnsupportedMediaType(std::string const& body = EmptyBody());
+    void NotImplemented(std::string body = EmptyBody());
+    void UnsupportedMediaType(std::string body = EmptyBody());
 
-    void ServiceUnavailable(std::string const& body = EmptyBody());
-    void InternalServerError(std::string const& body = EmptyBody());
+    void ServiceUnavailable(std::string body = EmptyBody());
+    void InternalServerError(std::string body = EmptyBody());
 
-    void MovedPermanently(std::string const& dst_location, std::string const& body = EmptyBody());
+    void MovedPermanently(std::string const& dst_location, std::string body = EmptyBody());
 
     enum class RedirectType {temporary,  permanent};
     void Redirect(std::string const& dst_location
                   , RedirectType type = RedirectType::temporary
-                  , std::string const& body = EmptyBody());
+                  , std::string body = EmptyBody());
 
 private:
-    void set_or_default_body(std::string const& body, bool provide_default_if_body_is_empty = true);
+    void set_or_default_body(std::string body, bool provide_default_if_body_is_empty = true);
 
 private:
     int _status_code = HTTP_STATUS_OK;
 
     ICHeaders _headers;
     std::string _body;
-    std::string _charset = "utf-8";
+    std::string _charset = "UTF-8";
 
     unsigned short _version_major = 1;
     unsigned short _version_minor = 1;
 
+    std::vector<Cookie> _cookies;
 };
 
 std::ostream& operator << (std::ostream& os, Response const& res);
 
 } //namespace da4qi4
 
-#endif // RESPONSE_HPP
+#endif // DAQI_RESPONSE_HPP

@@ -18,23 +18,23 @@ HandlerMethod from_http_method(http_method m)
     {
         case HTTP_DELETE :
             return HandlerMethod::DELETE;
-            
+
         case HTTP_GET :
             return HandlerMethod::GET;
-            
+
         case HTTP_HEAD :
             return HandlerMethod::HEAD;
-            
+
         case HTTP_POST :
             return HandlerMethod::POST;
-            
+
         case HTTP_PUT :
             return HandlerMethod::PUT;
-            
+
         default:
             break;
     }
-    
+
     return HandlerMethod::UNSUPPORT;
 }
 
@@ -50,25 +50,27 @@ bool HandlerMethods::IsSet(HandlerMethod m) const
     {
         case HandlerMethod::DELETE :
             return mark[0];
-            
+
         case HandlerMethod::GET :
             return mark[1];
-            
+
         case HandlerMethod::HEAD :
             return mark[2];
-            
+
         case HandlerMethod::POST :
             return mark[3];
-            
+
         case HandlerMethod::PUT :
             return mark[4];
-            
+
         case HandlerMethod::ANY :
             return mark.any();
-            
+
         case HandlerMethod::UNSUPPORT :
             return !mark.any();
     }
+
+    return false;
 }
 
 void HandlerMethods::Set(HandlerMethod m)
@@ -78,27 +80,27 @@ void HandlerMethods::Set(HandlerMethod m)
         case HandlerMethod::DELETE :
             mark.set(0);
             break;
-            
+
         case HandlerMethod::GET :
             mark.set(1);
             break;
-            
+
         case HandlerMethod::HEAD :
             mark.set(2);
             break;
-            
+
         case HandlerMethod::POST :
             mark.set(3);
             break;
-            
+
         case HandlerMethod::PUT :
             mark.set(4);
             break;
-            
+
         case HandlerMethod::ANY :
             mark.reset();
             mark.flip();
-            
+
         case HandlerMethod::UNSUPPORT :
             mark.reset();
     }
