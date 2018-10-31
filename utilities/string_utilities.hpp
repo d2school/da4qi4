@@ -32,6 +32,7 @@ struct IgnoreCaseCompareDESC
 bool iStartsWith(std::string const& m, std::string const& s);
 bool iEquals(std::string const& l, std::string const& r);
 bool iLess(std::string const& l, std::string const& r);
+bool EndsWith(std::string const& m, std::string const& s);
 
 std::string ReplaceAll(std::string const& m, std::string const& bef, std::string const& aft);
 std::vector<std::string> SplitByChar(std::string const& m, char c);

@@ -20,7 +20,7 @@ int main()
     boost::asio::io_context ioc;
     auto svc = Server::Supply(ioc, 4099);
     console->info("Server start at {}", 4099);
-    Application app1("d2school", "/", "", "view/");
+    Application app1("d2school", "/", "", "/home/zhuangyan/projects/CPP/build-da4qi4-Debug/view/");
 
     app1.AddHandler(_GET_, ""_router_starts, [](Context ctx)
     {
@@ -31,23 +31,31 @@ int main()
         data["time"]["start"] = 0;
         data["time"]["end"] = 0;
 
-        inja::Environment env = inja::Environment(ctx->App().GetTemplateRoot().native());
-        env.set_element_notation(inja::ElementNotation::Dot);
+        // inja::Environment env = inja::Environment(ctx->App().GetTemplateRoot().native());
+        // env.set_element_notation(inja::ElementNotation::Dot);
 
-        std::string templ_value = env.load_global_file("index.html");
+        //std::string templ_value = env.load_global_file("index.html");
 
         std::clock_t beg = std::clock();
         data["time"]["start"] = beg;
 
-        inja::Template templ = env.parse(templ_value);
+        inja::Template const* const templ = ctx->App().GetTemplateEngine().Get("index");
 
-        std::clock_t end = std::clock();
-        data["time"]["end"] = end;
-        data["time"]["long"] = std::to_string((end - beg) * 100 / CLOCKS_PER_SEC) + " 毫秒";
+        if (templ)
+        {
+            std::clock_t end = std::clock();
+            data["time"]["end"] = end;
+            data["time"]["long"] = std::to_string((end - beg) * 100 / CLOCKS_PER_SEC) + " 毫秒";
 
-        std::string view = env.render_template(templ, data);
-        ctx->Res().SetContentType("text/html");
-        ctx->Res().Ok(view);
+            std::string view = ctx->App().GetTemplateEngine().GetEnv().render_template(*templ, data);
+            ctx->Res().SetContentType("text/html");
+            ctx->Res().Ok(view);
+        }
+        else
+        {
+            ctx->Res().Nofound();
+        }
+
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "test/"_router_starts, [](Context ctx)

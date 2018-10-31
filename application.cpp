@@ -17,6 +17,7 @@ Application::Application()
     : _name(default_app_name)
     , _default_charset("utf-8")
     , _root_url("/")
+    , _templ_engine("/")
 {
     init_pathes();
 }
@@ -33,6 +34,7 @@ Application::Application(std::string const& name
     , _root_template(root_template)
     , _root_upload(root_upload)
     , _root_temporary(root_temporary)
+    , _templ_engine(root_template.native())
 
 {
     init_pathes();
@@ -96,6 +98,8 @@ void Application::init_pathes()
     {
         std::cerr << e.what() << std::endl;
     }
+
+    _templ_engine.Preload();
 }
 
 bool ApplicationMgr::CreateDefaultIfEmpty()

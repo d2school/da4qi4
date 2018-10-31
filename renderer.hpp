@@ -8,19 +8,37 @@
 namespace da4qi4
 {
 
-class TemplateLibrary
+class TemplateEngine
 {
 public:
-    TemplateLibrary(std::string const& template_root)
-        : _root(template_root)
-    {}
+    TemplateEngine(std::string const& template_root)
+        : _root(template_root), _env(template_root)
+    {
+        _env.set_element_notation(inja::ElementNotation::Dot);
+    }
 
-    size_t Preload();
+    inja::Environment const& GetEnv() const
+    {
+        return _env;
+    }
+
+    inja::Environment& GetEnv()
+    {
+        return _env;
+    }
+
+    void Preload();
+    void Preload(std::string const& template_root)
+    {
+        _root = template_root;
+        Preload();
+    }
     inja::Template const* Get(std::string const& name);
 
 private:
     std::map<std::string, inja::Template> _templates;
     std::string _root;
+    inja::Environment _env;
 };
 
 class ContextIMP;

@@ -7,6 +7,7 @@
 #include "utilities/string_utilities.hpp"
 
 #include "router.hpp"
+#include "renderer.hpp"
 
 namespace da4qi4
 {
@@ -15,7 +16,7 @@ class Application
 {
 private:
     Application(std::string const& root_url)
-        : _name(""), _root_url(root_url)
+        : _name(""), _root_url(root_url), _templ_engine("")
     {}
 
 public:
@@ -55,6 +56,7 @@ public:
     Application& SetTemplateRoot(std::string const& root_template)
     {
         _root_template = root_template;
+
         return *this;
     }
 
@@ -117,6 +119,16 @@ public:
         return _upload_file_save_opt;
     }
 
+    TemplateEngine const& GetTemplateEngine() const
+    {
+        return _templ_engine;
+    }
+
+    TemplateEngine& GetTemplateEngine()
+    {
+        return _templ_engine;
+    }
+
     void Handle(Context ctx);
 
     void operator()(Context ctx)
@@ -166,6 +178,7 @@ private:
     fs::path _root_temporary;
 
     UploadFileSaveOptions _upload_file_save_opt;
+    TemplateEngine _templ_engine;
 };
 
 struct CompareByUrlRoot_DESC_IC
