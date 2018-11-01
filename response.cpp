@@ -248,11 +248,11 @@ std::pair<std::string, std::string> split_content_type_value(std::string const& 
 
     return pair;
 }
-std::string Response::GetContentType(ContentTypeValuePart part) const
+std::string Response::GetContentType(ContentTypePart part) const
 {
     std::string value = GetHeader("Content-Type");
 
-    if (part == content_with_chartset)
+    if (part == with_chartset)
     {
         return value;
     }
@@ -369,7 +369,7 @@ void Response::Ok(std::string body)
 void Response::Nofound(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_FOUND;
-    set_or_default_body(body, false);
+    set_or_default_body(std::move(body));
 }
 
 void Response::Gone(std::string body)
@@ -476,7 +476,7 @@ void Response::Redirect(std::string const& dst_location
     _status_code = (type != RedirectType::permanent) ? HTTP_STATUS_PERMANENT_REDIRECT
                    : HTTP_STATUS_TEMPORARY_REDIRECT;
     SetLocation(dst_location);
-    set_or_default_body(body, false);
+    set_or_default_body(std::move(body), false);
 }
 
 void Response::SetCookie(Cookie const& cookie)

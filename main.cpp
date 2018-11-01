@@ -8,7 +8,6 @@
 
 #include "def/log_def.hpp"
 #include "utilities/captcha_utilities.hpp"
-#include "inja/inja.hpp"
 
 using namespace da4qi4;
 
@@ -28,34 +27,15 @@ int main()
         json data;
 
         data["names"] = {"南老师", "林校长", "张校花"};
-        data["time"]["start"] = 0;
-        data["time"]["end"] = 0;
-
-        // inja::Environment env = inja::Environment(ctx->App().GetTemplateRoot().native());
-        // env.set_element_notation(inja::ElementNotation::Dot);
-
-        //std::string templ_value = env.load_global_file("index.html");
 
         std::clock_t beg = std::clock();
         data["time"]["start"] = beg;
 
-        inja::Template const* const templ = ctx->App().GetTemplateEngine().Get("index");
+        std::clock_t end = std::clock();
+        data["time"]["end"] = end;
+        data["time"]["long"] = std::to_string((end - beg) * 1000 / CLOCKS_PER_SEC) + " 毫秒";
 
-        if (templ)
-        {
-            std::clock_t end = std::clock();
-            data["time"]["end"] = end;
-            data["time"]["long"] = std::to_string((end - beg) * 100 / CLOCKS_PER_SEC) + " 毫秒";
-
-            std::string view = ctx->App().GetTemplateEngine().GetEnv().render_template(*templ, data);
-            ctx->Res().SetContentType("text/html");
-            ctx->Res().Ok(view);
-        }
-        else
-        {
-            ctx->Res().Nofound();
-        }
-
+        ctx->Render("index", data);
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "test/"_router_starts, [](Context ctx)
@@ -63,14 +43,14 @@ int main()
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/TEST</h2></body></html>");
         ctx->Bye();
     });
-    app1.AddHandler(_GET_, "cookie/"_router_starts, [](Context ctx)
+    app1.AddHandler(_GET_, "cookie/", [](Context ctx)
     {
         ctx->Res().SetCookie("is_new", "YE\"S!");
         ctx->Res().SetCookie("do_you_love_me", "NO", 15, Cookie::HttpOnly::for_http_only);
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE</h2></body></html>");
         ctx->Bye();
     });
-    app1.AddHandler(_GET_, "cookie/view"_router_starts, [](Context ctx)
+    app1.AddHandler(_GET_, "cookie/view", [](Context ctx)
     {
         std::string html = "<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/VIEW</h2>";
 

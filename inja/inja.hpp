@@ -45,6 +45,8 @@ SOFTWARE.
 #include <type_traits>
 #include <vector>
 
+#include <boost/filesystem.hpp>
+
 
 namespace inja
 {
@@ -876,6 +878,7 @@ public:
 
 class Parser
 {
+    std::string root;
 public:
     ElementNotation element_notation = ElementNotation::Pointer;
 
@@ -996,7 +999,11 @@ public:
         {Parsed::Function::ReadJson, Regex{"\\s*([^\\(\\)]*\\S)\\s*"}}
     };
 
-    Parser() { }
+    Parser() : root("./") { }
+    Parser(std::string const& root)
+        : root(root)
+    {
+    }
 
     Parsed::ElementExpression parse_expression(const std::string& input)
     {
@@ -1298,7 +1305,7 @@ public:
 
     Template parse(const std::string& input)
     {
-        auto parsed = parse_tree(std::make_shared<Parsed::Element>(Parsed::Element(Parsed::Type::Main, input)), "./");
+        auto parsed = parse_tree(std::make_shared<Parsed::Element>(Parsed::Element(Parsed::Type::Main, input)), root);
         return Template(*parsed);
     }
 
@@ -1332,9 +1339,12 @@ class Environment
 
 public:
     Environment(): Environment("./") { }
-    explicit Environment(const std::string& global_path): input_path(global_path), output_path(global_path), parser() { }
+    explicit Environment(const std::string& global_path): input_path(global_path), output_path(global_path),
+        parser(input_path)
+    {
+    }
     explicit Environment(const std::string& input_path, const std::string& output_path): input_path(input_path),
-        output_path(output_path), parser() { }
+        output_path(output_path), parser(input_path) { }
 
     void set_statement(const std::string& open, const std::string& close)
     {

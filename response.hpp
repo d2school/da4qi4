@@ -216,8 +216,8 @@ public:
         return _charset;
     }
 
-    enum ContentTypeValuePart {content_type_without_chartset = 0, content_with_chartset = 1};
-    std::string GetContentType(ContentTypeValuePart part = content_with_chartset) const;
+    enum ContentTypePart {without_chartset = 0, with_chartset = 1};
+    std::string GetContentType(ContentTypePart part = with_chartset) const;
     std::string const& GetContentEncoding() const
     {
         return GetHeader("Content-Encoding");
@@ -420,6 +420,7 @@ public:
     void PayloadTooLarge(std::string body = EmptyBody());
     void UriTooLong(std::string body = EmptyBody());
     void TooManyRequests(std::string body = EmptyBody());
+
     void LengthRequired()
     {
         _status_code = HTTP_STATUS_LENGTH_REQUIRED;
