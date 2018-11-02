@@ -59,7 +59,7 @@ void Connection::StartWrite()
 
 void Connection::StartChunkedWrite()
 {
-
+    this->do_write_header_for_chunked();
 }
 
 void Connection::update_request_after_header_parsed()
@@ -532,7 +532,11 @@ void Connection::do_write()
 
 void Connection::prepare_response_headers_for_chunked_write()
 {
-    _response.MarkChunked();
+    if (!_response.IsChunked())
+    {
+        _response.MarkChunked();
+    }
+
     auto v = _response.GetVersion();
 
     if (v.first < 1 || (v.first == 1 && v.second == 0))
@@ -548,11 +552,6 @@ void Connection::prepare_response_headers_for_chunked_write()
 
 void Connection::do_write_header_for_chunked()
 {
-    if (!_response.IsChunked())
-    {
-        return;
-    }
-
     prepare_response_headers_for_chunked_write();
 
     std::ostream os(&_write_buffer);

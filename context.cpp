@@ -458,7 +458,14 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
 
 void ContextIMP::Bye()
 {
-    _cnt->StartWrite();
+    if (!Res().IsChunked())
+    {
+        _cnt->StartWrite();
+    }
+    else
+    {
+        end_chunked_response();
+    }
 }
 
 void ContextIMP::StartChunkedResponse()
@@ -472,7 +479,7 @@ void ContextIMP::ContinueChunkedResponse(std::string const& body)
     Res().PushChunkedBody(body, false);
 }
 
-void ContextIMP::EndChunkedResponse()
+void ContextIMP::end_chunked_response()
 {
     Res().PushChunkedBody(Utilities::theEmptyString, true);
 }

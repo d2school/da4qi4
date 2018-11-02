@@ -88,7 +88,9 @@ public:
 public:
     void StartChunkedResponse();
     void ContinueChunkedResponse(std::string const& body);
-    void EndChunkedResponse();
+
+private:
+    void end_chunked_response();
 
 private:
     std::string render_on_template(inja::Template const& templ, Json const& data

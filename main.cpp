@@ -39,6 +39,15 @@ int main()
         ctx->Bye();
     });
 
+    app1.AddHandler(_GET_, "/chunked", [](Context ctx)
+    {
+        ctx->Res().SetContentType("text/plain");
+        ctx->StartChunkedResponse();
+        ctx->ContinueChunkedResponse("我是一个兵\r\n");
+        ctx->ContinueChunkedResponse("来自老百姓！\r\n");
+        ctx->Bye();
+    });
+
     app1.AddHandler(_GET_, "usr/{{name}}/{{age}}/regist"_router_regex, [](Context ctx)
     {
         ctx->Render("user/regist");

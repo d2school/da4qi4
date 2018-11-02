@@ -146,7 +146,7 @@ std::map<std::string, std::string> ParsePlainTextFormData(std::string const& bod
 std::string DecIntToHexStr(std::size_t num)
 {
     std::string remainders;
-    size_t quotient, remainder;
+    size_t quotient = num, remainder;
 
     do
     {

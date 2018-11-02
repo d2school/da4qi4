@@ -363,7 +363,7 @@ void Response::SetContentType(std::string const& content_type
 }
 bool Response::IsChunked() const
 {
-    auto item = TryGetHeader("Transfer-charset");
+    auto item = TryGetHeader("Transfer-Encoding");
     return (item && Utilities::iEquals(*item, "chunked"));
 }
 void Response::MarkKeepAlive()
