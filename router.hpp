@@ -16,6 +16,26 @@ struct RouterItem
     std::map<HandlerMethod, Handler> handlers;
 };
 
+struct RouterResult
+{
+    RouterResult() = default;
+
+    RouterResult(RouterItem* item, HandlerMethod method)
+    {
+        if (item)
+        {
+            auto it = item->handlers.find(method);
+
+            if (it != item->handlers.end())
+            {
+                handler = &(it->second);
+            }
+        }
+    }
+
+    Handler* handler = nullptr;
+};
+
 struct router_equals
 {
     explicit router_equals(std::string const& s)
@@ -62,7 +82,7 @@ router_equals operator "" _router_equals(char const* str, size_t n);
 router_starts operator "" _router_starts(char const* str, size_t n);
 router_regex operator "" _router_regex(char const* str, size_t n);
 
-template<typename IMP>
+template<typename IMP, typename Result>
 class RoutingTable
 {
 private:
@@ -79,11 +99,11 @@ public:
             return false;
         }
 
-        RouterItem* item = imp()->Exists(url_matcher);
+        typename IMP::Item* item = imp()->Exists(url_matcher);
 
         if (!item)
         {
-            RouterItem ri;
+            typename IMP::Item ri;
             ri.handlers[method] = handler;
             return imp()->Insert(url_matcher, ri);
         }
@@ -112,54 +132,18 @@ public:
         return true;
     }
 
-    Handler Search(std::string const& url, HandlerMethod method)
+    Result Search(std::string const& url, HandlerMethod method)
     {
-        if (auto item = imp()->Match(url))
-        {
-            auto it = item->handlers.find(method);
-
-            if (it != item->handlers.end())
-            {
-                return  it->second;
-            }
-        }
-
-        return theEmptyHandler;
+        return imp()->Match(url, method);
     }
 };
 
-class EqualsRoutingTable : public RoutingTable<EqualsRoutingTable>
+class EqualsRoutingTable : public RoutingTable<EqualsRoutingTable, RouterResult>
 {
     using Map = std::map<std::string, RouterItem, Utilities::IgnoreCaseCompare>;
 public:
     using Item = RouterItem;
-
-    bool Insert(std::string const&  url_matcher, RouterItem const& item)
-    {
-        _map.insert(std::make_pair(url_matcher, item));
-        return true;
-    }
-
-    Item* Exists(std::string const& url_matcher)
-    {
-        return Match(url_matcher);
-    }
-
-    Item* Match(std::string const& url)
-    {
-        auto it = _map.find(url);
-        return (it == _map.end()) ? nullptr : &(it->second);
-    }
-
-private:
-    Map _map;
-};
-
-class StartsWithRoutingTable : public RoutingTable<StartsWithRoutingTable>
-{
-    using Map = std::map<std::string, RouterItem, Utilities::IgnoreCaseCompareDESC>;
-public:
-    using Item = RouterItem;
+    using Result = RouterResult;
 
     bool Insert(std::string const&  url_matcher, RouterItem const& item)
     {
@@ -173,7 +157,36 @@ public:
         return (it == _map.end() ? nullptr : & (it->second));
     }
 
-    Item* Match(std::string const& url);
+    Result Match(std::string const& url, HandlerMethod method)
+    {
+        auto item = this->Exists(url);
+        return Result(item, method);
+    }
+
+private:
+    Map _map;
+};
+
+class StartsWithRoutingTable : public RoutingTable<StartsWithRoutingTable, RouterResult>
+{
+    using Map = std::map<std::string, RouterItem, Utilities::IgnoreCaseCompareDESC>;
+public:
+    using Item = RouterItem;
+    using Result = RouterResult;
+
+    bool Insert(std::string const&  url_matcher, RouterItem const& item)
+    {
+        _map.insert(std::make_pair(url_matcher, item));
+        return true;
+    }
+
+    Item* Exists(std::string const& url_matcher)
+    {
+        auto it = _map.find(url_matcher);
+        return (it == _map.end() ? nullptr : & (it->second));
+    }
+
+    Result Match(std::string const& url, HandlerMethod method);
 private:
     Map _map;
 };
@@ -194,17 +207,29 @@ struct RegexRouterItem : public RouterItem
     std::vector<std::string> parameters;
 };
 
-class RegexMatchRoutingTable : public RoutingTable<RegexMatchRoutingTable>
+struct RegexRouterResult : public RouterResult
+{
+    RegexRouterResult() = default;
+    RegexRouterResult(RegexRouterItem* item, HandlerMethod method)
+        : RouterResult(static_cast<RouterItem*>(item), method)
+    {}
+
+    std::vector<std::string> parameters;
+    std::vector<std::string> values;
+};
+
+class RegexMatchRoutingTable : public RoutingTable<RegexMatchRoutingTable, RegexRouterResult>
 {
 private:
     using List = std::list <RegexRouterItem>;
 
 public:
     using Item = RegexRouterItem;
+    using Result = RegexRouterResult;
 
-    bool Insert(std::string const&   url_matcher, RouterItem const& item);
+    bool Insert(std::string const&    url_matcher, RouterItem const& item);
     Item* Exists(std::string const& url_matcher);
-    Item* Match(std::string const& url);
+    Result Match(std::string const& url, HandlerMethod method);
 
 private:
     List _lst;

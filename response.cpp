@@ -6,6 +6,7 @@
 
 #include "utilities/string_utilities.hpp"
 #include "utilities/container_utilities.hpp"
+#include "utilities/http_utilities.hpp"
 
 namespace da4qi4
 {
@@ -99,6 +100,56 @@ char const* HttpStatusSummaryGetter(int code)
     std::map<int, char const*>::const_iterator cit  = rsm._map.find(code);
     return (cit == rsm._map.cend()) ? "" : cit->second;
 }
+
+void ChunkedBodies::PushBack(std::string const& body, bool is_last)
+{
+    std::string data;
+    data.reserve(body.size() + 10);
+
+    if (is_last)
+    {
+        data = "0\r\n\r\n";
+    }
+    else
+    {
+        std::stringstream ss;
+        ss << Utilities::DecIntToHexStr(body.size()) << "\r\n";
+        ss << body << "\r\n";
+        data = ss.str();
+    }
+
+    std::lock_guard<std::mutex> lock(_m);
+    _chunked_bodies.push_back(std::make_pair(std::move(data), false));
+
+    if (is_last)
+    {
+        _chunked_bodies.push_back(std::make_pair("", true));
+    }
+}
+
+std::string ChunkedBodies::PopFront(bool& is_last)
+{
+    is_last = false;
+    std::lock_guard<std::mutex> lock(_m);
+
+    if (_chunked_bodies.empty())
+    {
+        return Utilities::theEmptyString;
+    }
+
+    std::pair<std::string, bool> front(std::move(*_chunked_bodies.begin()));
+    _chunked_bodies.erase(_chunked_bodies.begin());
+
+    is_last = front.second;
+    return front.first;
+}
+
+void ChunkedBodies::Clear()
+{
+    std::lock_guard<std::mutex> lock(_m);
+    _chunked_bodies.clear();
+}
+
 
 Cookie& Cookie::SetExpires(std::time_t a_time_point)
 {
@@ -204,6 +255,7 @@ void Response::Reset()
     _charset = "UTF-8";
     _version_major  = _version_minor = 1;
     _cookies.clear();
+    _chunked_bodies.Clear();
 }
 
 void Response::AppendHeader(std::string const& field, std::string const& value)
@@ -537,8 +589,16 @@ std::ostream& operator << (std::ostream& os, Response const& res)
         os << "Set-Cookie:" << cookie << "\r\n";
     }
 
-    os << "Content-Length:" << res.GetBody().size() << "\r\n\r\n";
-    os << res.GetBody();
+    if (!res.IsChunked())
+    {
+        os << "Content-Length:" << res.GetBody().size() << "\r\n\r\n";
+        os << res.GetBody();
+    }
+    else
+    {
+        os << "\r\n";
+    }
+
     return os;
 }
 }

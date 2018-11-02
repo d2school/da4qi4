@@ -31,8 +31,6 @@
 *.out
 *.app
 
-# json-test
-nlohmann_json/third_part/*
-nlohmann_json/benchmarks/*
-nlohmann_json/doc/*
-nlohmann_json/test/*
+# CMake user
+*.user
+

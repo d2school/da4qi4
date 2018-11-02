@@ -52,11 +52,26 @@ std::string ReplaceAll(std::string const& m, std::string const& bef, std::string
     return boost::algorithm::replace_all_copy(m, bef, aft);
 }
 
-std::vector<std::string> SplitByChar(std::string const& m, char c)
+std::vector<std::string> Split(std::string const& m, char c)
 {
     std::vector<std::string> parts;
     char spe[] = {c, '\0'};
     boost::algorithm::split(parts, m, boost::is_any_of(spe));
+    return parts;
+}
+
+std::vector<std::string> SplitByLine(std::string const& m)
+{
+    std::stringstream ss(m);
+    std::vector<std::string> parts;
+
+    while (ss)
+    {
+        std::string line;
+        std::getline(ss, line);
+        parts.push_back(line);
+    }
+
     return parts;
 }
 

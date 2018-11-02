@@ -1,13 +1,73 @@
 #include "request.hpp"
 
+#include <iomanip>
+#include <sstream>
+#include <algorithm>
+
 #include "def/debug_def.hpp"
+
 #include "utilities/string_utilities.hpp"
 #include "utilities/file_utilities.hpp"
-
-#include <sstream>
+#include "utilities/http_utilities.hpp"
 
 namespace da4qi4
 {
+
+std::string make_routing_path_parameter_key(std::string const& name)
+{
+    std::stringstream ss;
+    ss << std::setw(2) << std::setfill('0') << name;
+    return ss.str();
+}
+
+void RoutingPathParameters::InitParameters(std::vector<std::string> const& names
+                                           , std::vector<std::string> const& values)
+{
+    _parameters.clear();
+
+    for (size_t i = 0; i < names.size(); ++i)
+    {
+        std::string key = make_routing_path_parameter_key(names[i]);
+        std::string value = (i < values.size()) ? values[i] : Utilities::theEmptyString;
+        _parameters.insert(std::make_pair(key, value));
+    }
+}
+
+bool RoutingPathParameters::IsExists(std::string const& name) const
+{
+    std::string key = make_routing_path_parameter_key(name);
+    return _parameters.find(key) != _parameters.cend();
+}
+
+std::string const& RoutingPathParameters::Get(std::string const& name) const
+{
+    std::string key = make_routing_path_parameter_key(name);
+    auto it = _parameters.find(key);
+
+    return (it != _parameters.cend() ? it->second : Utilities::theEmptyString);
+}
+
+OptionalStringRefConst RoutingPathParameters::TryGet(std::string const& name) const
+{
+    std::string key = make_routing_path_parameter_key(name);
+    auto it = _parameters.find(key);
+
+    return (it != _parameters.cend() ? OptionalStringRefConst(it->second)
+            : OptionalStringRefConst(NoneObject));
+}
+
+std::string const& RoutingPathParameters::Get(size_t index) const
+{
+    if (index < 0 || index >= _parameters.size())
+    {
+        return Utilities::theEmptyString;
+    }
+
+    auto it = _parameters.begin();
+    std::advance(it, index);
+
+    return it->second;
+}
 
 MultiPart::MultiPart(MultiPart const& o)
     : _headers(o._headers), _data(o._data)
@@ -141,6 +201,9 @@ std::string const& Request::GetParameter(std::string const& name) const
         case fromUrl:
             return GetUrlParameter(name);
 
+        case fromPath:
+            return GetPathParameter(name);
+
         case fromForm:
             return GetFormData(name);
 
@@ -166,6 +229,9 @@ OptionalStringRefConst Request::TryGetParameter(std::string const& name) const
         case fromUrl:
             return TryGetUrlParameter(name);
 
+        case fromPath:
+            return TryGetPathParameter(name);
+
         case fromForm:
             return TryGetFormData(name);
 
@@ -187,30 +253,30 @@ bool GetURLPartValue(int url_part_flag,  Url& url, std::string&& value)
     switch (url_part_flag)
     {
         case UF_SCHEMA :
-            url.schema.swap(value);
+            url.schema = std::move(value);
             break;
 
         case UF_HOST :
-            url.host.swap(value);
+            url.host = std::move(value);
             break;
 
         case UF_PORT:
             break; //skip, but return true;
 
         case UF_PATH :
-            url.path.swap(value);
+            url.path = std::move(value);
             break;
 
         case UF_QUERY :
-            url.query.swap(value);
+            url.query = std::move(value);
             break;
 
         case UF_FRAGMENT :
-            url.fragment.swap(value);
+            url.fragment = std::move(value);
             break;
 
         case UF_USERINFO :
-            url.userinfo.swap(value);
+            url.userinfo = std::move(value);
             break;
 
         default:
@@ -220,15 +286,15 @@ bool GetURLPartValue(int url_part_flag,  Url& url, std::string&& value)
     return true;
 }
 
-bool Request::ParseUrl(std::string&& url)
+bool Url::Parse(std::string&& url_value)
 {
     http_parser_url r;
     http_parser_url_init(&r);
-    int err = http_parser_parse_url(url.c_str(), url.length(), 0, &r);
+    int err = http_parser_parse_url(url_value.c_str(), url_value.length(), 0, &r);
 
     if (0 == err)
     {
-        _url.port = r.port;
+        port = r.port;
 
         for (unsigned int i = 0; i < UF_MAX; ++i)
         {
@@ -237,14 +303,24 @@ bool Request::ParseUrl(std::string&& url)
                 continue;
             }
 
-            GetURLPartValue(i, _url, std::string(url.c_str() + r.field_data[i].off, r.field_data[i].len));
+            std::string part(url_value.c_str() + r.field_data[i].off, r.field_data[i].len);
+            GetURLPartValue(i, *this, std::move(part));
+        }
+
+        if (!query.empty())
+        {
+            parameters = Utilities::ParseQueryParameters(query);
         }
     }
 
-    _url.full.swap(url);
+    full = std::move(url_value);
     return !err;
 }
 
+bool Request::ParseUrl(std::string&& url)
+{
+    return _url.Parse(std::move(url));
+}
 
 void Request::AppendHeader(std::string&& field, std::string&& value)
 {
@@ -285,6 +361,7 @@ void Request::Reset()
     _multiparts.clear();
     _cookies.clear();
     _formdata.clear();
+    _path_parameters.Clear();
 }
 
 void Request::ParseContentType()
@@ -313,6 +390,10 @@ void Request::ParseContentType()
                 _boundary = content_type->substr(pos + len_of_boundary_flag);
             }
         }
+        else if (content_type->find("application/x-www-form-urlencoded") != std::string::npos)
+        {
+            this->MarkFormUrlEncoded(true);
+        }
     }
 }
 
@@ -323,7 +404,7 @@ void Request::SetMultiPartBoundary(char const* at, size_t length)
 
 void MultiPartSplitSubHeadersFromValue(std::string const& value, MultiPart::SubHeaders& sub_headers)
 {
-    std::vector<std::string> parts = Utilities::SplitByChar(value, ';');
+    std::vector<std::string> parts = Utilities::Split(value, ';');
     sub_headers.value.clear();
 
     for (auto p : parts)
@@ -355,7 +436,7 @@ void MultiPartSplitSubHeadersFromValue(std::string const& value, MultiPart::SubH
 
             if (!f.empty())
             {
-                sub_headers.headers.emplace(std::move(f), std::move(v));
+                sub_headers.headers.insert(std::make_pair(std::move(f), std::move(v)));
             }
         }
     }
@@ -380,17 +461,17 @@ void Request::TransferHeadersToCookies()
 
     if (!value.empty())
     {
-        std::vector<std::string> parts = Utilities::SplitByChar(value, ';');
+        std::vector<std::string> parts = Utilities::Split(value, ';');
 
         for (auto part : parts)
         {
-            std::vector<std::string> kv = Utilities::SplitByChar(part, '=');
+            std::vector<std::string> kv = Utilities::Split(part, '=');
 
             if (!kv.empty())
             {
                 std::string const& k = kv[0];
                 std::string const& v = (kv.size() > 1) ? kv[1] : Utilities::theEmptyString;
-                _cookies.emplace(std::move(k), std::move(v));
+                _cookies.insert(std::make_pair(std::move(k), std::move(v)));
             }
         }
     }
@@ -438,6 +519,20 @@ std::string MakeUploadFileTemporaryName(std::string const& ext)
     std::stringstream ss;
     ss << uid << ext;
     return ss.str();
+}
+
+void Request::ParseFormUrlEncodedData()
+{
+    if (!this->_body.empty())
+    {
+        auto parameters = Utilities::ParseQueryParameters(_body);
+
+        for (auto& p : parameters)
+        {
+            FormDataItem fdi(p.first, std::move(p.second));
+            _formdata.push_back(std::move(fdi));
+        }
+    }
 }
 
 void Request::TransferMultiPartsToFormData(UploadFileSaveOptions const& options, std::string const& dir)

@@ -35,7 +35,8 @@ bool iLess(std::string const& l, std::string const& r);
 bool EndsWith(std::string const& m, std::string const& s);
 
 std::string ReplaceAll(std::string const& m, std::string const& bef, std::string const& aft);
-std::vector<std::string> SplitByChar(std::string const& m, char c);
+std::vector<std::string> Split(std::string const& m, char c);
+std::vector<std::string> SplitByLine(std::string const& m); // \n or \r\n
 void Trim(std::string& m);
 std::string TrimCopy(std::string const& m);
 

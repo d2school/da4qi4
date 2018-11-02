@@ -263,7 +263,7 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return _regexRouter.Add(r, ms, h);
 }
 
-Handler Application::FindHandler(Context ctx)
+Handler& Application::FindHandler(Context ctx)
 {
     HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
 
@@ -272,20 +272,28 @@ Handler Application::FindHandler(Context ctx)
         return theEmptyHandler;
     }
 
-    std::string const& url = ctx->Req().GetUrl().full;
-    Handler h = _equalRouter.Search(url, m);
+    std::string const& url = ctx->Req().GetUrl().path;// full;
+    RouterResult rr = _equalRouter.Search(url, m);
 
-    if (!h)
+    if (rr.handler)
     {
-        h = _startwithsRouter.Search(url, m);
-
-        if (!h)
-        {
-            h = _regexRouter.Search(url, m);
-        }
+        return *rr.handler;
     }
 
-    return h;
+    if ((rr = _startwithsRouter.Search(url, m), rr.handler))
+    {
+        return *rr.handler;
+    }
+
+    RegexRouterResult rrr = _regexRouter.Search(url, m);
+
+    if (rrr.handler)
+    {
+        ctx->InitRequestPathParameters(rrr.parameters, rrr.values);
+        return *rrr.handler;
+    }
+
+    return theEmptyHandler;
 }
 
 void Application::Handle(Context ctx)

@@ -26,18 +26,30 @@ public:
     explicit Connection(Tcp::socket socket);
     ~Connection();
 
-    void Start();
+    void StartRead();
+    void StartWrite();
     void Stop();
-    void Write();
+
+    void StartChunkedWrite(); //write head
 public:
-    Request const& GetRequest()
+    Request const& GetRequest() const
     {
         return _request;
     }
+    Request& GetRequest()
+    {
+        return _request;
+    }
+
     Response& GetResponse()
     {
         return _response;
     }
+    Response const& GetResponse() const
+    {
+        return _response;
+    }
+
     Application& GetApplication()
     {
         return (_app ? *_app : Application::EmptyApplication());
@@ -47,6 +59,9 @@ private:
     void do_read();
     void do_write();
     void do_close();
+
+    void do_write_header_for_chunked();
+    void do_write_next_chunked_body(std::time_t wait_start);
 
 private:
     Tcp::socket _socket;
@@ -91,7 +106,8 @@ private:
     bool try_route_application();
 private:
     void prepare_response_headers_about_connection();
-
+    void prepare_response_headers_for_chunked_write();
+    void reset();
 private:
     http_parser* _parser;
     http_parser_settings _parser_setting;
@@ -118,6 +134,7 @@ private:
     std::string _reading_part_data;
 
     boost::asio::streambuf _write_buffer;
+    std::string _current_chunked_body;
 private:
     Request _request;
     Response _response;

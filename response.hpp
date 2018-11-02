@@ -6,6 +6,8 @@
 #include <vector>
 #include <limits>
 
+#include <mutex>
+
 #include "http-parser/http_parser.h"
 
 #include "def/def.hpp"
@@ -187,6 +189,17 @@ private:
 
 std::ostream& operator << (std::ostream& os, Cookie const& c);
 
+struct ChunkedBodies
+{
+    void PushBack(std::string const& body, bool is_last);
+    std::string PopFront(bool& is_last);
+    void Clear();
+
+private:
+    std::list<std::pair<std::string, bool>> _chunked_bodies;
+    std::mutex _m;
+};
+
 class Response
 {
 public:
@@ -231,6 +244,16 @@ public:
     std::string const& GetBody() const
     {
         return _body;
+    }
+
+    std::string PopChunkedBody(bool& is_last)
+    {
+        return _chunked_bodies.PopFront(is_last);
+    }
+
+    void PushChunkedBody(std::string const& body, bool is_last)
+    {
+        _chunked_bodies.PushBack(body, is_last);
     }
 
     bool IsExistsHeader(std::string const& field) const;
@@ -453,6 +476,8 @@ private:
     unsigned short _version_minor = 1;
 
     std::vector<Cookie> _cookies;
+private:
+    ChunkedBodies _chunked_bodies;
 };
 
 std::ostream& operator << (std::ostream& os, Response const& res);

@@ -7,7 +7,7 @@
 
 #include "request.hpp"
 #include "response.hpp"
-#include "template_library.hpp"
+#include "templates.hpp"
 
 #include "nlohmann/json_fwd.hpp"
 
@@ -46,41 +46,49 @@ public:
     Application& App();
 
 public:
-    void Render(http_status status, Json const& data);
-    void Render(std::string const& template_name, Json const& data);
+    void InitRequestPathParameters(std::vector<std::string> const& names
+                                   , std::vector<std::string> const& values);
+public:
+    void Render(http_status status, Json const& data = theEmptyJson);
+    void Render(std::string const& template_name, Json const& data = theEmptyJson);
 
 public:
-    void RenderNofound(Json const& data)
+    void RenderNofound(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_NOT_FOUND, data);
     }
-    void RenderUnauthorized(Json const& data)
+    void RenderUnauthorized(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_UNAUTHORIZED, data);
     }
 
-    void RenderForbidden(Json const& data)
+    void RenderForbidden(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_FORBIDDEN, data);
     }
 
-    void RenderNotImplemented(Json const& data)
+    void RenderNotImplemented(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_NOT_IMPLEMENTED, data);
     }
 
-    void RenderServiceUnavailable(Json const& data)
+    void RenderServiceUnavailable(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
     }
 
-    void RenderInternalServerError(Json const& data)
+    void RenderInternalServerError(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
     }
 
 public:
     void Bye();
+
+public:
+    void StartChunkedResponse();
+    void ContinueChunkedResponse(std::string const& body);
+    void EndChunkedResponse();
 
 private:
     std::string render_on_template(inja::Template const& templ, Json const& data
@@ -117,6 +125,16 @@ private:
     bool is_exists_url_parameter(std::string const& name) const
     {
         return this->Req().IsExistsUrlParameter(name);
+    }
+
+    std::string const& path_parameter(std::string const& name) const
+    {
+        return this->Req().GetPathParameter(name);
+    }
+
+    bool is_exists_path_parameter(std::string const& name) const
+    {
+        return this->Req().IsExistsPathParameter(name);
     }
 
     std::string const& form_data(std::string const& name) const

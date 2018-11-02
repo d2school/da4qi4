@@ -1,5 +1,5 @@
-#ifndef DAQI_TEMPLATE_LIBRARY_HPP
-#define DAQI_TEMPLATE_LIBRARY_HPP
+#ifndef DAQI_TEMPLATES_HPP
+#define DAQI_TEMPLATES_HPP
 
 #include <string>
 #include <unordered_map>

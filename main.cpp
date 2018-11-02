@@ -19,9 +19,9 @@ int main()
     boost::asio::io_context ioc;
     auto svc = Server::Supply(ioc, 4099);
     console->info("Server start at {}", 4099);
-    Application app1("d2school", "/", "", "/home/zhuangyan/projects/CPP/build-da4qi4-Debug/view/");
+    Application app1("d2school", "/", "", "./view/");
 
-    app1.AddHandler(_GET_, ""_router_starts, [](Context ctx)
+    app1.AddHandler(_GET_, "", [](Context ctx)
     {
         using namespace nlohmann;
         json data;
@@ -38,9 +38,15 @@ int main()
         ctx->Render("index", data);
         ctx->Bye();
     });
-    app1.AddHandler(_GET_, "test/"_router_starts, [](Context ctx)
+
+    app1.AddHandler(_GET_, "usr/{{name}}/{{age}}/regist"_router_regex, [](Context ctx)
     {
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/TEST</h2></body></html>");
+        ctx->Render("user/regist");
+        ctx->Bye();
+    });
+    app1.AddHandler(_GET_, "find"_router_starts, [](Context ctx)
+    {
+        ctx->Render("find");
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "cookie/", [](Context ctx)
@@ -63,7 +69,7 @@ int main()
         ctx->Res().Ok(html);
         ctx->Bye();
     });
-    app1.AddHandler(_GET_, "cookie/global"_router_starts, [](Context ctx)
+    app1.AddHandler(_GET_, "cookie/global", [](Context ctx)
     {
         ctx->Res().SetCookie("is_global", "YES");
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/GLOBAL</h2></body></html>");
@@ -82,15 +88,14 @@ int main()
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN</h1></body></html>");
         ctx->Bye();
     });
-    app1.AddHandler(_POST_, "post/"_router_starts, [](Context ctx)
+    app1.AddHandler(_GET_, "post/"_router_equals, [](Context ctx)
     {
-        std::string p1 = ctx->Req("aaa_who");
-        std::string p2 = ctx->Req()["bbb_how"];
-        std::string data = "<p><b>aaa_who : </b></p><p>" + p1 +
-                           "</p><p><b>bbb_how : </b></p><p>" + p2 + "</p>";
-        data = "<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-POST</h1>" + data + "</body></html>";
-        ctx->Res().SetContentType("text/html");
-        ctx->Res().Ok(data);
+        ctx->Render("post/index");
+        ctx->Bye();
+    });
+    app1.AddHandler({_GET_, _POST_}, "post/result"_router_equals, [](Context ctx)
+    {
+        ctx->Render("post/result");
         ctx->Bye();
     });
     svc->AddApp(app1);
@@ -102,14 +107,9 @@ int main()
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN/TEST</h1></body></html>");
         ctx->Bye();
     });
-    svc->AddHandler(_POST_, "/"_router_starts, [](Context ctx)
-    {
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-POST</h1></body></html>");
-        ctx->Bye();
-    });
     svc->AddHandler(_GET_, "/favicon.ico", [](Context ctx)
     {
-        ctx->Res().Nofound();
+        ctx->Res().Gone();
         ctx->Bye();
     });
     svc->AddHandler(_GET_, "/plain-text", [](Context ctx)

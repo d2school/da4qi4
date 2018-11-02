@@ -1,4 +1,4 @@
-#include "template_library.hpp"
+#include "templates.hpp"
 
 #include "inja/inja.hpp"
 
@@ -38,6 +38,9 @@ void init_template_env(inja::Environment& env)
 
     env.add_callback("_URL_PARAMETER_", 1, placeholder_find);
     env.add_callback("_IS_URL_PARAMETER_EXISTS_", 1, placeholder_exist);
+
+    env.add_callback("_PATH_PARAMETER_", 1, placeholder_find);
+    env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1, placeholder_exist);
 
     env.add_callback("_FORM_DATA_", 1, placeholder_find);
     env.add_callback("_IS_FORM_DATA_EXISTS_", 1, placeholder_exist);

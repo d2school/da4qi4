@@ -18,7 +18,7 @@ router_regex operator "" _router_regex(char const* str, size_t n)
     return router_regex(std::string(str, n));
 }
 
-StartsWithRoutingTable::Item* StartsWithRoutingTable::Match(std::string const& url)
+StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& url, HandlerMethod method)
 {
     auto it = _map.begin();
 
@@ -26,15 +26,15 @@ StartsWithRoutingTable::Item* StartsWithRoutingTable::Match(std::string const& u
     {
         if (Utilities::iStartsWith(url, it->first))
         {
-            return &(it->second);
+            return Result(&(it->second), method);
         }
     }
 
-    return nullptr;
+    return Result();
 }
 
 std::string to_parameter_pattern(std::string simple_pattern
-                                 , std::vector<std::string> names)
+                                 , std::vector<std::string>& names)
 {
     std::regex pattern("\\{\\{\\w*\\}\\}");
 
@@ -101,28 +101,46 @@ RegexMatchRoutingTable::Item* RegexMatchRoutingTable::Exists(std::string const& 
     return nullptr;
 }
 
-RegexMatchRoutingTable::Item* RegexMatchRoutingTable::Match(std::string const& url)
+RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& url, HandlerMethod method)
 {
     try
     {
         for (auto& item : _lst)
         {
-            if (std::regex_match(url, item.regex_pattern))
+            std::smatch result;
+
+            if (std::regex_match(url, result, item.regex_pattern))
             {
-                return &item;
+                Result rr(&item, method);
+
+                if (!rr.handler)
+                {
+                    return Result();
+                }
+
+                int const skip_first_one = 1;
+
+                for (size_t i = skip_first_one ; i < result.size(); ++i)
+                {
+                    std::string value = result[i].str();
+                    rr.values.push_back(value);
+                }
+
+                rr.parameters = item.parameters;
+                return rr;
             }
         }
-
-        return nullptr;
     }
     catch (std::regex_error const& e)
     {
-        return nullptr;
+        std::cerr << e.what() << std::endl;
     }
     catch (std::exception const& e)
     {
-        return nullptr;
+        std::cerr << e.what() << std::endl;
     }
+
+    return Result();
 }
 
 } //namespace da4qi4

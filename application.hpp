@@ -7,7 +7,7 @@
 #include "utilities/string_utilities.hpp"
 
 #include "router.hpp"
-#include "template_library.hpp"
+#include "templates.hpp"
 
 namespace da4qi4
 {
@@ -158,7 +158,7 @@ private:
     void init_pathes();
 
 private:
-    Handler FindHandler(Context ctx);
+    Handler& FindHandler(Context ctx);
 
 private:
     EqualsRoutingTable _equalRouter;

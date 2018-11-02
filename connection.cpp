@@ -1,5 +1,6 @@
 #include "connection.hpp"
 
+#include <ctime>
 #include <ostream>
 
 #include "utilities/string_utilities.hpp"
@@ -41,7 +42,7 @@ void Connection::init_parser_setting()
     _parser_setting.on_body = &Connection::on_body;
 }
 
-void Connection::Start()
+void Connection::StartRead()
 {
     this->do_read();
 }
@@ -51,9 +52,14 @@ void Connection::Stop()
     this->do_close();
 }
 
-void Connection::Write()
+void Connection::StartWrite()
 {
     this->do_write();
+}
+
+void Connection::StartChunkedWrite()
+{
+
 }
 
 void Connection::update_request_after_header_parsed()
@@ -95,14 +101,14 @@ void Connection::try_commit_reading_request_header()
 bool is_100_continue(Request& req)
 {
     auto value = req.TryGetHeader("Expect");
-    return (value && (*value == "100-continue"));
+    return (value && Utilities::iEquals(*value, "100-continue"));
 }
 
 void Connection::process_100_continue_request()
 {
     assert(is_100_continue(_request));
     _response.Continue();
-    this->Write();
+    this->StartWrite();
 }
 
 void Connection::try_init_multipart_parser()
@@ -429,6 +435,8 @@ void Connection::do_read()
     _socket.async_read_some(boost::asio::buffer(_buffer)
                             , [self, this](boost::system::error_code ec, std::size_t bytes_transferred)
     {
+        std::cout << std::time(nullptr) << std::endl;
+
         if (ec)
         {
             return;
@@ -452,7 +460,11 @@ void Connection::do_read()
 
         assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER MESSAGE READ COMPLETED.");
 
-        if (_request.IsFormData())
+        if (_request.IsFormUrlEncoded())
+        {
+            _request.ParseFormUrlEncodedData();
+        }
+        else if (_request.IsFormData())
         {
             auto const& options = _app->GetUploadFileSaveOptions();
             std::string dir = _app->GetUploadRoot().native();
@@ -495,24 +507,113 @@ void Connection::do_write()
     prepare_response_headers_about_connection();
     std::ostream os(&_write_buffer);
     os << _response;
+
     ConnectionPtr self = shared_from_this();
     boost::asio::async_write(_socket
                              , _write_buffer
-                             , [self](errorcode const & ec, size_t bytes_transferred)
+                             , [self, this](errorcode const & ec, size_t bytes_transferred)
     {
         if (ec)
         {
             return;
         }
 
-        self->_write_buffer.consume(bytes_transferred);
+        _write_buffer.consume(bytes_transferred);
 
-        if (self->_request.IsKeepAlive() && self->_response.IsKeepAlive())
+        if (_request.IsKeepAlive() && _response.IsKeepAlive())
         {
-            self->_response.Reset();
-            self->do_read();
+            _response.Reset();
+            this->reset();
+            this->do_read();
         }
     });
+}
+
+
+void Connection::prepare_response_headers_for_chunked_write()
+{
+    _response.MarkChunked();
+    auto v = _response.GetVersion();
+
+    if (v.first < 1 || (v.first == 1 && v.second == 0))
+    {
+        _response.SetVersion(1, 1);
+    }
+
+    if (_response.IsClose())
+    {
+        _response.MarkKeepAlive();
+    }
+}
+
+void Connection::do_write_header_for_chunked()
+{
+    if (!_response.IsChunked())
+    {
+        return;
+    }
+
+    prepare_response_headers_for_chunked_write();
+
+    std::ostream os(&_write_buffer);
+    os << _response;
+
+    ConnectionPtr self = shared_from_this();
+
+    boost::asio::async_write(_socket
+                             , _write_buffer
+                             , [self, this](errorcode const & ec, size_t bytes_transferred)
+    {
+        if (ec)
+        {
+            return;
+        }
+
+        _write_buffer.consume(bytes_transferred);
+        do_write_next_chunked_body(0);
+    });
+}
+
+void Connection::do_write_next_chunked_body(std::time_t wait_start)
+{
+    bool is_last = false;
+    _current_chunked_body = std::move(_response.PopChunkedBody(is_last));
+
+    ConnectionPtr self = shared_from_this();
+
+    if (_current_chunked_body.empty())
+    {
+        if (!is_last)
+        {
+            std::time_t now = std::time(nullptr);
+
+            if (wait_start && (now - wait_start) / CLOCKS_PER_SEC > 5)
+            {
+                std::cerr << "Too long to Wait for chunked data." << std::endl;
+                return;
+            }
+
+            _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
+        }
+
+        return;
+    }
+
+    boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
+                             , std::bind(&Connection::do_write_next_chunked_body, self, 0));
+}
+
+void Connection::reset()
+{
+    _url.clear();
+    _body.clear();
+    _reading_header_part = header_none_part;
+    _reading_header_field.clear();
+    _reading_header_value.clear();
+    _read_complete = read_none_complete;
+    _reading_part.Clear();
+    _reading_part_data.clear();
+    _app = nullptr;
 }
 
 } //namespace da4qi4

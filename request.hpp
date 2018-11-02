@@ -31,6 +31,8 @@ struct Url
 
     UrlParameters parameters;
 
+    bool Parse(std::string&& url_value);
+
     void Clear()
     {
         full.clear();
@@ -43,6 +45,35 @@ struct Url
         userinfo.clear();
         parameters.clear();
     }
+};
+
+struct RoutingPathParameters
+{
+    RoutingPathParameters() = default;
+    RoutingPathParameters(RoutingPathParameters const&) = default;
+    RoutingPathParameters(RoutingPathParameters&& o)
+        : _parameters(std::move(o._parameters))
+    {
+    }
+
+    size_t GetCount() const
+    {
+        return _parameters.size();
+    }
+
+    void Clear()
+    {
+        _parameters.clear();
+    }
+
+    bool IsExists(std::string const& name) const;
+    std::string const& Get(std::string const& name) const;
+    OptionalStringRefConst TryGet(std::string const& name) const;
+    std::string const& Get(size_t index) const;
+
+    void InitParameters(std::vector<std::string> const& names, std::vector<std::string> const& values);
+private:
+    std::map<std::string, std::string> _parameters;
 };
 
 struct MultiPart
@@ -123,9 +154,14 @@ private:
 
 struct FormDataItem
 {
+    FormDataItem() = default;
+    FormDataItem(std::string const& name, std::string&& data)
+        : name(name), data(std::move(data))
+    {}
+
     std::string name;
     enum DataFlag {is_data, is_file_data, is_file_temporary_name};
-    DataFlag data_flag;
+    DataFlag data_flag = is_data;
     std::string filename;
     std::string content_type;
     std::string data;
@@ -165,7 +201,7 @@ class Request
 public:
     enum ParameterSrc
     {
-        fromUnknown = 0, fromUrl, fromForm, fromHeader, fromCookie
+        fromUnknown = 0, fromUrl, fromPath, fromForm, fromHeader, fromCookie
     };
 
     bool IsExistsHeader(std::string const& field) const;
@@ -175,6 +211,28 @@ public:
     bool IsExistsUrlParameter(std::string const& name) const;
     std::string const& GetUrlParameter(std::string const& name) const;
     OptionalStringRefConst TryGetUrlParameter(std::string const& name) const;
+
+    void InitPathParameters(std::vector<std::string> const& names, std::vector<std::string> const& values)
+    {
+        _path_parameters.InitParameters(names, values);
+    }
+
+    bool IsExistsPathParameter(std::string const& name) const
+    {
+        return _path_parameters.IsExists(name);
+    }
+    std::string const& GetPathParameter(std::string const& name) const
+    {
+        return _path_parameters.Get(name);
+    }
+    std::string const& GetPathParameter(size_t index) const
+    {
+        return _path_parameters.Get(index);
+    }
+    OptionalStringRefConst TryGetPathParameter(std::string const& name) const
+    {
+        return _path_parameters.TryGet(name);
+    }
 
     bool IsExistsFormData(std::string const& name) const;
     std::string const& GetFormData(std::string const& name) const;
@@ -186,12 +244,13 @@ public:
 
     ParameterSrc IsExistsParameter(std::string const& name) const
     {
-        //find order : url -> formdata -> header -> cookie
-        return IsExistsHeader(name) ? fromUrl
-               : (IsExistsFormData(name) ? fromForm
-                  : (IsExistsHeader(name) ?  fromHeader
-                     : (IsExistsCookie(name) ? fromCookie
-                        : fromUnknown)));
+        //find order : url -> path -> formdata -> header -> cookie
+        return IsExistsUrlParameter(name) ? fromUrl
+               : (IsExistsPathParameter(name) ? fromPath
+                  : (IsExistsFormData(name) ? fromForm
+                     : (IsExistsHeader(name) ?  fromHeader
+                        : (IsExistsCookie(name) ? fromCookie
+                           : fromUnknown))));
     }
 
     std::string const& GetParameter(std::string const& name) const;
@@ -224,6 +283,11 @@ public:
     ICHeaders const& GetCookies() const
     {
         return _cookies;
+    }
+
+    RoutingPathParameters const& GetPathParameters() const
+    {
+        return _path_parameters;
     }
 
     std::string const& GetMultiPartBoundary() const
@@ -273,6 +337,10 @@ public:
     {
         return _addition_flags[formdata_bit];
     }
+    bool IsFormUrlEncoded() const
+    {
+        return _addition_flags[formurlencoded_bit];
+    }
     bool IsMultiPart() const
     {
         return _addition_flags[multipart_bit];
@@ -309,6 +377,10 @@ public:
     {
         _addition_flags.set(multipart_bit, multipart);
     }
+    void MarkFormUrlEncoded(bool formurlencoded)
+    {
+        _addition_flags.set(formurlencoded_bit, formurlencoded);
+    }
     void MarkFormData(bool formdata)
     {
         _addition_flags.set(formdata_bit, formdata);
@@ -344,6 +416,7 @@ public:
 
     void TransferHeadersToCookies();
     void TransferMultiPartsToFormData(UploadFileSaveOptions const& options, std::string const& dir);
+    void ParseFormUrlEncodedData();
 
     void Reset();
 
@@ -353,9 +426,10 @@ private:
     static int const upgrade_bit = 0;
     static int const keepalive_bit = 1;
     static int const multipart_bit = 2;
-    static int const formdata_bit = 3;
+    static int const formurlencoded_bit = 3;
+    static int const formdata_bit = 4;
 
-    std::bitset<4> _addition_flags;
+    std::bitset<5> _addition_flags;
 
     Url _url;
     unsigned int _method = HTTP_GET;
@@ -374,6 +448,8 @@ private:
 
     ICHeaders _cookies;
     std::vector<FormDataItem> _formdata;
+
+    RoutingPathParameters _path_parameters;
 };
 
 } //namespace da4qi4

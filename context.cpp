@@ -6,6 +6,8 @@
 namespace da4qi4
 {
 
+Json theEmptyJson;
+
 Context ContextIMP::Make(ConnectionPtr cnt)
 {
     return std::shared_ptr<ContextIMP>(new ContextIMP(cnt));
@@ -183,6 +185,59 @@ void ContextIMP::regist_template_enginer_common_functions()
         return false;
     });
 
+    _env.add_callback("_PATH_PARAMETER_", 1
+                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
+    {
+        try
+        {
+            if (args.size() == 1)
+            {
+                std::string name = _env.get_argument<std::string>(args, 0, data);
+
+                if (!name.empty())
+                {
+                    return this->path_parameter(name);
+                }
+            }
+
+            return Utilities::theEmptyString;
+        }
+        catch (std::exception const& e)
+        {
+            std::cerr << e.what()
+                      << std::endl;
+        }
+
+        return Utilities::theEmptyString;
+    });
+
+
+    _env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1
+                      , [this](inja::Parsed::Arguments args, Json data) -> bool
+    {
+        try
+        {
+            if (args.size() == 1)
+            {
+                std::string name = _env.get_argument<std::string>(args, 0, data);
+
+                if (!name.empty())
+                {
+                    return this->is_exists_path_parameter(name);
+                }
+            }
+
+            return false;
+        }
+        catch (std::exception const& e)
+        {
+            std::cerr << e.what()
+                      << std::endl;
+        }
+
+        return false;
+    });
+
     _env.add_callback("_FORM_DATA_", 1
                       , [this](inja::Parsed::Arguments args, Json data) -> std::string
     {
@@ -305,6 +360,12 @@ Application& ContextIMP::App()
     return _cnt->GetApplication();
 }
 
+void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
+                                           , std::vector<std::string> const& values)
+{
+    _cnt->GetRequest().InitPathParameters(names, values);
+}
+
 std::string ContextIMP::render_on_template(inja::Template const& templ, Json const& data
                                            , bool& server_render_error
                                            , std::string& error_detail)
@@ -397,7 +458,24 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
 
 void ContextIMP::Bye()
 {
-    _cnt->Write();
+    _cnt->StartWrite();
 }
+
+void ContextIMP::StartChunkedResponse()
+{
+    Res().MarkChunked();
+    _cnt->StartChunkedWrite();
+}
+
+void ContextIMP::ContinueChunkedResponse(std::string const& body)
+{
+    Res().PushChunkedBody(body, false);
+}
+
+void ContextIMP::EndChunkedResponse()
+{
+    Res().PushChunkedBody(Utilities::theEmptyString, true);
+}
+
 
 } //namespace da4qi4

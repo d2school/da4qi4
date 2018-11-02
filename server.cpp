@@ -114,7 +114,7 @@ void Server::do_accept()
         {
             //todo :make cnt have owner socket with a io_context
             auto cnt = std::make_shared<Connection>(std::move(socket));
-            cnt->Start();
+            cnt->StartRead();
         }
 
         self->do_accept();
