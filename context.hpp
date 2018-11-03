@@ -25,6 +25,8 @@ using Context = std::shared_ptr<ContextIMP>;
 
 class Application;
 
+enum class InterceptResult { pass, stop_on_success, stop_on_error };
+
 class ContextIMP
 {
     ContextIMP(ConnectionPtr cnt);
@@ -44,6 +46,16 @@ public:
     }
 
     Application& App();
+
+    InterceptResult GetInterceptResult() const
+    {
+        return this->_intercept_result;
+    }
+
+    void SetInterceptResult(InterceptResult result)
+    {
+        this->_intercept_result = result;
+    }
 
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names
@@ -158,6 +170,9 @@ private:
     {
         return this->Req().IsExistsCookie(name);
     }
+
+private:
+    InterceptResult _intercept_result = InterceptResult::pass;
 private:
     ConnectionPtr _cnt;
     inja::Environment _env;

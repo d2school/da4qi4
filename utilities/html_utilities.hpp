@@ -1,13 +1,16 @@
-#ifndef DAQI_HTTP_UTILITIES_HPP
-#define DAQI_HTTP_UTILITIES_HPP
+#ifndef DAQI_HTML_UTILITIES_HPP
+#define DAQI_HTML_UTILITIES_HPP
 
 #include <string>
 #include <map>
+#include <unordered_map>
 
 namespace da4qi4
 {
 namespace Utilities
 {
+
+std::string const& GetMIMEType(std::string const&  extension);
 
 bool IsUrlEncoded(const std::string& value);
 std::string UrlEncode(const std::string& value);
@@ -19,7 +22,9 @@ std::string DecIntToHexStr(std::size_t num);
 std::map<std::string, std::string> ParseQueryParameters(std::string const& query);
 std::map<std::string, std::string> ParsePlainTextFormData(std::string const& body); //from html 4.01
 
+
+
 } //Utilities
 } //da4qi4
 
-#endif // DAQI_HTTP_UTILITIES_HPP
+#endif // DAQI_HTML_UTILITIES_HPP

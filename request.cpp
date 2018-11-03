@@ -8,7 +8,7 @@
 
 #include "utilities/string_utilities.hpp"
 #include "utilities/file_utilities.hpp"
-#include "utilities/http_utilities.hpp"
+#include "utilities/html_utilities.hpp"
 
 namespace da4qi4
 {
@@ -393,6 +393,10 @@ void Request::ParseContentType()
         else if (content_type->find("application/x-www-form-urlencoded") != std::string::npos)
         {
             this->MarkFormUrlEncoded(true);
+        }
+        else if (content_type->find("application/octet-stream") != std::string::npos)
+        {
+            this->MarkOctetStream(true);
         }
     }
 }

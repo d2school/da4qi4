@@ -49,7 +49,7 @@ void init_template_env(inja::Environment& env)
     env.add_callback("_IS_COOKIE_EXISTS_", 1, placeholder_exist);
 }
 
-bool TemplateLibrary::try_load_template(std::string const& key, std::string const& template_filename)
+bool Templates::try_load_template(std::string const& key, std::string const& template_filename)
 {
     try
     {
@@ -74,7 +74,7 @@ bool TemplateLibrary::try_load_template(std::string const& key, std::string cons
     }
 }
 
-size_t TemplateLibrary::load_templates(std::string const& template_ext, std::string const& key_ext)
+size_t Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
 {
     fs::path root(_root);
 
@@ -123,7 +123,7 @@ size_t TemplateLibrary::load_templates(std::string const& template_ext, std::str
     return count;
 }
 
-size_t TemplateLibrary::Preload()
+size_t Templates::Preload()
 {
     _templates.clear();
     size_t count = 0;
@@ -131,9 +131,9 @@ size_t TemplateLibrary::Preload()
     try
     {
         count += load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
-        count += load_templates(daqi_PLAIN_template_ext, ".plain");
-        count += load_templates(daqi_JSON_template_ext, ".json");
-        count += load_templates(daqi_XML_template_ext, ".xml");
+        //        count += load_templates(daqi_PLAIN_template_ext, ".plain");
+        //        count += load_templates(daqi_JSON_template_ext, ".json");
+        //        count += load_templates(daqi_XML_template_ext, ".xml");
         return count;
     }
     catch (fs::filesystem_error const& ec)
@@ -152,7 +152,7 @@ size_t TemplateLibrary::Preload()
     return 0;
 }
 
-inja::Template const* TemplateLibrary::Get(std::string const& name)
+inja::Template const* Templates::Get(std::string const& name)
 {
     std::string const* pname = &name;
     std::string tmp;

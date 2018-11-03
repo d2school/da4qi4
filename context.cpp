@@ -428,7 +428,7 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
 
     if (!templ)
     {
-        RenderNofound(data);
+        RenderNofound();
         return;
     }
 

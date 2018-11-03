@@ -17,7 +17,7 @@ Application::Application()
     : _name(default_app_name)
     , _default_charset("utf-8")
     , _root_url("/")
-    , _templ_library("/")
+    , _templates("/")
 {
     init_pathes();
 }
@@ -34,7 +34,7 @@ Application::Application(std::string const& name
     , _root_template(root_template)
     , _root_upload(root_upload)
     , _root_temporary(root_temporary)
-    , _templ_library(root_template.native())
+    , _templates(root_template.native())
 
 {
     init_pathes();
@@ -58,15 +58,6 @@ void Application::init_pathes()
 {
     try
     {
-        if (_root_static.empty())
-        {
-            _root_static = fs::current_path();
-        }
-        else if (!_root_static.is_absolute())
-        {
-            _root_static = fs::absolute(_root_static);
-        }
-
         if (_root_template.empty())
         {
             _root_template = fs::current_path();
@@ -99,7 +90,7 @@ void Application::init_pathes()
         std::cerr << e.what() << std::endl;
     }
 
-    _templ_library.Preload();
+    _templates.Preload();
 }
 
 bool ApplicationMgr::CreateDefaultIfEmpty()
@@ -113,10 +104,11 @@ bool ApplicationMgr::CreateDefaultIfEmpty()
     return false;
 }
 
-bool ApplicationMgr::Add(Application const& app)
+bool ApplicationMgr::Add(Application& app)
 {
     if (!app.GetName().empty() && !IsExists(app.GetName()))
     {
+        app._mounted = true;
         _set.insert(app);
         return true;
     }
@@ -229,41 +221,99 @@ std::string join_app_path(std::string const& app_root, std::string const& path)
 
 bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _equalRouter.Add(r, m, h);
 }
 
 bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _startwithsRouter.Add(r, m, h);
 }
 
 bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _regexRouter.Add(r, m, h);
 }
 
 bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _equalRouter.Add(r, ms, h);
 }
 
 bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _startwithsRouter.Add(r, ms, h);
 }
 
 bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
 {
+    if (IsRuning())
+    {
+        return false;
+    }
+
     r.s = join_app_path(_root_url, r.s);
     return _regexRouter.Add(r, ms, h);
 }
 
-Handler& Application::FindHandler(Context ctx)
+InterceptResult Application::do_intercept(Context ctx)
+{
+    try
+    {
+        for (auto& intercepter : _intercepters)
+        {
+            intercepter(ctx);
+            auto intercept_result = ctx->GetInterceptResult();
+
+            if (intercept_result == InterceptResult::pass)
+            {
+                continue;
+            }
+            else
+            {
+                return intercept_result;
+            }
+        }
+    }
+    catch (std::exception const& e)
+    {
+        std::cerr << "Intercepter exception. " << e.what() << std::endl;
+        return InterceptResult::stop_on_error;
+    }
+
+    return InterceptResult::pass;
+}
+
+Handler& Application::find_handler(Context ctx)
 {
     HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
 
@@ -273,6 +323,7 @@ Handler& Application::FindHandler(Context ctx)
     }
 
     std::string const& url = ctx->Req().GetUrl().path;// full;
+
     RouterResult rr = _equalRouter.Search(url, m);
 
     if (rr.handler)
@@ -298,7 +349,20 @@ Handler& Application::FindHandler(Context ctx)
 
 void Application::Handle(Context ctx)
 {
-    Handler h = FindHandler(ctx);
+    InterceptResult ir = do_intercept(ctx);
+
+    if (ir == InterceptResult::stop_on_error)
+    {
+        ctx->Res().InternalServerError();
+        return;
+    }
+
+    if (ir == InterceptResult::stop_on_success)
+    {
+        return;
+    }
+
+    Handler h = find_handler(ctx);
 
     if (!h)
     {

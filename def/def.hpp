@@ -41,6 +41,8 @@ struct UploadFileSaveOptions
 
 using json = nlohmann::json;
 
+enum PathResolve {is_relative, is_absolute}; //for url and dist-directory
+
 } //namespace da4qi4
 
 #endif // DAQI_DEF_HPP

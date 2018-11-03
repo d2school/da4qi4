@@ -9,10 +9,10 @@
 namespace da4qi4
 {
 
-class TemplateLibrary
+class Templates
 {
 public:
-    TemplateLibrary(std::string const& template_root)
+    Templates(std::string const& template_root)
         : _root(template_root)
     {
     }

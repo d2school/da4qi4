@@ -11,8 +11,8 @@
 namespace da4qi4
 {
 
-Connection::Connection(Tcp::socket socket)
-    : _socket(std::move(socket)), _parser(new http_parser)
+Connection::Connection(boost::asio::io_context& ioc)
+    : _socket(ioc), _parser(new http_parser)
 {
     this->init_parser();
     this->init_parser_setting();
@@ -433,9 +433,10 @@ void Connection::do_read()
 {
     auto self(this->shared_from_this());
     _socket.async_read_some(boost::asio::buffer(_buffer)
-                            , [self, this](boost::system::error_code ec, std::size_t bytes_transferred)
+                            , [self, this](boost::system::error_code ec
+                                           , std::size_t bytes_transferred)
     {
-        std::cout << std::time(nullptr) << std::endl;
+        std::cout << std::clock() * 1000 / CLOCKS_PER_SEC << " read " << bytes_transferred << "byte." << std::endl;
 
         if (ec)
         {
@@ -518,6 +519,8 @@ void Connection::do_write()
             return;
         }
 
+        std::cout << std::clock() * 1000 / CLOCKS_PER_SEC << " write " << bytes_transferred << "byte." << std::endl;
+
         _write_buffer.consume(bytes_transferred);
 
         if (_request.IsKeepAlive() && _response.IsKeepAlive())
@@ -584,7 +587,7 @@ void Connection::do_write_next_chunked_body(std::time_t wait_start)
     {
         if (!is_last)
         {
-            std::time_t now = std::time(nullptr);
+            std::clock_t now = std::clock();
 
             if (wait_start && (now - wait_start) / CLOCKS_PER_SEC > 5)
             {
@@ -594,12 +597,34 @@ void Connection::do_write_next_chunked_body(std::time_t wait_start)
 
             _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
         }
+        else
+        {
+            ;
+        }
 
         return;
     }
 
     boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
-                             , std::bind(&Connection::do_write_next_chunked_body, self, 0));
+                             , [self](errorcode const & ec, size_t bytes_transferred)
+    {
+        self->do_write_chunked_body_finished(ec, bytes_transferred);
+    });
+
+}
+
+void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred)
+{
+    if (ec)
+    {
+        std::cerr << "write chunked body fail. " << ec.message() << std::endl;
+        return;
+    }
+
+    std::cout << std::clock() * 1000 / CLOCKS_PER_SEC
+              << " write (chunked) " << bytes_transferred << "byte." << std::endl;
+
+    do_write_next_chunked_body(0);
 }
 
 void Connection::reset()

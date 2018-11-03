@@ -19,11 +19,16 @@ namespace da4qi4
 class Connection
     : public std::enable_shared_from_this<Connection>
 {
+    explicit Connection(boost::asio::io_context& ioc);
 public:
+    static ConnectionPtr Create(boost::asio::io_context& ioc)
+    {
+        return ConnectionPtr(new Connection(ioc));
+    }
+
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
 
-    explicit Connection(Tcp::socket socket);
     ~Connection();
 
     void StartRead();
@@ -55,6 +60,12 @@ public:
         return (_app ? *_app : Application::EmptyApplication());
     }
 
+public:
+    Tcp::socket& GetSocket()
+    {
+        return _socket;
+    }
+
 private:
     void do_read();
     void do_write();
@@ -62,7 +73,7 @@ private:
 
     void do_write_header_for_chunked();
     void do_write_next_chunked_body(std::time_t wait_start);
-
+    void do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred);
 private:
     Tcp::socket _socket;
     std::array<char, 1024 * 4> _buffer;

@@ -2,6 +2,7 @@
 #define DAQI_APPLICATION_HPP
 
 #include <set>
+#include <map>
 
 #include "def/boost_def.hpp"
 #include "utilities/string_utilities.hpp"
@@ -16,7 +17,7 @@ class Application
 {
 private:
     Application(std::string const& root_url)
-        : _name(""), _root_url(root_url), _templ_library("")
+        : _root_url(root_url), _templates("")
     {}
 
 public:
@@ -53,22 +54,38 @@ public:
         return *this;
     }
 
+    bool IsRuning() const
+    {
+        return  _mounted && !_disabled;
+    }
+
     Application& SetTemplateRoot(std::string const& root_template)
     {
-        _root_template = root_template;
+        if (!IsRuning())
+        {
+            _root_template = root_template;
+        }
 
         return *this;
     }
 
     Application& SetDefaultCharset(std::string const& charset)
     {
-        _default_charset = charset;
+        if (!IsRuning())
+        {
+            _default_charset = charset;
+        }
+
         return *this;
     }
 
     Application& SetUploadRoot(std::string const& root_upload)
     {
-        _root_upload = root_upload;
+        if (!IsRuning())
+        {
+            _root_upload = root_upload;
+        }
+
         return *this;
     }
 
@@ -119,14 +136,14 @@ public:
         return _upload_file_save_opt;
     }
 
-    TemplateLibrary const& GetTemplates() const
+    Templates const& GetTemplates() const
     {
-        return _templ_library;
+        return _templates;
     }
 
-    TemplateLibrary& GetTemplates()
+    Templates& GetTemplates()
     {
-        return _templ_library;
+        return _templates;
     }
 
     void Handle(Context ctx);
@@ -139,6 +156,11 @@ public:
 public:
     bool AddHandler(HandlerMethod m, std::string const& url, Handler h)
     {
+        if (IsRuning())
+        {
+            return false;
+        }
+
         return AddHandler(m, router_equals(url), h);
     }
 
@@ -148,17 +170,40 @@ public:
 
     bool AddHandler(HandlerMethods ms, std::string const& url, Handler h)
     {
+        if (IsRuning())
+        {
+            return false;
+        }
+
         return AddHandler(ms, router_equals(url), h);
     }
     bool AddHandler(HandlerMethods ms, router_equals e, Handler h);
     bool AddHandler(HandlerMethods ms, router_starts e, Handler h);
     bool AddHandler(HandlerMethods ms, router_regex e, Handler h);
 
+public:
+    void PushBackIntercepter(Handler const& intercepter)
+    {
+        if (!IsRuning())
+        {
+            _intercepters.push_back(intercepter);
+        }
+    }
+
+    void PushFrontIntercepter(Handler const& intercepter)
+    {
+        if (!IsRuning())
+        {
+            _intercepters.push_front(intercepter);
+        }
+    }
+
 private:
     void init_pathes();
 
 private:
-    Handler& FindHandler(Context ctx);
+    InterceptResult do_intercept(Context ctx);
+    Handler& find_handler(Context ctx);
 
 private:
     EqualsRoutingTable _equalRouter;
@@ -167,6 +212,7 @@ private:
 
 private:
     bool _disabled = false;
+    bool _mounted = false;
 
     std::string _name;
     std::string _default_charset = "UTF-8";
@@ -178,7 +224,12 @@ private:
     fs::path _root_temporary;
 
     UploadFileSaveOptions _upload_file_save_opt;
-    TemplateLibrary _templ_library;
+    Templates _templates;
+
+private:
+    std::list<Handler> _intercepters;
+
+    friend class ApplicationMgr;
 };
 
 struct CompareByUrlRoot_DESC_IC
@@ -194,7 +245,7 @@ using ApplicationSet = std::set <Application, CompareByUrlRoot_DESC_IC>;
 struct ApplicationMgr
 {
     bool CreateDefaultIfEmpty();
-    bool Add(Application const& app);
+    bool Add(Application& app);
 
     void Enable(std::string const& name);
     void Disable(std::string const& name);

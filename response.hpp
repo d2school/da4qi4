@@ -303,6 +303,28 @@ public:
         AppendHeader("Location", dst_location);
     }
 
+    void SetExpires(std::time_t time_point)
+    {
+        AppendHeader("Expires", Utilities::GMTFormatTime(time_point));
+    }
+
+    void SetNoCache()
+    {
+        AppendHeader("Cache-Control", "no-cache");
+    }
+    void SetPublicCache(int max_age_seconds = 0)
+    {
+        AppendHeader("Cache-Control", "public, max-age=" + std::to_string(max_age_seconds));
+    }
+    void SetPrivateCache(int max_age_seconds = 0)
+    {
+        AppendHeader("Cache-Control", "private, max-age=" + std::to_string(max_age_seconds));
+    }
+    void TurnOffCache()
+    {
+        AppendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    }
+
     void MarkKeepAlive();
     void MarkClose();
 

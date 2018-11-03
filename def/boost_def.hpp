@@ -7,6 +7,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <boost/asio/placeholders.hpp>
 
 namespace da4qi4
 {
@@ -18,6 +19,8 @@ namespace fs = boost::filesystem;
 using OptionalString = boost::optional<std::string>;
 using OptionalStringRef = boost::optional<std::string&>;
 using OptionalStringRefConst = boost::optional<std::string const&>;
+
+namespace asio_placeholders = boost::asio::placeholders;
 
 } //namesapce da4qi4
 

@@ -341,6 +341,10 @@ public:
     {
         return _addition_flags[formurlencoded_bit];
     }
+    bool IsOctetStream() const
+    {
+        return _addition_flags[octetstream_bit];
+    }
     bool IsMultiPart() const
     {
         return _addition_flags[multipart_bit];
@@ -380,6 +384,10 @@ public:
     void MarkFormUrlEncoded(bool formurlencoded)
     {
         _addition_flags.set(formurlencoded_bit, formurlencoded);
+    }
+    void MarkOctetStream(bool octetstream)
+    {
+        _addition_flags.set(octetstream_bit, octetstream);
     }
     void MarkFormData(bool formdata)
     {
@@ -428,8 +436,9 @@ private:
     static int const multipart_bit = 2;
     static int const formurlencoded_bit = 3;
     static int const formdata_bit = 4;
+    static int const octetstream_bit = 5;
 
-    std::bitset<5> _addition_flags;
+    std::bitset<6> _addition_flags;
 
     Url _url;
     unsigned int _method = HTTP_GET;

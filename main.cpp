@@ -5,6 +5,7 @@
 #include "server.hpp"
 
 #include "application.hpp"
+#include "intercepter_staticfile.hpp"
 
 #include "def/log_def.hpp"
 #include "utilities/captcha_utilities.hpp"
@@ -16,10 +17,16 @@ int main()
     auto console = spdlog::stdout_color_mt("console");
     console->info("Wecome to da4qi4");
 
-    boost::asio::io_context ioc;
-    auto svc = Server::Supply(ioc, 4099);
+    auto svc = Server::Supply(4099);
     console->info("Server start at {}", 4099);
-    Application app1("d2school", "/", "", "./view/");
+
+    Application app1("d2school", "/"
+                     , "/home/zhuangyan/projects/CPP/test_web_root/static/"
+                     , "/home/zhuangyan/projects/CPP/test_web_root/view/");
+
+    Intercepter::StaticFileIntercepter sfi(60);
+    sfi.AddEntry("html/", "");
+    app1.PushBackIntercepter(sfi);
 
     app1.AddHandler(_GET_, "", [](Context ctx)
     {
@@ -91,12 +98,7 @@ int main()
         ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/DELETE</h2></body></html>");
         ctx->Bye();
     });
-    Application app2("d2school-admin", "/admin/");
-    app2.AddHandler(_GET_, ""_router_starts, [](Context ctx)
-    {
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN</h1></body></html>");
-        ctx->Bye();
-    });
+
     app1.AddHandler(_GET_, "post/"_router_equals, [](Context ctx)
     {
         ctx->Render("post/index");
@@ -107,18 +109,13 @@ int main()
         ctx->Render("post/result");
         ctx->Bye();
     });
+
     svc->AddApp(app1);
     console->info("App {} regist!", app1.GetName());
-    svc->AddApp(app2);
-    console->info("App {} regist!", app2.GetName());
-    svc->AddHandler(_GET_, "/admin/test/"_router_starts, [](Context ctx)
-    {
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN/TEST</h1></body></html>");
-        ctx->Bye();
-    });
+
     svc->AddHandler(_GET_, "/favicon.ico", [](Context ctx)
     {
-        ctx->Res().Gone();
+        ctx->Res().Nofound();
         ctx->Bye();
     });
     svc->AddHandler(_GET_, "/plain-text", [](Context ctx)
@@ -131,23 +128,11 @@ int main()
 
     try
     {
-        svc->Start();
-
-        for (;;)
-        {
-            try
-            {
-                ioc.run();
-            }
-            catch (std::exception const& e)
-            {
-                console->error("Server Fail ! {}", e.what());
-            }
-        }
+        svc->Run();
     }
     catch (std::exception const& e)
     {
-        console->error("Server Start Fail ! {}", e.what());
+        console->error("Server Run Fail ! {}", e.what());
     }
 
     return 0;

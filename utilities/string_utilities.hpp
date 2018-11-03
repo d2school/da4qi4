@@ -29,6 +29,14 @@ struct IgnoreCaseCompareDESC
     }
 };
 
+struct CompareDESC
+{
+    bool operator()(std::string const& l, std::string const& r) const
+    {
+        return r < l; /* DESC : swap l, r */
+    }
+};
+
 bool iStartsWith(std::string const& m, std::string const& s);
 bool iEquals(std::string const& l, std::string const& r);
 bool iLess(std::string const& l, std::string const& r);

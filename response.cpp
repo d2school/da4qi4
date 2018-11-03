@@ -6,7 +6,7 @@
 
 #include "utilities/string_utilities.hpp"
 #include "utilities/container_utilities.hpp"
-#include "utilities/http_utilities.hpp"
+#include "utilities/html_utilities.hpp"
 
 namespace da4qi4
 {
