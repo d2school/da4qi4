@@ -61,21 +61,29 @@ void StaticFileIntercepter::operator()(Context ctx) const
     if (dst_path_filename.empty())
     {
         ctx->RenderNofound();
-        StopOnError(ctx);
+        ByeOnError(ctx);
         return;
     }
 
-    errorcode ec;
-
-    if (!fs::exists(dst_path_filename, ec))
+    try
     {
-        std::cerr << ec.message() << std::endl;
+        bool file_exists = fs::exists(dst_path_filename);
 
-        ctx->RenderNofound();
-        StopOnError(ctx);
+        if (!file_exists)
+        {
+            ctx->RenderNofound();
+            ByeOnError(ctx);
+            return;
+        }
+    }
+    catch (std::exception const& e)
+    {
+        std::cerr << e.what() << std::endl;
+        ctx->RenderInternalServerError();
+        ByeOnError(ctx);
+
         return;
     }
-
 
     std::ifstream ifs(dst_path_filename.native().c_str(), std::ios_base::binary);
 
@@ -84,16 +92,16 @@ void StaticFileIntercepter::operator()(Context ctx) const
         std::cerr << "Open " << dst_path_filename.native() << "file fail!" << std::endl;
 
         ctx->RenderInternalServerError();
-        StopOnError(ctx);
+        ByeOnError(ctx);
         return;
     }
 
-    size_t const max_size_read_one_time = 1024 * 2;
-    char rdbuf[max_size_read_one_time];
+    size_t const max_byte_read_one_time = 1024 * 2;
+    char rdbuf[max_byte_read_one_time];
 
-    size_t const max_size_one_chunked_body = 1024 * 128;
+    size_t const max_byte_one_chunked_body = 1024 * 128;
     std::string a_chunk_body;
-    a_chunk_body.reserve(max_size_one_chunked_body);
+    a_chunk_body.reserve(max_byte_one_chunked_body);
 
     std::string content_type = Utilities::GetMIMEType(dst_path_filename.extension().string());
     ctx->Res().SetContentType(content_type);
@@ -103,7 +111,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
 
     while (ifs)
     {
-        ifs.read(rdbuf, max_size_read_one_time);
+        ifs.read(rdbuf, max_byte_read_one_time);
         size_t count = ifs.gcount();
 
         if (count > 0)
@@ -111,7 +119,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
             a_chunk_body.append(rdbuf, rdbuf + count);
         }
 
-        if (a_chunk_body.size() > max_size_one_chunked_body)
+        if (a_chunk_body.size() > max_byte_one_chunked_body)
         {
             ctx->ContinueChunkedResponse(a_chunk_body);
             a_chunk_body.clear();
@@ -124,8 +132,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
         a_chunk_body.clear();
     }
 
-    StopOnSuccess(ctx);
-    ctx->Bye();
+    ByeOnSuccess(ctx);
 }
 
 

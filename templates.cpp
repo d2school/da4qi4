@@ -12,9 +12,9 @@ namespace da4qi4
 namespace
 {
 std::string const daqi_HTML_template_ext = ".daqi.HTML";
-std::string const daqi_PLAIN_template_ext = ".daqi.PLAIN";
-std::string const daqi_JSON_template_ext = ".daqi.JSON";
-std::string const daqi_XML_template_ext = ".daqi.XML";
+//std::string const daqi_PLAIN_template_ext = ".daqi.PLAIN";
+//std::string const daqi_JSON_template_ext = ".daqi.JSON";
+//std::string const daqi_XML_template_ext = ".daqi.XML";
 }
 
 void init_template_env(inja::Environment& env)
@@ -159,7 +159,8 @@ inja::Template const* Templates::Get(std::string const& name)
 
     if (Utilities::EndsWith(name, ".html"))
     {
-        tmp = name.substr(0, name.size() - 5); //5: len of ".html"
+        size_t const len_of_ext_html = 5;
+        tmp = name.substr(0, name.size() - len_of_ext_html);
         pname = &tmp;
     }
 

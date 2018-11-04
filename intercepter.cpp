@@ -20,5 +20,17 @@ void StopOnError(Context ctx)
     ctx->SetInterceptResult(InterceptResult::stop_on_error);
 }
 
+void ByeOnSuccess(Context ctx)
+{
+    StopOnSuccess(ctx);;
+    ctx->Bye();
+}
+
+void ByeOnError(Context ctx)
+{
+    StopOnError(ctx);;
+    ctx->Bye();
+}
+
 } //Intercepter
 } //namespace da4qi4

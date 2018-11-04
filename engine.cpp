@@ -9,7 +9,7 @@ namespace da4qi4
 {
 
 IOContextPool::IOContextPool(std::size_t pool_size)
-    : _next_index(0)
+    : _stopping(false), _next_index(0)
 {
     if (pool_size == 0)
     {

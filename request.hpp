@@ -147,9 +147,22 @@ struct MultiPart
         _headers.clear();
         _data.clear();
     }
+
+    enum TransferResult {transfer_none, tranfer_formdata, transfer_file_memory, transfer_file_saved};
+
+    TransferResult GetTransferResult() const
+    {
+        return _transfer_result;
+    }
+
+    void SetTransferResult(TransferResult transfer_result)
+    {
+        _transfer_result = transfer_result;
+    }
 private:
     ICHeaders _headers;
     std::string _data;
+    TransferResult _transfer_result = transfer_none;
 };
 
 struct FormDataItem

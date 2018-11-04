@@ -15,6 +15,9 @@ void Pass(Context ctx);
 void StopOnSuccess(Context ctx);
 void StopOnError(Context ctx);
 
+void ByeOnSuccess(Context ctx);
+void ByeOnError(Context ctx);
+
 } //namespace Intercepter
 } //namespace da4qi4
 

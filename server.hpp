@@ -1,6 +1,8 @@
 #ifndef DAQI_SERVER_HPP
 #define DAQI_SERVER_HPP
 
+#include <atomic>
+
 #include "def/asio_def.hpp"
 
 #include "engine.hpp"
@@ -59,7 +61,7 @@ private:
     void make_default_app_if_need();
 
 private:
-    bool _stopping = false;
+    std::atomic_bool _stopping;
     boost::asio::io_context _ioc_for_self;
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;

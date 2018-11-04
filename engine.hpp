@@ -5,6 +5,7 @@
 
 #include <list>
 #include <vector>
+#include <atomic>
 
 #include <boost/asio.hpp>
 #include <boost/noncopyable.hpp>
@@ -33,7 +34,8 @@ private:
     using IOContextPtr = std::shared_ptr<boost::asio::io_context>;
     using IOContextWork = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
-    bool _stopping = false;
+    std::atomic_bool _stopping;
+
     std::vector<IOContextPtr> _io_contexts;
     std::list<IOContextWork> _work;
     std::size_t _next_index;

@@ -20,9 +20,12 @@ int main()
     auto svc = Server::Supply(4099);
     console->info("Server start at {}", 4099);
 
-    Application app1("d2school", "/"
-                     , "/home/zhuangyan/projects/CPP/test_web_root/static/"
-                     , "/home/zhuangyan/projects/CPP/test_web_root/view/");
+    Application app1("d2school" //name
+                     , "/"      //url root
+                     , "/home/zhuangyan/projects/CPP/test_web_root/static/" //static root
+                     , "/home/zhuangyan/projects/CPP/test_web_root/view/"   //template root
+                     , "/home/zhuangyan/projects/CPP/test_web_root/upload/" //upload root
+                    );
 
     Intercepter::StaticFileIntercepter sfi(60);
     sfi.AddEntry("html/", "");
@@ -99,14 +102,25 @@ int main()
         ctx->Bye();
     });
 
-    app1.AddHandler(_GET_, "post/"_router_equals, [](Context ctx)
+    app1.AddHandler(_GET_, "post/form"_router_equals, [](Context ctx)
     {
-        ctx->Render("post/index");
+        ctx->Render("post/form");
         ctx->Bye();
     });
     app1.AddHandler({_GET_, _POST_}, "post/result"_router_equals, [](Context ctx)
     {
         ctx->Render("post/result");
+        ctx->Bye();
+    });
+
+    app1.AddHandler(_GET_, "post/upload"_router_equals, [](Context ctx)
+    {
+        ctx->Render("post/upload");
+        ctx->Bye();
+    });
+    app1.AddHandler(_POST_, "post/upload_result"_router_equals, [](Context ctx)
+    {
+        ctx->Render("post/upload_result");
         ctx->Bye();
     });
 

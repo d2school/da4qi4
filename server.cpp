@@ -11,7 +11,7 @@ namespace da4qi4
 {
 
 Server::Server(Tcp::endpoint endpoint, size_t thread_count)
-    : _acceptor(_ioc_for_self), _signals(_ioc_for_self), _ioc_pool_for_connections(thread_count)
+    : _stopping(false), _acceptor(_ioc_for_self), _signals(_ioc_for_self), _ioc_pool_for_connections(thread_count)
 {
     _signals.add(SIGINT);
     _signals.add(SIGTERM);

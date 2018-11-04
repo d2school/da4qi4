@@ -4,6 +4,9 @@
 #include <sstream>
 #include <algorithm>
 
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
 #include "def/debug_def.hpp"
 
 #include "utilities/string_utilities.hpp"
@@ -481,48 +484,44 @@ void Request::TransferHeadersToCookies()
     }
 }
 
-bool TransferMultiPartToFormDataItem(MultiPart&& mp, FormDataItem& fdi)
+
+fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& dir)
 {
-    fdi.Reset();
-    MultiPart::SubHeaders sub_headers = mp.GetSubHeaders("Content-Disposition");
+    static boost::uuids::random_generator gen;
+    fs::path disk_fn(dir);
 
-    if (sub_headers.IsEmpty() || !Utilities::iEquals(sub_headers.value, "form-data"))
+    do
     {
-        return false;
+        boost::uuids::uuid uid = gen();
+        std::stringstream ss;
+        ss << uid << ext;
+
+        disk_fn /= ss.str();
+        size_t retry_count = 0;
+
+        try
+        {
+            if (fs::exists(disk_fn))
+            {
+                if (++retry_count > 9)
+                {
+                    std::cerr << "Too many temporary files in the upload directory. "
+                              << dir << ". removed them please." << std::endl;
+                    return Utilities::theEmptyString;
+                }
+
+                continue;
+            }
+        }
+        catch (std::exception const& e)
+        {
+            std::cerr << e.what() << std::endl;
+            return Utilities::theEmptyString;
+        }
     }
+    while (false);
 
-    std::string name = Utilities::GetHeader(sub_headers.headers, "name");
-    auto content_type = mp.TryGetHeader("Content-Type");
-
-    if (name.empty())
-    {
-        return false;
-    }
-
-    fdi.name = name;
-    auto filename = Utilities::TryGetHeader(sub_headers.headers, "filename");
-
-    if (filename)
-    {
-        fdi.data_flag = FormDataItem::is_file_data;
-        fdi.filename = *filename;
-    }
-
-    if (content_type)
-    {
-        fdi.content_type = *content_type;
-    }
-
-    fdi.data = std::move(mp.GetData());
-    return true;
-}
-
-std::string MakeUploadFileTemporaryName(std::string const& ext)
-{
-    boost::uuids::uuid uid;
-    std::stringstream ss;
-    ss << uid << ext;
-    return ss.str();
+    return disk_fn;
 }
 
 void Request::ParseFormUrlEncodedData()
@@ -539,44 +538,85 @@ void Request::ParseFormUrlEncodedData()
     }
 }
 
+bool TransferMultiPartToFormDataItem(MultiPart& mp, FormDataItem& fdi)
+{
+    MultiPart::SubHeaders sub_headers = mp.GetSubHeaders("Content-Disposition");
+
+    if (sub_headers.IsEmpty() || !Utilities::iEquals(sub_headers.value, "form-data"))
+    {
+        return false;
+    }
+
+    std::string name = Utilities::GetHeader(sub_headers.headers, "name");
+
+    if (name.empty())
+    {
+        mp.SetTransferResult(MultiPart::transfer_none);
+        return false;
+    }
+
+    fdi.name = std::move(name);
+    auto filename = Utilities::TryGetHeader(sub_headers.headers, "filename");
+
+    if (filename)
+    {
+        fdi.data_flag = FormDataItem::is_file_data;
+        fdi.filename = std::move(*filename);
+
+        mp.SetTransferResult(MultiPart::transfer_file_memory);
+    }
+    else
+    {
+        fdi.data_flag = FormDataItem::is_data;
+        mp.SetTransferResult(MultiPart::tranfer_formdata);
+    }
+
+    auto content_type = mp.TryGetHeader("Content-Type");
+
+    if (content_type)
+    {
+        fdi.content_type = std::move(*content_type);
+    }
+
+    fdi.data = std::move(mp.GetData());
+    return true;
+}
+
 void Request::TransferMultiPartsToFormData(UploadFileSaveOptions const& options, std::string const& dir)
 {
-    std::vector<MultiPart> result_multiparts;
-
     for (size_t i = 0; i < _multiparts.size(); ++i)
     {
         MultiPart& part = _multiparts[i];
         FormDataItem fd_item;
 
-        if (TransferMultiPartToFormDataItem(std::move(part), fd_item))
+        if (TransferMultiPartToFormDataItem(part, fd_item))
         {
-            if (!dir.empty() && fd_item.data_flag == FormDataItem::is_file_data
-                && !fd_item.filename.empty() && !fd_item.data.empty())
+            if (fd_item.data_flag == FormDataItem::is_file_data
+                && !fd_item.filename.empty() && !fd_item.data.empty()
+                && !dir.empty())
             {
-                std::string ext = fs::extension(fd_item.filename); //ext maybe empty
+                std::string ext = fs::extension(fd_item.filename);
                 size_t filesize_kb = fd_item.data.size() / 1024;
 
                 if (options.IsNeedSave(ext, filesize_kb))
                 {
-                    std::string filename = MakeUploadFileTemporaryName(ext);
+                    fs::path temporary_file_name = MakeUploadFileTemporaryName(ext, dir);
 
-                    if (Utilities::SaveDataToFile(fd_item.data, dir, filename))
+                    if (!temporary_file_name.empty())
                     {
-                        fd_item.data = filename;
-                        fd_item.data_flag = FormDataItem::is_file_temporary_name;
+                        if (Utilities::SaveDataToFile(fd_item.data, temporary_file_name))
+                        {
+                            fd_item.data = temporary_file_name.string();
+                            fd_item.data_flag = FormDataItem::is_file_temporary_name;
+                            part.SetTransferResult(MultiPart::transfer_file_saved);
+                        }
                     }
                 }
             }
+        }
 
-            _formdata.push_back(std::move(fd_item));
-        }
-        else
-        {
-            result_multiparts.push_back(std::move(part));
-        }
+        _formdata.push_back(std::move(fd_item));
     }
-
-    _multiparts = std::move(result_multiparts);
 }
 
 
