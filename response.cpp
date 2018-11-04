@@ -150,98 +150,6 @@ void ChunkedBodies::Clear()
     _chunked_bodies.clear();
 }
 
-
-Cookie& Cookie::SetExpires(std::time_t a_time_point)
-{
-    std::time_t now(std::time(nullptr));
-    _max_age = a_time_point - now;
-    return *this;
-}
-
-struct QV
-{
-    QV(std::string const& v, char const* q = "")
-        : v(v), q(q)
-    {}
-
-    std::string const& v;
-    std::string q;
-};
-
-std::ostream& operator << (std::ostream& os, QV const& qv)
-{
-    if (qv.q.empty())
-    {
-        return os << qv.v;
-    }
-
-    bool need_esc = qv.v.find(qv.q) != std::string::npos;
-
-    if (!need_esc)
-    {
-        return os << qv.q << qv.v << qv.q;
-    }
-
-    std::string dst = std::string("\\") + qv.q;
-    std::string esc = Utilities::ReplaceAll(qv.v, qv.q, dst);
-    return os << qv.q << esc << qv.q;
-}
-
-std::ostream& operator << (std::ostream& os, Cookie const& c)
-{
-    char const* qs[] = {"", "\""};
-    char const* q = qs[!!c._old_version];
-    os << c._name << '=' << QV(c._value, q);
-
-    if (c.IsExpiredImmediately())
-    {
-        os << ((!c._old_version) ? "; Max-Age=-1" : "; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
-    }
-    else if (!c.IsExpiredAfterBrowerClose())
-    {
-        if (!c._old_version)
-        {
-            os << "; Max-Age=" << QV(std::to_string(c._max_age), q);
-        }
-        else
-        {
-            std::time_t expires = std::time(nullptr) + c._max_age;
-            os << "; Expires=" << QV(Utilities::GMTFormatTime(expires), q);
-        }
-    }
-
-    if (!c._domain.empty())
-    {
-        os << "; Domain=" << QV(c._domain, q);
-    }
-
-    if (!c._path.empty())
-    {
-        os << "; Path=" << QV(c._path, q);
-    }
-
-    if (!c._old_version)
-    {
-        if (c._samesite != Cookie::SameSite::none)
-        {
-            std::string v = (c._samesite == Cookie::SameSite::lax) ? "Lax" : "Strict";
-            os << "; SameSite=" << QV(v, q);
-        }
-    }
-
-    if (c._secure)
-    {
-        os << "; Secure";
-    }
-
-    if (c._http_only)
-    {
-        os << "; HttpOnly";
-    }
-
-    return os;
-}
-
 Response::Response()
 {
     _headers["Server"] = "da4qi4/0.99";
@@ -406,122 +314,122 @@ void Response::set_or_default_body(std::string body, bool provide_default_if_bod
         SetBody(HttpStatusSummaryGetter(_status_code));
     }
 }
-void Response::Status(int code, std::string body)
+void Response::ReplyStatus(int code, std::string body)
 {
     _status_code = code;
     set_or_default_body(std::move(body));
 }
 
-void Response::Ok(std::string body)
+void Response::ReplyOk(std::string body)
 {
     _status_code = HTTP_STATUS_OK;
     set_or_default_body(std::move(body));
 }
 
-void Response::Nofound(std::string body)
+void Response::ReplyNofound(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_FOUND;
     set_or_default_body(std::move(body));
 }
 
-void Response::Gone(std::string body)
+void Response::ReplyGone(std::string body)
 {
     _status_code = HTTP_STATUS_GONE;
     set_or_default_body(std::move(body));
 }
 
-void Response::Unauthorized(std::string body)
+void Response::ReplyUnauthorized(std::string body)
 {
     _status_code = HTTP_STATUS_UNAUTHORIZED;
     set_or_default_body(std::move(body));
 }
 
-void Response::NoAuthoritativeInformation(std::string body)
+void Response::ReplyNoAuthoritativeInfo(std::string body)
 {
     _status_code = HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION;
     set_or_default_body(std::move(body));
 }
 
-void Response::BadRequest(std::string body)
+void Response::ReplyBadRequest(std::string body)
 {
     _status_code = HTTP_STATUS_BAD_REQUEST;
     set_or_default_body(std::move(body));
 }
 
-void Response::RangeNotSatisfiable(std::string body)
+void Response::ReplyRangeNotSatisfiable(std::string body)
 {
     _status_code = HTTP_STATUS_RANGE_NOT_SATISFIABLE;
     set_or_default_body(std::move(body));
 }
 
-void Response::Forbidden(std::string body)
+void Response::ReplyForbidden(std::string body)
 {
     _status_code = HTTP_STATUS_FORBIDDEN;
     set_or_default_body(std::move(body));
 }
 
-void Response::MethodNotAllowed(std::string body)
+void Response::ReplyMethodNotAllowed(std::string body)
 {
     _status_code = HTTP_STATUS_METHOD_NOT_ALLOWED;
     set_or_default_body(std::move(body));
 }
 
-void Response::HttpVersionNotSupported(std::string body)
+void Response::ReplyHttpVersionNotSupported(std::string body)
 {
     _status_code = HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED;
     set_or_default_body(std::move(body));
 }
 
-void Response::PayloadTooLarge(std::string body)
+void Response::ReplyPayloadTooLarge(std::string body)
 {
     _status_code = HTTP_STATUS_PAYLOAD_TOO_LARGE;
     set_or_default_body(std::move(body));
 }
 
-void Response::UriTooLong(std::string body)
+void Response::ReplyUriTooLong(std::string body)
 {
     _status_code = HTTP_STATUS_URI_TOO_LONG;
     set_or_default_body(std::move(body));
 }
 
-void Response::TooManyRequests(std::string body)
+void Response::ReplyTooManyRequests(std::string body)
 {
     _status_code = HTTP_STATUS_TOO_MANY_REQUESTS;
     set_or_default_body(std::move(body));
 }
 
-void Response::NotImplemented(std::string body)
+void Response::ReplyNotImplemented(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_IMPLEMENTED;
     set_or_default_body(std::move(body));
 }
 
-void Response::UnsupportedMediaType(std::string body)
+void Response::ReplyUnsupportedMediaType(std::string body)
 {
     _status_code = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
     set_or_default_body(std::move(body));
 }
 
-void Response::ServiceUnavailable(std::string body)
+void Response::ReplyServiceUnavailable(std::string body)
 {
     _status_code = HTTP_STATUS_SERVICE_UNAVAILABLE;
     set_or_default_body(std::move(body));
 }
 
-void Response::InternalServerError(std::string body)
+void Response::ReplyInternalServerError(std::string body)
 {
     _status_code = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     set_or_default_body(std::move(body));
 }
 
-void Response::MovedPermanently(std::string const& dst_location, std::string body)
+void Response::ReplyMovedPermanently(std::string const& dst_location, std::string body)
 {
     _status_code = HTTP_STATUS_MOVED_PERMANENTLY;
     SetLocation(dst_location);
     set_or_default_body(std::move(body));
 }
 
-void Response::Redirect(std::string const& dst_location
+void Response::ReplyRedirect(std::string const& dst_location
                         , RedirectType type
                         , std::string body)
 {

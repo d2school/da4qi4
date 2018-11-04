@@ -11,7 +11,10 @@ namespace da4qi4
 {
 
 Server::Server(Tcp::endpoint endpoint, size_t thread_count)
-    : _stopping(false), _acceptor(_ioc_for_self), _signals(_ioc_for_self), _ioc_pool_for_connections(thread_count)
+    : _stopping(false)
+    , _ioc_pool(thread_count)
+    , _acceptor(_ioc_pool.GetServerIOContext())
+    , _signals(_ioc_pool.GetServerIOContext())
 {
     _signals.add(SIGINT);
     _signals.add(SIGTERM);
@@ -39,34 +42,10 @@ Server::Ptr Server::Supply(std::string const& host, unsigned short port, size_t 
 
 void Server::Run()
 {
-    _ioc_pool_for_connections.Run();
-
     this->start_accept();
 
-    while (!_stopping)
-    {
-        try
-        {
-            errorcode e;
-            _ioc_for_self.run(e);
+    _ioc_pool.Run();
 
-            if (e)
-            {
-                std::cerr << e.message() << std::endl;
-            }
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what() << std::endl;
-        }
-        catch (...)
-        {
-            std::cerr << "unknown exception." << std::endl;
-        }
-    }
-
-    std::cout << "Waitting for connections stopped..." << std::endl;
-    _ioc_pool_for_connections.Wait();
     std::cout << "Bye" << std::endl;
 }
 
@@ -161,7 +140,7 @@ void Server::start_accept()
 
 void Server::do_accept()
 {
-    ConnectionPtr cnt = Connection::Create(_ioc_pool_for_connections.GetIOContext());
+    ConnectionPtr cnt = Connection::Create(_ioc_pool.GetConnectionIOContext());
 
     auto self = shared_from_this();
     _acceptor.async_accept(cnt->GetSocket()
@@ -182,11 +161,10 @@ void Server::do_accept()
 
 void Server::do_stop()
 {
-    std::cout << "\r\nReceives an instruction to stop the service." << std::endl;
-
     _stopping = true;
-    _acceptor.get_executor().context().stop();
-    _ioc_pool_for_connections.Stop();
+
+    std::cout << "\r\nReceives an instruction to stop the service." << std::endl;
+    _ioc_pool.Stop();
 }
 
 }//namespace da4qi4

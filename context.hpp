@@ -5,11 +5,11 @@
 #include <functional>
 #include <list>
 
+#include "def/def.hpp"
+
 #include "request.hpp"
 #include "response.hpp"
 #include "templates.hpp"
-
-#include "nlohmann/json_fwd.hpp"
 
 namespace da4qi4
 {
@@ -61,8 +61,23 @@ public:
     void InitRequestPathParameters(std::vector<std::string> const& names
                                    , std::vector<std::string> const& values);
 public:
-    void Render(http_status status, Json const& data = theEmptyJson);
-    void Render(std::string const& template_name, Json const& data = theEmptyJson);
+    void Render(http_status status, Json const& data);
+    void Render(std::string const& template_name, Json const& data);
+    void Render(Json const& data);
+
+public:
+    void RenderWithoutData(http_status status)
+    {
+        Render(status, theEmptyJson);
+    }
+    void RenderWithoutData(std::string const& template_name)
+    {
+        Render(template_name, theEmptyJson);
+    }
+    void RenderWithoutData()
+    {
+        Render(theEmptyJson);
+    }
 
 public:
     void RenderNofound(Json const& data = theEmptyJson)
@@ -100,12 +115,12 @@ public:
 public:
     void StartChunkedResponse();
     void ContinueChunkedResponse(std::string const& body);
-
 private:
     void end_chunked_response();
 
 private:
-    std::string render_on_template(inja::Template const& templ, Json const& data
+    void render_on_template(Template const& templ, Json const& data, http_status status);
+    std::string render_on_template(Template const& templ, Json const& data
                                    , bool& server_render_error
                                    , std::string& error_detail);
 

@@ -1,5 +1,5 @@
-#ifndef DAQI_ENGINE_HPP
-#define DAQI_ENGINE_HPP
+#ifndef DAQI_SERVER_ENGINE_HPP
+#define DAQI_SERVER_ENGINE_HPP
 
 #include <memory>
 
@@ -21,14 +21,18 @@ public:
 
     void Run();
     void Stop();
-    void Wait();
 
     size_t Size() const
     {
-        return _io_contexts.size();
+        return _ioc_for_connections.size();
     }
 
-    boost::asio::io_context& GetIOContext();
+    boost::asio::io_context& GetServerIOContext()
+    {
+        return _ioc_for_server;
+    }
+
+    boost::asio::io_context& GetConnectionIOContext();
 
 private:
     using IOContextPtr = std::shared_ptr<boost::asio::io_context>;
@@ -36,7 +40,9 @@ private:
 
     std::atomic_bool _stopping;
 
-    std::vector<IOContextPtr> _io_contexts;
+    boost::asio::io_context _ioc_for_server;
+    std::vector<IOContextPtr> _ioc_for_connections;
+
     std::list<IOContextWork> _work;
     std::size_t _next_index;
 
@@ -44,4 +50,4 @@ private:
 };
 
 } //namespace da4qi4
-#endif // DAQI_ENGINE_HPP
+#endif // DAQI_SERVER_ENGINE_HPP

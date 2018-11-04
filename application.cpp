@@ -353,7 +353,7 @@ void Application::Handle(Context ctx)
 
     if (ir == InterceptResult::stop_on_error)
     {
-        ctx->Res().InternalServerError();
+        ctx->Res().ReplyInternalServerError();
         return;
     }
 
@@ -367,7 +367,7 @@ void Application::Handle(Context ctx)
     if (!h)
     {
         //404
-        ctx->Res().Nofound();
+        ctx->Res().ReplyNofound();
         ctx->Bye();
         return;
     }

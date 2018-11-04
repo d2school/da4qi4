@@ -366,7 +366,7 @@ void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
     _cnt->GetRequest().InitPathParameters(names, values);
 }
 
-std::string ContextIMP::render_on_template(inja::Template const& templ, Json const& data
+std::string ContextIMP::render_on_template(Template const& templ, Json const& data
                                            , bool& server_render_error
                                            , std::string& error_detail)
 {
@@ -386,21 +386,13 @@ std::string ContextIMP::render_on_template(inja::Template const& templ, Json con
     return Utilities::theEmptyString;
 }
 
-void ContextIMP::Render(http_status status, Json const& data)
+void ContextIMP::render_on_template(Template const& templ, Json const& data, http_status status)
 {
-    std::string template_name = std::to_string(static_cast<int>(status));
-
-    auto const& templ = App().GetTemplates().Get(template_name);
-
-    if (!templ)
-    {
-        Res().Status(status);
-        return;
-    }
-
     bool error = false;
     std::string error_detail;
-    std::string view = render_on_template(*templ, data, error, error_detail);
+    std::string view = render_on_template(templ, data, error, error_detail);
+
+    Res().SetStatusCode(status);
 
     if (error)
     {
@@ -412,19 +404,42 @@ void ContextIMP::Render(http_status status, Json const& data)
         }
         else
         {
-            Res().Status(status);
+            Res().ReplyStatus(status);
         }
 
         return;
     }
 
-    Res().SetContentType("text/html");
-    Res().SetBody(std::move(view));
+    if (!view.empty())
+    {
+        auto content_type = Res().GetContentType(Response::ContentTypePart::without_chartset);
+
+        if (content_type.empty())
+        {
+            Res().SetContentType("text/html");
+        }
+
+        Res().SetBody(std::move(view));
+    }
+}
+
+void ContextIMP::Render(http_status status, Json const& data)
+{
+    std::string template_name = std::to_string(static_cast<int>(status));
+
+    if (auto templ = App().GetTemplates().Get(template_name))
+    {
+        render_on_template(*templ, data, status);
+    }
+    else
+    {
+        Res().ReplyStatus(status);
+    }
 }
 
 void ContextIMP::Render(std::string const& template_name, Json const& data)
 {
-    auto const& templ = App().GetTemplates().Get(template_name);
+    auto templ = App().GetTemplates().Get(template_name);
 
     if (!templ)
     {
@@ -432,28 +447,53 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
         return;
     }
 
-    bool error = false;
-    std::string error_detail;
-    std::string view = render_on_template(*templ, data, error, error_detail);
+    render_on_template(*templ, data, HTTP_STATUS_OK);
+}
 
-    if (error)
+void ContextIMP::Render(Json const& data)
+{
+    std::string const& path = Req().GetUrl().path;
+
+    if (path.empty())
     {
-        std::cerr << error_detail << std::endl;
-
-        Json error_data;
-        error_data["internal_server_error_detail"] = error_detail;
-        RenderInternalServerError(error_data);
+        Res().ReplyBadRequest();
         return;
     }
 
-    std::string const& content_type = Res().GetContentType(Response::ContentTypePart::without_chartset);
+    std::string template_name;
 
-    if (content_type.empty())
+    if (path == "/")
     {
-        Res().SetContentType("text/html");
+        template_name = "index";
+    }
+    else if (path[0] == '/')
+    {
+        template_name = path.substr(1);
     }
 
-    Res().Ok(std::move(view));
+    auto templ = App().GetTemplates().Get(template_name);
+
+    if (templ)
+    {
+        render_on_template(*templ, data, HTTP_STATUS_OK);
+        return;
+    }
+
+    size_t len = template_name.size();
+
+    if (len > 1 && template_name[len - 1] == '/')
+    {
+        template_name += "index";
+        templ = App().GetTemplates().Get(template_name);
+
+        if (!templ)
+        {
+            RenderNofound();
+            return;
+        }
+
+        render_on_template(*templ, data, HTTP_STATUS_OK);
+    }
 }
 
 void ContextIMP::Bye()

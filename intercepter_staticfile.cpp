@@ -29,7 +29,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
     }
 
     std::string url = ctx->Req().GetUrl().full; //absolute
-    fs::path dst_path_filename;
+    fs::path dst_path_filename("");
 
     bool entry_found = false;
 
@@ -67,13 +67,34 @@ void StaticFileIntercepter::operator()(Context ctx) const
 
     try
     {
-        bool file_exists = fs::exists(dst_path_filename);
+        bool file_exists = dst_path_filename.has_filename()
+                           && dst_path_filename.filename() != "." && fs::exists(dst_path_filename);
 
         if (!file_exists)
         {
-            ctx->RenderNofound();
-            ByeOnError(ctx);
-            return;
+            bool found = false;
+
+            if (!dst_path_filename.has_filename() || dst_path_filename.filename() == ".")
+            {
+                for (auto fn : _default_filenames)
+                {
+                    fs::path with_default_file = dst_path_filename / fn;
+
+                    if (fs::exists(with_default_file))
+                    {
+                        found = true;
+                        dst_path_filename = with_default_file;
+                        break;
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                ctx->RenderNofound();
+                ByeOnError(ctx);
+                return;
+            }
         }
     }
     catch (std::exception const& e)
@@ -133,6 +154,32 @@ void StaticFileIntercepter::operator()(Context ctx) const
     }
 
     ByeOnSuccess(ctx);
+}
+
+StaticFileIntercepter& StaticFileIntercepter::AddDefaultFileName(std::string const& index_filename)
+{
+    for (auto fn : _default_filenames)
+    {
+        if (fn == index_filename)
+        {
+            return *this;
+        }
+    }
+
+    _default_filenames.push_back(index_filename);
+
+    return *this;
+}
+
+StaticFileIntercepter& StaticFileIntercepter::AddDefaultFileNames(std::vector<std::string> const&
+                                                                  index_filenames)
+{
+    for (auto s : index_filenames)
+    {
+        AddDefaultFileName(s);
+    }
+
+    return *this;
 }
 
 

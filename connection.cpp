@@ -107,7 +107,7 @@ bool is_100_continue(Request& req)
 void Connection::process_100_continue_request()
 {
     assert(is_100_continue(_request));
-    _response.Continue();
+    _response.ReplyContinue();
     this->StartWrite();
 }
 
@@ -446,8 +446,6 @@ void Connection::do_read()
                             , [self, this](boost::system::error_code ec
                                            , std::size_t bytes_transferred)
     {
-        std::cout << std::clock() * 1000 / CLOCKS_PER_SEC << " read " << bytes_transferred << "byte." << std::endl;
-
         if (ec)
         {
             return;
@@ -531,8 +529,6 @@ void Connection::do_write()
             return;
         }
 
-        std::cout << std::clock() * 1000 / CLOCKS_PER_SEC << " write " << bytes_transferred << "byte." << std::endl;
-
         _write_buffer.consume(bytes_transferred);
 
         if (_request.IsKeepAlive() && _response.IsKeepAlive())
@@ -543,7 +539,6 @@ void Connection::do_write()
         }
     });
 }
-
 
 void Connection::prepare_response_headers_for_chunked_write()
 {
@@ -588,7 +583,7 @@ void Connection::do_write_header_for_chunked()
     });
 }
 
-void Connection::do_write_next_chunked_body(std::time_t wait_start)
+void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 {
     bool is_last = false;
     _current_chunked_body = std::move(_response.PopChunkedBody(is_last));
@@ -597,23 +592,20 @@ void Connection::do_write_next_chunked_body(std::time_t wait_start)
 
     if (_current_chunked_body.empty())
     {
-        if (!is_last)
+        if (is_last)
         {
-            std::clock_t now = std::clock();
-
-            if (wait_start && (now - wait_start) / CLOCKS_PER_SEC > 5)
-            {
-                std::cerr << "Too long to Wait for chunked data." << std::endl;
-                return;
-            }
-
-            _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
-        }
-        else
-        {
-            ;
+            return;
         }
 
+        std::clock_t now = std::clock();
+
+        if (start_wait_clock && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
+        {
+            std::cerr << "Too long to Wait for chunked data." << std::endl;
+            return;
+        }
+
+        _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
         return;
     }
 
@@ -622,7 +614,6 @@ void Connection::do_write_next_chunked_body(std::time_t wait_start)
     {
         self->do_write_chunked_body_finished(ec, bytes_transferred);
     });
-
 }
 
 void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred)
@@ -632,9 +623,6 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
         std::cerr << "write chunked body fail. " << ec.message() << std::endl;
         return;
     }
-
-    std::cout << std::clock() * 1000 / CLOCKS_PER_SEC
-              << " write (chunked) " << bytes_transferred << "byte." << std::endl;
 
     do_write_next_chunked_body(0);
 }

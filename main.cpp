@@ -28,7 +28,7 @@ int main()
                     );
 
     Intercepter::StaticFileIntercepter sfi(60);
-    sfi.AddEntry("html/", "");
+    sfi.AddEntry("html/", "").AddDefaultFileNames({"index.html", "index.htm"});
     app1.PushBackIntercepter(sfi);
 
     app1.AddHandler(_GET_, "", [](Context ctx)
@@ -45,7 +45,7 @@ int main()
         data["time"]["end"] = end;
         data["time"]["long"] = std::to_string((end - beg) * 1000 / CLOCKS_PER_SEC) + " 毫秒";
 
-        ctx->Render("index", data);
+        ctx->Render(data);
         ctx->Bye();
     });
 
@@ -60,19 +60,19 @@ int main()
 
     app1.AddHandler(_GET_, "usr/{{name}}/{{age}}/regist"_router_regex, [](Context ctx)
     {
-        ctx->Render("user/regist");
+        ctx->RenderWithoutData("user/regist");
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "find"_router_starts, [](Context ctx)
     {
-        ctx->Render("find");
+        ctx->RenderWithoutData();
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "cookie/", [](Context ctx)
     {
         ctx->Res().SetCookie("is_new", "YE\"S!");
         ctx->Res().SetCookie("do_you_love_me", "NO", 15, Cookie::HttpOnly::for_http_only);
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE</h2></body></html>");
+        ctx->Res().ReplyOk("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE</h2></body></html>");
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "cookie/view", [](Context ctx)
@@ -85,42 +85,41 @@ int main()
         }
 
         html += "</body></html>";
-        ctx->Res().Ok(html);
-        ctx->Bye();
-    });
-    app1.AddHandler(_GET_, "cookie/global", [](Context ctx)
-    {
-        ctx->Res().SetCookie("is_global", "YES");
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/GLOBAL</h2></body></html>");
+        ctx->Res().ReplyOk(html);
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "cookie/delete"_router_starts, [](Context ctx)
     {
         ctx->Res().SetCookieExpiredImmediately("is_new");
         ctx->Res().SetCookieExpiredImmediately("do_you_love_me");
-        ctx->Res().Ok("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/DELETE</h2></body></html>");
+        ctx->Res().ReplyOk("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/DELETE</h2></body></html>");
         ctx->Bye();
     });
 
-    app1.AddHandler(_GET_, "post/form"_router_equals, [](Context ctx)
+    app1.AddHandler(_GET_, "form/get", [](Context ctx)
     {
-        ctx->Render("post/form");
+        ctx->RenderWithoutData();
         ctx->Bye();
     });
-    app1.AddHandler({_GET_, _POST_}, "post/result"_router_equals, [](Context ctx)
+    app1.AddHandler(_GET_, "form/post", [](Context ctx)
     {
-        ctx->Render("post/result");
+        ctx->RenderWithoutData();
+        ctx->Bye();
+    });
+    app1.AddHandler({_GET_, _POST_}, "form/result", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
         ctx->Bye();
     });
 
-    app1.AddHandler(_GET_, "post/upload"_router_equals, [](Context ctx)
+    app1.AddHandler(_GET_, "post/upload", [](Context ctx)
     {
-        ctx->Render("post/upload");
+        ctx->RenderWithoutData();
         ctx->Bye();
     });
-    app1.AddHandler(_POST_, "post/upload_result"_router_equals, [](Context ctx)
+    app1.AddHandler(_POST_, "post/upload_result", [](Context ctx)
     {
-        ctx->Render("post/upload_result");
+        ctx->RenderWithoutData();
         ctx->Bye();
     });
 
@@ -129,7 +128,7 @@ int main()
 
     svc->AddHandler(_GET_, "/favicon.ico", [](Context ctx)
     {
-        ctx->Res().Nofound();
+        ctx->Res().ReplyNofound();
         ctx->Bye();
     });
     svc->AddHandler(_GET_, "/plain-text", [](Context ctx)

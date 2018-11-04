@@ -9,6 +9,7 @@
 
 #include "router.hpp"
 #include "templates.hpp"
+#include "app_setting.hpp"
 
 namespace da4qi4
 {

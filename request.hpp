@@ -12,6 +12,8 @@
 #include "def/boost_def.hpp"
 #include "utilities/container_utilities.hpp"
 
+#include "app_setting.hpp"
+
 namespace da4qi4
 {
 

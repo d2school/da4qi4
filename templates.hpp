@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include <inja/inja.hpp>
+#include "def/inja_def.hpp"
 
 namespace da4qi4
 {
@@ -23,7 +23,8 @@ public:
         _root = template_root;
         return Preload();
     }
-    inja::Template const* Get(std::string const& name);
+
+    Template const* Get(std::string const& name);
 
 private:
     size_t load_templates(std::string const& template_ext, std::string const& key_ext);

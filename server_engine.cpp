@@ -1,4 +1,4 @@
-#include "engine.hpp"
+#include "server_engine.hpp"
 
 #include <thread>
 
@@ -20,7 +20,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
     for (std::size_t i = 0; i < pool_size; ++i)
     {
         IOContextPtr ioc(new boost::asio::io_context);
-        _io_contexts.push_back(ioc);
+        _ioc_for_connections.push_back(ioc);
 
         _work.push_back(boost::asio::make_work_guard(*ioc));
     }
@@ -28,7 +28,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
 
 void IOContextPool::Run()
 {
-    for (std::size_t i = 0; i < _io_contexts.size(); ++i)
+    for (std::size_t i = 0; i < _ioc_for_connections.size(); ++i)
     {
         std::shared_ptr<std::thread> thread(new std::thread([i, this]()
         {
@@ -37,7 +37,7 @@ void IOContextPool::Run()
                 try
                 {
                     errorcode ec;
-                    _io_contexts[i]->run(ec);
+                    _ioc_for_connections[i]->run(ec);
 
                     if (ec)
                     {
@@ -57,10 +57,29 @@ void IOContextPool::Run()
 
         _threads.push_back(thread);
     }
-}
 
-void IOContextPool::Wait()
-{
+    while (!_stopping)
+    {
+        try
+        {
+            errorcode e;
+            _ioc_for_server.run(e);
+
+            if (e)
+            {
+                std::cerr << e.message() << std::endl;
+            }
+        }
+        catch (std::exception const& e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "unknown exception." << std::endl;
+        }
+    }
+
     for (auto thread_ptr : _threads)
     {
         thread_ptr->join();
@@ -71,19 +90,21 @@ void IOContextPool::Stop()
 {
     _stopping = true;
 
-    for (auto ioc_ptr : _io_contexts)
+    _ioc_for_server.stop();
+
+    for (auto ioc_ptr : _ioc_for_connections)
     {
         ioc_ptr->stop();
     }
 }
 
-boost::asio::io_context& IOContextPool::GetIOContext()
+boost::asio::io_context& IOContextPool::GetConnectionIOContext()
 {
-    boost::asio::io_context& io_context = *_io_contexts[_next_index];
+    boost::asio::io_context& io_context = *_ioc_for_connections[_next_index];
 
     ++_next_index;
 
-    if (_next_index >= _io_contexts.size())
+    if (_next_index >= _ioc_for_connections.size())
     {
         _next_index = 0;
     }

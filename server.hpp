@@ -5,7 +5,7 @@
 
 #include "def/asio_def.hpp"
 
-#include "engine.hpp"
+#include "server_engine.hpp"
 #include "application.hpp"
 #include "handler.hpp"
 
@@ -62,11 +62,10 @@ private:
 
 private:
     std::atomic_bool _stopping;
-    boost::asio::io_context _ioc_for_self;
+
+    IOContextPool _ioc_pool;
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
-
-    IOContextPool _ioc_pool_for_connections;
 };
 
 }
