@@ -135,6 +135,11 @@ private:
     ReadCompletePart _read_complete = read_none_complete;
 
 private:
+    enum multipart_parse_part {mp_parse_none,
+                               mp_parse_header_field, mp_parse_header_value, mp_parse_headers_complete,
+                               mp_parse_data_begin, mp_parse_data, mp_parse_data_end, mp_parse_body_end
+                              };
+
     void init_multipart_parser(std::string const& boundary);
     enum mp_free_flag  {will_free_mp_setting = 1, will_free_mp_parser = 2, will_free_mp_both = 3 };
     void free_multipart_parser(mp_free_flag flag = will_free_mp_both);
@@ -143,6 +148,7 @@ private:
     multipart_parser* _mp_parser = nullptr;
     MultiPart _reading_part;
     std::string _reading_part_data;
+    multipart_parse_part _multipart_parse_part = mp_parse_none;
 
     boost::asio::streambuf _write_buffer;
     std::string _current_chunked_body;

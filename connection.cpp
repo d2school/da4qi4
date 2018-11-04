@@ -171,6 +171,7 @@ int Connection::on_message_complete(http_parser* parser)
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_request.SetBody(std::move(cnt->_body));
     cnt->_read_complete = Connection::read_message_complete;
+
     return 0;
 }
 
@@ -294,19 +295,10 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
     return 0;
 }
 
-int Connection::on_multipart_data_begin(multipart_parser* parser)
-{
-    Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    cnt->_reading_header_part = header_none_part;
-    cnt->_reading_header_field.clear();
-    cnt->_reading_header_value.clear();
-    cnt->_reading_part_data.clear();
-    return 0;
-}
-
 int Connection::on_multipart_header_field(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_header_field;
 
     if (cnt->_reading_header_part == header_value_part && !cnt->_reading_header_field.empty())
     {
@@ -322,6 +314,7 @@ int Connection::on_multipart_header_field(multipart_parser* parser, char const* 
 int Connection::on_multipart_header_value(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_header_value;
 
     if (cnt->_reading_header_part == Connection::header_field_part
         && !cnt->_reading_header_value.empty())
@@ -345,6 +338,7 @@ int Connection::on_multipart_header_value(multipart_parser* parser, char const* 
 int Connection::on_multipart_headers_complete(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_headers_complete;
 
     if (cnt->_reading_header_part == header_value_part && !cnt->_reading_header_field.empty())
     {
@@ -356,10 +350,23 @@ int Connection::on_multipart_headers_complete(multipart_parser* parser)
     return 0;
 }
 
+int Connection::on_multipart_data_begin(multipart_parser* parser)
+{
+    Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data_begin;
+
+    cnt->_reading_header_part = header_none_part;
+    cnt->_reading_header_field.clear();
+    cnt->_reading_header_value.clear();
+    cnt->_reading_part_data.clear();
+
+    return 0;
+}
 
 int Connection::on_multipart_data(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data;
     cnt->_reading_part_data.append(at, length);
     return 0;
 }
@@ -367,6 +374,8 @@ int Connection::on_multipart_data(multipart_parser* parser, char const* at, size
 int Connection::on_multipart_data_end(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data_end;
+
     cnt->_reading_part.SetData(std::move(cnt->_reading_part_data));
     cnt->_request.AddMultiPart(std::move(cnt->_reading_part));
     return 0;
@@ -375,7 +384,8 @@ int Connection::on_multipart_data_end(multipart_parser* parser)
 int Connection::on_multipart_body_end(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    cnt->free_multipart_parser(will_free_mp_parser);
+    cnt->_multipart_parse_part = mp_parse_body_end;
+
     return 0;
 }
 
@@ -397,7 +407,7 @@ void Connection::init_multipart_parser(std::string const& boundary)
 
         if (_mp_parser)
         {
-            multipart_parser_free(_mp_parser);
+            this->free_multipart_parser(will_free_mp_parser);
         }
 
         int const length_of_boundary_start_flag = 2;
@@ -419,7 +429,7 @@ void Connection::free_multipart_parser(mp_free_flag flag)
 
     if (_mp_parser && (flag & will_free_mp_parser))
     {
-        multipart_parser_free(_mp_parser);
+        ::multipart_parser_free(_mp_parser);
         _mp_parser = nullptr;
     }
 }
@@ -458,6 +468,8 @@ void Connection::do_read()
             do_read();
             return;
         }
+
+        free_multipart_parser(will_free_mp_parser);
 
         assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER MESSAGE READ COMPLETED.");
 
@@ -637,6 +649,7 @@ void Connection::reset()
     _read_complete = read_none_complete;
     _reading_part.Clear();
     _reading_part_data.clear();
+    _multipart_parse_part = mp_parse_none;
     _app = nullptr;
 }
 
