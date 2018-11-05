@@ -126,7 +126,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
 
     std::string content_type = Utilities::GetMIMEType(dst_path_filename.extension().string());
     ctx->Res().SetContentType(content_type);
-    ctx->Res().SetPublicCache(_max_age);
+    ctx->Res().CacheControlMaxAge(_max_age);
 
     ctx->StartChunkedResponse();
 

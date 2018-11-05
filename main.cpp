@@ -98,11 +98,13 @@ int main()
 
     app1.AddHandler(_GET_, "form/get", [](Context ctx)
     {
+        ctx->Res().CacheControlMaxAge(600);
         ctx->RenderWithoutData();
         ctx->Bye();
     });
     app1.AddHandler(_GET_, "form/post", [](Context ctx)
     {
+        ctx->Res().CacheControlMaxAge(600);
         ctx->RenderWithoutData();
         ctx->Bye();
     });

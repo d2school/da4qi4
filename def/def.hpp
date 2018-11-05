@@ -16,6 +16,7 @@
 namespace da4qi4
 {
 
+enum class CacheControl {Public, Private};
 enum PathResolve {is_relative, is_absolute}; //for url and dist-directory
 
 using Headers = std::map<std::string, std::string>;
