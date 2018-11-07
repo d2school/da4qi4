@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 #include <list>
+#include <def/asio_def.hpp>
 
 #include "def/def.hpp"
 
@@ -46,6 +47,8 @@ public:
     }
 
     Application& App();
+
+    boost::asio::io_context& IOContext();
 
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names

@@ -40,13 +40,18 @@ Server::Ptr Server::Supply(std::string const& host, unsigned short port, size_t 
     return Ptr(new Server(Utilities::make_endpoint(host, port), thread_count));
 }
 
+Server::~Server()
+{
+    std::cout << "server destory." << std::endl;
+}
+
 void Server::Run()
 {
     this->start_accept();
 
     _ioc_pool.Run();
 
-    std::cout << "Bye" << std::endl;
+    std::cout << "Bye, server stop run, now." << std::endl;
 }
 
 void Server::Stop()
@@ -142,20 +147,24 @@ void Server::do_accept()
 {
     ConnectionPtr cnt = Connection::Create(_ioc_pool.GetIOContext());
 
-    auto self = shared_from_this();
     _acceptor.async_accept(cnt->GetSocket()
-                           , [self, cnt](errorcode ec)
+                           , [this, cnt](errorcode ec)
     {
         if (ec)
         {
             std::cerr << ec.message() << std::endl;
+
+            if (_stopping)
+            {
+                return;
+            }
         }
         else
         {
             cnt->StartRead();
         }
 
-        self->do_accept();
+        do_accept();
     });
 }
 

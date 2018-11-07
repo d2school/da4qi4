@@ -20,7 +20,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
     for (std::size_t i = 0; i < pool_size; ++i)
     {
         IOContextPtr ioc(new boost::asio::io_context);
-        _ioc_for_connections.push_back(ioc);
+        _io_contexts.push_back(ioc);
 
         _work.push_back(boost::asio::make_work_guard(*ioc));
     }
@@ -28,7 +28,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
 
 void IOContextPool::Run()
 {
-    for (std::size_t i = 0; i < _ioc_for_connections.size(); ++i)
+    for (std::size_t i = 0; i < _io_contexts.size(); ++i)
     {
         std::shared_ptr<std::thread> thread(new std::thread([i, this]()
         {
@@ -37,7 +37,7 @@ void IOContextPool::Run()
                 try
                 {
                     errorcode ec;
-                    _ioc_for_connections[i]->run(ec);
+                    _io_contexts[i]->run(ec);
 
                     if (ec)
                     {
@@ -62,6 +62,8 @@ void IOContextPool::Run()
     {
         thread_ptr->join();
     }
+
+    std::cout << "all threads exits." << std::endl;
 }
 
 void IOContextPool::Stop()
@@ -73,7 +75,7 @@ void IOContextPool::Stop()
 
     _stopping = true;
 
-    for (auto ioc_ptr : _ioc_for_connections)
+    for (auto ioc_ptr : _io_contexts)
     {
         ioc_ptr->stop();
     }
@@ -81,11 +83,11 @@ void IOContextPool::Stop()
 
 boost::asio::io_context& IOContextPool::GetIOContext()
 {
-    boost::asio::io_context& io_context = *_ioc_for_connections[_next_index];
+    boost::asio::io_context& io_context = *_io_contexts[_next_index];
 
     ++_next_index;
 
-    if (_next_index >= _ioc_for_connections.size())
+    if (_next_index >= _io_contexts.size())
     {
         _next_index = 0;
     }

@@ -360,6 +360,11 @@ Application& ContextIMP::App()
     return _cnt->GetApplication();
 }
 
+boost::asio::io_context& ContextIMP::IOContext()
+{
+    return _cnt->GetSocket().get_executor().context();
+}
+
 void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
                                            , std::vector<std::string> const& values)
 {

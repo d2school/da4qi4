@@ -5,7 +5,7 @@
 #include "server.hpp"
 
 #include "application.hpp"
-#include "intercepters/staticfile.hpp"
+#include "intercepters/static_file.hpp"
 
 #include "def/log_def.hpp"
 #include "utilities/captcha_utilities.hpp"
@@ -18,6 +18,7 @@ int main()
     console->info("Wecome to da4qi4");
 
     auto svc = Server::Supply(4099);
+
     console->info("Server start at {}", 4099);
 
     Application app1("d2school" //name
@@ -149,6 +150,9 @@ int main()
     {
         console->error("Server Run Fail ! {}", e.what());
     }
+
+    svc.reset();
+    std::cout << "main thread will exitd." << std::endl;
 
     return 0;
 }

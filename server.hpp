@@ -13,15 +13,15 @@ namespace da4qi4
 {
 
 class Server
-    : public std::enable_shared_from_this<Server>
 {
     Server(Tcp::endpoint endpoint, size_t thread_count);
 public:
-    using Ptr = std::shared_ptr<Server>;
+    using Ptr = std::unique_ptr<Server>;
 
     static Ptr Supply(unsigned short port, size_t thread_count = 0);
     static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count = 0);
 
+    ~Server();
 public:
     void Run();
     void Stop();

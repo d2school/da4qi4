@@ -1,4 +1,4 @@
-#include "staticfile.hpp"
+#include "static_file.hpp"
 
 #include <fstream>
 

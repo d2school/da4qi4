@@ -10,7 +10,7 @@
 #include "router.hpp"
 #include "templates.hpp"
 
-#include "intercepters/staticfile.hpp"
+#include "intercepters/static_file.hpp"
 //#include "intercepters/session_redis.hpp"
 
 namespace da4qi4

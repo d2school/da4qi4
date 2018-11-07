@@ -24,7 +24,7 @@ public:
 
     size_t Size() const
     {
-        return _ioc_for_connections.size();
+        return _io_contexts.size();
     }
 
     boost::asio::io_context& GetIOContext();
@@ -35,7 +35,7 @@ private:
 
     std::atomic_bool _stopping;
 
-    std::vector<IOContextPtr> _ioc_for_connections;
+    std::vector<IOContextPtr> _io_contexts;
 
     std::list<IOContextWork> _work;
     std::size_t _next_index;
