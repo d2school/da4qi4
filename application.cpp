@@ -13,6 +13,43 @@ ApplicationMgr* AppMgr()
     return &mgr;
 }
 
+bool UploadFileSaveOptions::IsNeedSave(std::string const& extension
+                                       , size_t filesize_kb) const
+{
+    if (strategy == always_save)
+    {
+        return true;
+    }
+
+    if (strategy == alway_no_save)
+    {
+        return false;
+    }
+
+    if (strategy == size_greater_than)
+    {
+        return filesize_kb > size_base_kb;
+    }
+
+    if (strategy == size_lesser_than)
+    {
+        return filesize_kb < size_base_kb;
+    }
+
+    if (strategy == extension_is)
+    {
+        return extensions.find(extension) != extensions.cend();
+    }
+
+    if (strategy == extension_is_not)
+    {
+        return extensions.find(extension) == extensions.cend();
+    }
+
+    return false;
+}
+
+
 Application::Application()
     : _name(default_app_name)
     , _default_charset("utf-8")
@@ -285,34 +322,6 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return _regexRouter.Add(r, ms, h);
 }
 
-InterceptResult Application::do_intercept(Context ctx)
-{
-    try
-    {
-        for (auto& intercepter : _intercepters)
-        {
-            intercepter(ctx);
-            auto intercept_result = ctx->GetInterceptResult();
-
-            if (intercept_result == InterceptResult::pass)
-            {
-                continue;
-            }
-            else
-            {
-                return intercept_result;
-            }
-        }
-    }
-    catch (std::exception const& e)
-    {
-        std::cerr << "Intercepter exception. " << e.what() << std::endl;
-        return InterceptResult::stop_on_error;
-    }
-
-    return InterceptResult::pass;
-}
-
 Handler& Application::find_handler(Context ctx)
 {
     HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
@@ -347,26 +356,64 @@ Handler& Application::find_handler(Context ctx)
     return theEmptyHandler;
 }
 
-void Application::Handle(Context ctx)
+void Application::StartHandle(Context ctx)
 {
-    InterceptResult ir = do_intercept(ctx);
+    ctx->SetIntercepterIterator(_intercepters.begin());
+    do_intercepter(ctx);
+}
 
-    if (ir == InterceptResult::stop_on_error)
+void Application::do_intercepter(Context ctx)
+{
+    auto iter = ctx->GetIntercepterIterator();
+
+    if (iter != _intercepters.end())
     {
-        ctx->Res().ReplyInternalServerError();
-        return;
+        Intercepter::Handler h = *iter;
+        Intercepter::Next next = std::bind(&Application::NextHandler
+                                           , this
+                                           , ctx, std::placeholders::_1);
+        h(ctx, next);
+    }
+    else
+    {
+        do_handle(ctx);
+    }
+}
+
+void Application::NextHandler(Context ctx, Intercepter::Result result)
+{
+    auto iter = ctx->GetIntercepterIterator();
+
+    if (iter != _intercepters.end())
+    {
+        ctx->SetIntercepterIterator(++iter);
     }
 
-    if (ir == InterceptResult::stop_on_success)
+    switch (result)
     {
-        return;
-    }
+        case Intercepter::Result::ByeOnError:
+        {
+            return;
+        }
 
+        case Intercepter::Result::ByeOnSuccess:
+        {
+            return;
+        }
+
+        case Intercepter::Result::Skip:
+        {
+            do_intercepter(ctx);
+        }
+    }
+}
+
+void Application::do_handle(Context ctx)
+{
     Handler h = find_handler(ctx);
 
     if (!h)
     {
-        //404
         ctx->Res().ReplyNofound();
         ctx->Bye();
         return;

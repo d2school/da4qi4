@@ -1,22 +1,27 @@
 #ifndef INTERCEPTER_HPP
 #define INTERCEPTER_HPP
 
+#include <functional>
+
 #include "def/def.hpp"
 #include "def/debug_def.hpp"
-#include "handler.hpp"
-#include "context.hpp"
 
 namespace da4qi4
 {
+
+class ContextIMP;
+using Context = std::shared_ptr<ContextIMP>;
+
 namespace Intercepter
 {
 
-void Pass(Context ctx);
-void StopOnSuccess(Context ctx);
-void StopOnError(Context ctx);
+enum class Result {Skip, ByeOnSuccess, ByeOnError };
 
-void ByeOnSuccess(Context ctx);
-void ByeOnError(Context ctx);
+using Next = std::function<void (Result result)>;
+using Handler = std::function<void (Context ctx, Next next)>;
+using Chain = std::list<Handler>;
+using ChainIterator = Chain::iterator;
+using ChainConstIterator = Chain::const_iterator;
 
 } //namespace Intercepter
 } //namespace da4qi4

@@ -24,6 +24,11 @@ Connection::~Connection()
     this->free_multipart_parser();
 }
 
+Application& Connection::GetApplication()
+{
+    return (_app ? *_app : Application::EmptyApplication());
+}
+
 void Connection::init_parser()
 {
     http_parser_init(_parser, HTTP_REQUEST);
@@ -111,6 +116,18 @@ void Connection::process_100_continue_request()
     this->StartWrite();
 }
 
+void Connection::process_app_no_found()
+{
+    _response.ReplyNofound("application no found for url " + _request.GetUrl().full + " .");
+    this->StartWrite();
+}
+
+void Connection::process_too_large_size_upload()
+{
+    _response.ReplyPayloadTooLarge();
+    this->StartWrite();
+}
+
 void Connection::try_init_multipart_parser()
 {
     assert(_request.IsMultiPart());
@@ -140,6 +157,7 @@ int Connection::on_headers_complete(http_parser* parser)
     if (!cnt->try_route_application())
     {
         std::cerr << "no found app." << std::endl;
+        cnt->process_app_no_found();
         return -1;
     }
 
@@ -274,6 +292,18 @@ Connection::MultpartParseStatus Connection::do_multipart_parse()
 int Connection::on_body(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
+
+    size_t upload_max_size_limit_kb = (cnt->_app) ? cnt->_app->GetUpoadMaxSizeLimitKB() : 15 * 1024;
+
+    size_t total_byte_kb = (cnt->_body.size() + length) / 1024;
+
+    if (total_byte_kb > upload_max_size_limit_kb)
+    {
+        std::cerr << "too large size upload : " << total_byte_kb << " KB." << std::endl;
+        cnt->process_too_large_size_upload();
+        return -1;
+    }
+
     cnt->_body.append(at, length);
 
     if (cnt->_request.IsMultiPart())
@@ -482,9 +512,9 @@ void Connection::do_read()
             _request.TransferMultiPartsToFormData(options, dir);
         }
 
-        auto self = shared_from_this();
+        ConnectionPtr this_connection = shared_from_this();
         _response.SetCharset(_app->GetDefaultCharset());
-        _app->Handle(ContextIMP::Make(self)); //connection -> ctx -> app
+        _app->StartHandle(ContextIMP::Make(this_connection)); //connection -> ctx -> app
     });
 }
 

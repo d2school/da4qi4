@@ -7,6 +7,8 @@
 #include <string>
 #include <limits>
 
+#include "def/json_def.hpp"
+
 namespace da4qi4
 {
 struct Cookie
@@ -17,6 +19,24 @@ struct Cookie
 
     Cookie() = default;
     Cookie(Cookie const&) = default;
+    Cookie(Cookie&& o)
+    {
+        _old_version = o._old_version;
+
+        _name = std::move(o._name);
+        _value = std::move(o._value);
+        _domain = std::move(o._domain);
+        _path = std::move(o._path);
+
+        _max_age = o.expires_after_brower_close;
+
+        _http_only = o._http_only;
+        _secure = o._secure;
+
+        _samesite = o._samesite;
+    }
+
+    Cookie& operator = (Cookie const& o) = default;
 
     Cookie(std::string const& name, std::string const& value)
         : _name(name), _value(value)
@@ -175,10 +195,15 @@ private:
 
     SameSite _samesite = SameSite::none;
 
-    friend std::ostream& operator << (std::ostream& os, Cookie const& c);
+    friend std::ostream& operator << (std::ostream&, Cookie const&);
+    friend void to_json(Json&,  Cookie const&);
+    friend void from_json(Json const&, Cookie&);
 };
 
 std::ostream& operator << (std::ostream& os, Cookie const& c);
+void to_json(Json& j,  Cookie const& c);
+void from_json(Json const& j, Cookie& c);
+
 
 } //namespace da4qi4
 #endif // DAQI_COOKIE_HPP

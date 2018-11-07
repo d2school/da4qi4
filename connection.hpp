@@ -11,10 +11,11 @@
 #include "request.hpp"
 #include "response.hpp"
 #include "handler.hpp"
-#include "application.hpp"
 
 namespace da4qi4
 {
+
+class Application;
 
 class Connection
     : public std::enable_shared_from_this<Connection>
@@ -55,10 +56,7 @@ public:
         return _response;
     }
 
-    Application& GetApplication()
-    {
-        return (_app ? *_app : Application::EmptyApplication());
-    }
+    Application& GetApplication();
 
 public:
     Tcp::socket& GetSocket()
@@ -107,6 +105,8 @@ private:
 
     void try_commit_reading_request_header();
     void process_100_continue_request();
+    void process_app_no_found();
+    void process_too_large_size_upload();
 
     void try_fix_multipart_bad_request_without_boundary();
     void try_init_multipart_parser();

@@ -13,8 +13,8 @@ namespace da4qi4
 Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     : _stopping(false)
     , _ioc_pool(thread_count)
-    , _acceptor(_ioc_pool.GetServerIOContext())
-    , _signals(_ioc_pool.GetServerIOContext())
+    , _acceptor(_ioc_pool.GetIOContext())
+    , _signals(_ioc_pool.GetIOContext())
 {
     _signals.add(SIGINT);
     _signals.add(SIGTERM);
@@ -140,7 +140,7 @@ void Server::start_accept()
 
 void Server::do_accept()
 {
-    ConnectionPtr cnt = Connection::Create(_ioc_pool.GetConnectionIOContext());
+    ConnectionPtr cnt = Connection::Create(_ioc_pool.GetIOContext());
 
     auto self = shared_from_this();
     _acceptor.async_accept(cnt->GetSocket()

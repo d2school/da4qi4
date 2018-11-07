@@ -12,8 +12,6 @@
 #include "def/boost_def.hpp"
 #include "utilities/container_utilities.hpp"
 
-#include "app_setting.hpp"
-
 namespace da4qi4
 {
 
@@ -210,6 +208,8 @@ struct FormDataItem
         data.clear();
     }
 };
+
+class UploadFileSaveOptions;
 
 class Request
 {
@@ -438,7 +438,8 @@ public:
     }
 
     void TransferHeadersToCookies();
-    void TransferMultiPartsToFormData(UploadFileSaveOptions const& options, std::string const& dir);
+    void TransferMultiPartsToFormData(UploadFileSaveOptions const& options
+                                      , std::string const& dir);
     void ParseFormUrlEncodedData();
 
     void Reset();

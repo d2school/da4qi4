@@ -10,9 +10,11 @@
 #include "request.hpp"
 #include "response.hpp"
 #include "templates.hpp"
+#include "intercepter.hpp"
 
 namespace da4qi4
 {
+
 using Json = nlohmann::json;
 
 extern Json theEmptyJson;
@@ -24,8 +26,6 @@ class ContextIMP;
 using Context = std::shared_ptr<ContextIMP>;
 
 class Application;
-
-enum class InterceptResult { pass, stop_on_success, stop_on_error };
 
 class ContextIMP
 {
@@ -46,16 +46,6 @@ public:
     }
 
     Application& App();
-
-    InterceptResult GetInterceptResult() const
-    {
-        return this->_intercept_result;
-    }
-
-    void SetInterceptResult(InterceptResult result)
-    {
-        this->_intercept_result = result;
-    }
 
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names
@@ -115,9 +105,20 @@ public:
 public:
     void StartChunkedResponse();
     void ContinueChunkedResponse(std::string const& body);
+
+public:
+    void SetIntercepterIterator(Intercepter::ChainIterator iter)
+    {
+        _intercepter_iter = iter;
+    }
+
+    Intercepter::ChainIterator GetIntercepterIterator() const
+    {
+        return _intercepter_iter;
+    }
+
 private:
     void end_chunked_response();
-
 private:
     void render_on_template(Template const& templ, Json const& data, http_status status);
     std::string render_on_template(Template const& templ, Json const& data
@@ -187,10 +188,9 @@ private:
     }
 
 private:
-    InterceptResult _intercept_result = InterceptResult::pass;
-private:
     ConnectionPtr _cnt;
     inja::Environment _env;
+    Intercepter::ChainIterator _intercepter_iter;
 };
 
 

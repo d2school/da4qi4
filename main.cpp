@@ -5,7 +5,7 @@
 #include "server.hpp"
 
 #include "application.hpp"
-#include "intercepter_staticfile.hpp"
+#include "intercepters/staticfile.hpp"
 
 #include "def/log_def.hpp"
 #include "utilities/captcha_utilities.hpp"
@@ -27,9 +27,9 @@ int main()
                      , "/home/zhuangyan/projects/CPP/test_web_root/upload/" //upload root
                     );
 
-    Intercepter::StaticFileIntercepter sfi(60);
-    sfi.AddEntry("html/", "").AddDefaultFileNames({"index.html", "index.htm"});
-    app1.PushBackIntercepter(sfi);
+    Intercepter::StaticFile static_file(60);
+    static_file.SetCacheMaxAge(60).AddEntry("html/", "").AddDefaultFileNames({"index.html", "index.htm"});
+    app1.AddIntercepter(static_file);
 
     app1.AddHandler(_GET_, "", [](Context ctx)
     {

@@ -23,6 +23,8 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(nlohmann_json)
 
 aux_source_directory(. TOP_SRC_FILES)
+aux_source_directory(./intercepters TOP_SRC_FILES)
+
 aux_source_directory(./def DEF_SRC_FILES)
 aux_source_directory(./utilities UTILITIES_SRC_FILES)
 aux_source_directory(./http-parser HTTP_PARSER_SRC_FILES)

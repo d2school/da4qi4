@@ -1,4 +1,4 @@
-#include "intercepter_staticfile.hpp"
+#include "staticfile.hpp"
 
 #include <fstream>
 
@@ -11,20 +11,20 @@ namespace da4qi4
 namespace Intercepter
 {
 
-StaticFileIntercepter& StaticFileIntercepter::AddEntry(std::string const& url_root
-                                                       , std::string const& dir_root)
+StaticFile& StaticFile::AddEntry(std::string const& url_root
+                                 , std::string const& dir_root)
 {
     _root_entries.insert(std::make_pair(url_root, dir_root));
     return *this;
 }
 
-void StaticFileIntercepter::operator()(Context ctx) const
+void StaticFile::operator()(Context ctx, Next next) const
 {
     HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
 
     if ((m != HandlerMethod::GET))
     {
-        Pass(ctx);
+        next(Result::Skip);
         return;
     }
 
@@ -54,14 +54,15 @@ void StaticFileIntercepter::operator()(Context ctx) const
 
     if (!entry_found)
     {
-        Pass(ctx);
+        next(Result::Skip);
         return;
     }
 
     if (dst_path_filename.empty())
     {
         ctx->RenderNofound();
-        ByeOnError(ctx);
+        ctx->Bye();
+        next(Result::ByeOnError);
         return;
     }
 
@@ -92,7 +93,8 @@ void StaticFileIntercepter::operator()(Context ctx) const
             if (!found)
             {
                 ctx->RenderNofound();
-                ByeOnError(ctx);
+                ctx->Bye();
+                next(Result::ByeOnError);
                 return;
             }
         }
@@ -101,8 +103,8 @@ void StaticFileIntercepter::operator()(Context ctx) const
     {
         std::cerr << e.what() << std::endl;
         ctx->RenderInternalServerError();
-        ByeOnError(ctx);
-
+        ctx->Bye();
+        next(Result::ByeOnError);
         return;
     }
 
@@ -113,7 +115,8 @@ void StaticFileIntercepter::operator()(Context ctx) const
         std::cerr << "Open " << dst_path_filename.native() << "file fail!" << std::endl;
 
         ctx->RenderInternalServerError();
-        ByeOnError(ctx);
+        ctx->Bye();
+        next(Result::ByeOnError);
         return;
     }
 
@@ -126,7 +129,7 @@ void StaticFileIntercepter::operator()(Context ctx) const
 
     std::string content_type = Utilities::GetMIMEType(dst_path_filename.extension().string());
     ctx->Res().SetContentType(content_type);
-    ctx->Res().CacheControlMaxAge(_max_age);
+    ctx->Res().CacheControlMaxAge(_cache_max_age);
 
     ctx->StartChunkedResponse();
 
@@ -153,10 +156,12 @@ void StaticFileIntercepter::operator()(Context ctx) const
         a_chunk_body.clear();
     }
 
-    ByeOnSuccess(ctx);
+    ctx->Bye();
+
+    next(Result::ByeOnSuccess);
 }
 
-StaticFileIntercepter& StaticFileIntercepter::AddDefaultFileName(std::string const& index_filename)
+StaticFile& StaticFile::AddDefaultFileName(std::string const& index_filename)
 {
     for (auto fn : _default_filenames)
     {
@@ -171,8 +176,8 @@ StaticFileIntercepter& StaticFileIntercepter::AddDefaultFileName(std::string con
     return *this;
 }
 
-StaticFileIntercepter& StaticFileIntercepter::AddDefaultFileNames(std::vector<std::string> const&
-                                                                  index_filenames)
+StaticFile& StaticFile::AddDefaultFileNames(std::vector<std::string> const&
+                                            index_filenames)
 {
     for (auto s : index_filenames)
     {

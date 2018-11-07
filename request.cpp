@@ -13,6 +13,8 @@
 #include "utilities/file_utilities.hpp"
 #include "utilities/html_utilities.hpp"
 
+#include "application.hpp"
+
 namespace da4qi4
 {
 

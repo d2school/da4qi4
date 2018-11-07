@@ -27,12 +27,7 @@ public:
         return _ioc_for_connections.size();
     }
 
-    boost::asio::io_context& GetServerIOContext()
-    {
-        return _ioc_for_server;
-    }
-
-    boost::asio::io_context& GetConnectionIOContext();
+    boost::asio::io_context& GetIOContext();
 
 private:
     using IOContextPtr = std::shared_ptr<boost::asio::io_context>;
@@ -40,7 +35,6 @@ private:
 
     std::atomic_bool _stopping;
 
-    boost::asio::io_context _ioc_for_server;
     std::vector<IOContextPtr> _ioc_for_connections;
 
     std::list<IOContextWork> _work;

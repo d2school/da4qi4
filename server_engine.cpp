@@ -14,7 +14,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
     if (pool_size == 0)
     {
         size_t count = std::thread::hardware_concurrency();
-        pool_size = (count > 2) ? (count - 1) : 1;
+        pool_size = (count > 0) ? count : 1;
     }
 
     for (std::size_t i = 0; i < pool_size; ++i)
@@ -58,28 +58,6 @@ void IOContextPool::Run()
         _threads.push_back(thread);
     }
 
-    while (!_stopping)
-    {
-        try
-        {
-            errorcode e;
-            _ioc_for_server.run(e);
-
-            if (e)
-            {
-                std::cerr << e.message() << std::endl;
-            }
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what() << std::endl;
-        }
-        catch (...)
-        {
-            std::cerr << "unknown exception." << std::endl;
-        }
-    }
-
     for (auto thread_ptr : _threads)
     {
         thread_ptr->join();
@@ -88,9 +66,12 @@ void IOContextPool::Run()
 
 void IOContextPool::Stop()
 {
-    _stopping = true;
+    if (_stopping)
+    {
+        return;
+    }
 
-    _ioc_for_server.stop();
+    _stopping = true;
 
     for (auto ioc_ptr : _ioc_for_connections)
     {
@@ -98,7 +79,7 @@ void IOContextPool::Stop()
     }
 }
 
-boost::asio::io_context& IOContextPool::GetConnectionIOContext()
+boost::asio::io_context& IOContextPool::GetIOContext()
 {
     boost::asio::io_context& io_context = *_ioc_for_connections[_next_index];
 

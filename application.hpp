@@ -9,10 +9,32 @@
 
 #include "router.hpp"
 #include "templates.hpp"
-#include "app_setting.hpp"
+
+#include "intercepters/staticfile.hpp"
+//#include "intercepters/session_redis.hpp"
 
 namespace da4qi4
 {
+
+struct UploadFileSaveOptions
+{
+    enum Strategy
+    {
+        always_save
+        , alway_no_save
+        , size_greater_than
+        , size_lesser_than
+        , extension_is
+        , extension_is_not
+    };
+
+    bool IsNeedSave(std::string const& extension, size_t filesize_kb) const;
+
+    Strategy strategy = always_save;
+    size_t size_base_kb;
+    std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
+};
+
 
 class Application
 {
@@ -127,6 +149,26 @@ public:
     void Disable();
     void Enable();
 
+    Application& EnableSession()
+    {
+        if (!IsRuning())
+        {
+            //       if (!)
+        }
+
+        return *this;
+    }
+
+    size_t GetUpoadMaxSizeLimitKB() const
+    {
+        return _upload_max_size_limit_kb;
+    }
+
+    void SetUpoadMaxSizeLimitKB(int size_limit_kb)
+    {
+        _upload_max_size_limit_kb = size_limit_kb;
+    }
+
     UploadFileSaveOptions const& GetUploadFileSaveOptions() const
     {
         return _upload_file_save_opt;
@@ -147,12 +189,8 @@ public:
         return _templates;
     }
 
-    void Handle(Context ctx);
-
-    void operator()(Context ctx)
-    {
-        Handle(ctx);
-    }
+    void StartHandle(Context ctx);
+    void NextHandler(Context ctx, Intercepter::Result result);
 
 public:
     bool AddHandler(HandlerMethod m, std::string const& url, Handler h)
@@ -183,7 +221,7 @@ public:
     bool AddHandler(HandlerMethods ms, router_regex e, Handler h);
 
 public:
-    void PushBackIntercepter(Handler const& intercepter)
+    void AddIntercepter(Intercepter::Handler intercepter)
     {
         if (!IsRuning())
         {
@@ -191,21 +229,13 @@ public:
         }
     }
 
-    void PushFrontIntercepter(Handler const& intercepter)
-    {
-        if (!IsRuning())
-        {
-            _intercepters.push_front(intercepter);
-        }
-    }
-
 private:
     void init_pathes();
-
 private:
-    InterceptResult do_intercept(Context ctx);
     Handler& find_handler(Context ctx);
+    void do_handle(Context ctx);
 
+    void do_intercepter(Context ctx);
 private:
     EqualsRoutingTable _equalRouter;
     StartsWithRoutingTable _startwithsRouter;
@@ -224,11 +254,14 @@ private:
     fs::path _root_upload;
     fs::path _root_temporary;
 
-    UploadFileSaveOptions _upload_file_save_opt;
+    size_t _upload_max_size_limit_kb = 30 * 1024;
+
     Templates _templates;
 
+    UploadFileSaveOptions _upload_file_save_opt;
+
 private:
-    std::list<Handler> _intercepters;
+    Intercepter::Chain _intercepters;
 
     friend class ApplicationMgr;
 };

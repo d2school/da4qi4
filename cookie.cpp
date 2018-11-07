@@ -1,5 +1,6 @@
 #include "cookie.hpp"
 
+#include "nlohmann/json.hpp"
 #include "utilities/string_utilities.hpp"
 
 namespace da4qi4
@@ -94,4 +95,29 @@ std::ostream& operator << (std::ostream& os, Cookie const& c)
 
     return os;
 }
+
+void to_json(Json& j,  Cookie const& c)
+{
+    j["order_version"] = c._old_version;
+    j["name"] = c._name;
+    j["domain"] = c._domain;
+    j["path"] = c._path;
+    j["max_age"] = c._max_age;
+    j["http_only"] = c._http_only;
+    j["secure"] = c._secure;
+    j["samesite"] = static_cast<int>(c._samesite);
+}
+
+void from_json(Json const& j, Cookie& c)
+{
+    j.at("order_version").get_to(c._old_version);
+    j.at("name").get_to(c._name);
+    j.at("domain").get_to(c._domain);
+    j.at("path").get_to(c._path);
+    j.at("max_age").get_to(c._max_age);
+    j.at("http_only").get_to(c._http_only);
+    j.at("secure").get_to(c._secure);
+    j.at("samesite").get_to(c._samesite);
+}
+
 } //namespace da4qi4
