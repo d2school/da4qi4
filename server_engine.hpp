@@ -28,6 +28,8 @@ public:
     }
 
     boost::asio::io_context& GetIOContext();
+    std::pair<boost::asio::io_context&, size_t> GetIOContextAndIndex();
+    boost::asio::io_context& GetIOContextByIndex(size_t index);
 
 private:
     using IOContextPtr = std::shared_ptr<boost::asio::io_context>;

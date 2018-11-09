@@ -100,6 +100,7 @@ void to_json(Json& j,  Cookie const& c)
 {
     j["order_version"] = c._old_version;
     j["name"] = c._name;
+    j["value"] = c._value;
     j["domain"] = c._domain;
     j["path"] = c._path;
     j["max_age"] = c._max_age;
@@ -112,6 +113,7 @@ void from_json(Json const& j, Cookie& c)
 {
     j.at("order_version").get_to(c._old_version);
     j.at("name").get_to(c._name);
+    j.at("value").get_to(c._value);
     j.at("domain").get_to(c._domain);
     j.at("path").get_to(c._path);
     j.at("max_age").get_to(c._max_age);

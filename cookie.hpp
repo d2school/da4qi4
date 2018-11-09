@@ -37,6 +37,7 @@ struct Cookie
     }
 
     Cookie& operator = (Cookie const& o) = default;
+    Cookie& operator = (Cookie&& o) = default;
 
     Cookie(std::string const& name, std::string const& value)
         : _name(name), _value(value)
@@ -173,6 +174,11 @@ struct Cookie
     {
         _samesite = ss;
         return *this;
+    }
+
+    void ClearValue()
+    {
+        _value.clear();
     }
 
 private:

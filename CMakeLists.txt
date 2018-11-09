@@ -16,7 +16,7 @@ find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFA
 link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} pthread)
 
 include_directories(.)
-include_directories(./nlohmann_json/include)
+include_directories(./nlohmann_json/include/)
 
 set(JSON_MultipleHeaders ON  CACHE INTERNAL "")
 set(JSON_BuildTests OFF CACHE INTERNAL "")
@@ -35,6 +35,17 @@ add_definitions(-Dcimg_display=0)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
 
 link_libraries(nlohmann_json)
+
+function(echo_all_cmake_variable_values)
+  message(STATUS “”)
+  get_cmake_property(vs VARIABLES)
+  foreach(v ${vs})
+    message(STATUS “${v}=’${${v}}'”)
+  endforeach(v)
+  message(STATUS “”)
+endfunction()
+
+#echo_all_cmake_variable_values()
 
 add_executable(${PROJECT_NAME} 
                 ${TOP_SRC_FILES}

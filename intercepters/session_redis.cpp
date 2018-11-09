@@ -1,117 +1,150 @@
 #include "session_redis.hpp"
 
-#include <boost/bind.hpp>
+#include <string>
+
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #include "def/debug_def.hpp"
 #include "utilities/asio_utilities.hpp"
-
+#include "utilities/string_utilities.hpp"
+#include "context.hpp"
 
 namespace da4qi4
 {
-/*
-
-
-void RedisSession::do_connect()
+namespace Intercepter
 {
-    {
-        std::lock_guard<std::mutex> lock(_m);
 
-        if (_connect_status != no_connect)
-        {
-            return;
-        }
+std::string const SessionOnRedis::data_name = "session-redis";
 
-        _connect_status = is_connectting;
-    }
+std::string make_session_id(std::string const& prefix)
+{
+    static boost::uuids::random_generator gen;
+    boost::uuids::uuid uid = gen();
+    std::stringstream ss;
+    ss << prefix << uid;
 
-    _redisclient.connect(_endpoint, boost::bind(&RedisSession::on_connect_finished
-                                                , this
-                                                , boost::asio::placeholders::error));
+    return ss.str();
 }
 
-void RedisSession::on_connect_finished(errorcode const& ec)
+void SessionOnRedis::onRequest(Context& ctx) const
 {
-    if (ec)
+    std::string session_id = ctx->Req().GetCookie(this->_options.name);
+
+    if (session_id.empty())
     {
-        std::cerr << ec.message() << std::endl;
-        return;
-    }
+        session_id = make_session_id(_options.prefix);
 
-    std::lock_guard<std::mutex> lock(_m);
-    _connect_status = is_connected;
+        Cookie cookie(_options.name, session_id, _options.domain, _options.path);
+        cookie.SetMaxAge(_options.max_age);
+        cookie.SetHttpOnly(_options.http_only);
+        cookie.SetSecure(_options.secure);
+        cookie.SetSameSite(_options.samesite);
 
-    for (auto it = _nodes.begin(); ++)
-    }
-
-void RedisSession::Push(std::string session_id, RedisSessionData data)
-{
-    bool reconnect_now = false;
-    int max_age = 0;
-
-    std::string json_string_will_write_to_redis;
-
-    {
-        std::lock_guard<std::mutex> lock(_m);
-
-        if (_connect_status == is_connected)
-        {
-            write_now = true;
-            json_string_will_write_to_redis = data.ToJSonString();
-            max_age = data.cookie.GetMaxAge();
-        }
-        else if (_connect_status == no_connect)
-        {
-            reconnect_now = true;
-        }
-
-        RedisSessionNode node(std::move(data));
-        _nodes[session_id] = std::move(node);
-    }
-
-    if (!write_now)
-    {
-        if (reconnect_now)
-        {
-            do_connect();
-        }
+        Json data = ToJson(cookie, Json());
+        ctx->SaveData(data_name, data);
+        ctx->Pass();
 
         return;
     }
 
-    assert(!json_string_will_write_to_redis.empty());
-    async_write_data(std::move(session_id), json_string_will_write_to_redis, max_age);
-}
-
-void RedisSession::async_write_data(std::string session_id, std::string data, int max_age)
-{
-    if (max_age < 0)
+    if (auto redis = ctx->AsyncRedis())
     {
-        max_age = 3600;
-    }
-
-    std::string max_age_str = std::to_string(max_age);
-    _redisclient.command("SETEX"
-                         , {session_id, std::move(data), std::move(max_age_str)}
-                         , [session_id, this](RedisValue value)
-    {
-        if (value.isOk())
+        redis->Command("GET", {session_id}, [ctx](RedisValue value)
         {
-            std::lock_guard<std::mutex> lock(_m);
-            auto it = _nodes.find(session_id);
+            Json data;
 
-            if (it != _nodes.end() && !it->second.posted)
+            try
             {
-                it->second.posted = true;
+                data = Json::parse(value.toString());
+
+                if (!data.empty())
+                {
+                    ctx->SaveData(data_name, data);
+                    ctx->Pass();
+                }
             }
-        }
-    });
+            catch (Json::parse_error const& e)
+            {
+                std::cerr << e.what() << std::endl; //HINT : can get more detail info from e.
+            }
+            catch (std::exception const& e)
+            {
+                std::cerr << e.what() << std::endl;
+            }
+        });
+    }
 }
 
-void RedisSession::Pull(std::string const& session_id)
+void SessionOnRedis::onResponse(Context& ctx) const
 {
+    Json node = ctx->LoadData(data_name);
 
+    if (node.empty())
+    {
+        ctx->Pass();
+        return;
+    }
+
+    Json data;
+    Cookie cookie;
+
+    if (!FromJson(node, cookie, data))
+    {
+        ctx->Pass();
+        return;
+    }
+
+    ctx->Res().SetCookie(cookie);
+    std::string session_timeout_s = std::to_string(cookie.GetMaxAge());
+    std::string session_id = cookie.GetValue();
+    size_t const indent = 4;
+    std::string session_value = node.dump(indent);
+
+    if (auto redis = ctx->AsyncRedis())
+    {
+        redis->Command("SETEX", {session_id, session_timeout_s, session_value}, [ctx](RedisValue value)
+        {
+            if (value.isError())
+            {
+                std::cerr << value.toString() << std::endl;
+                return;
+            }
+
+            ctx->Pass();
+        });
+    }
 }
 
-*/
+void SessionOnRedis::operator()(Context ctx, On on) const
+{
+    if (_options.name.empty())
+    {
+        ctx->Pass();
+        return;
+    }
 
+    if (!Utilities::iStartsWith(ctx->Req().GetUrl().path, _options.path))
+    {
+        ctx->Pass();
+        return;
+    }
+
+    if (!ctx->HasRedis())
+    {
+        ctx->Pass();
+        return;
+    }
+
+    if (on == Intercepter::On::Request)
+    {
+        onRequest(ctx);
+    }
+    else
+    {
+        onResponse(ctx);
+    }
+}
+
+} //namespace Intercepter
 } //namespace da4qi4

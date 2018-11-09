@@ -10,9 +10,6 @@
 #include "router.hpp"
 #include "templates.hpp"
 
-#include "intercepters/static_file.hpp"
-//#include "intercepters/session_redis.hpp"
-
 namespace da4qi4
 {
 
@@ -189,8 +186,7 @@ public:
         return _templates;
     }
 
-    void StartHandle(Context ctx);
-    void NextHandler(Context ctx, Intercepter::Result result);
+    void Handle(Context ctx);
 
 public:
     bool AddHandler(HandlerMethod m, std::string const& url, Handler h)
@@ -229,13 +225,18 @@ public:
         }
     }
 
+    std::pair<Intercepter::ChainIterator, Intercepter::ChainIterator>
+    GetIntercepterChainRange()
+    {
+        return { _intercepters.begin(), _intercepters.end() };
+    }
+
 private:
     void init_pathes();
-private:
-    Handler& find_handler(Context ctx);
-    void do_handle(Context ctx);
 
-    void do_intercepter(Context ctx);
+private:
+    Handler& find_handler(const Context& ctx);
+    void do_handle(Context& ctx);
 private:
     EqualsRoutingTable _equalRouter;
     StartsWithRoutingTable _startwithsRouter;
@@ -310,7 +311,7 @@ private:
     ApplicationSet _set;
 };
 
-ApplicationMgr* AppMgr();
+ApplicationMgr& AppMgr();
 
 } // namespace da4qi4
 

@@ -22,6 +22,11 @@ public:
     static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count = 0);
 
     ~Server();
+
+    IOContextPool* GetIOContextPool()
+    {
+        return &_ioc_pool;
+    }
 public:
     void Run();
     void Stop();
@@ -29,7 +34,7 @@ public:
 public:
     bool AddApp(Application& app)
     {
-        return AppMgr()->Add(app);
+        return AppMgr().Add(app);
     }
 
 public:

@@ -7,6 +7,7 @@
 #include <map>
 
 #include "intercepter.hpp"
+#include "def/boost_def.hpp"
 
 namespace da4qi4
 {
@@ -16,6 +17,8 @@ namespace Intercepter
 
 struct StaticFile
 {
+    static std::string const data_name;
+
     StaticFile()
         : _cache_max_age(300)
         , _url_resolve_type(PathResolve::is_relative)
@@ -31,6 +34,9 @@ struct StaticFile
         , _dir_resolve_type(dir_resolve_type)
     {
     }
+
+    StaticFile(StaticFile const&) = default;
+    StaticFile& operator = (StaticFile const&) = default;
 
     int GetCacheMaxAge() const
     {
@@ -74,7 +80,11 @@ struct StaticFile
         return _default_filenames;
     }
 
-    void operator()(Context ctx, Next next) const;
+    void operator()(Context ctx, On on) const;
+
+private:
+    void onRequest(Context& ctx) const;
+    void onResponse(Context& ctx) const;
 
 private:
     int _cache_max_age;

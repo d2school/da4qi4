@@ -20,11 +20,11 @@ class Application;
 class Connection
     : public std::enable_shared_from_this<Connection>
 {
-    explicit Connection(boost::asio::io_context& ioc);
+    explicit Connection(boost::asio::io_context& ioc, size_t ioc_index);
 public:
-    static ConnectionPtr Create(boost::asio::io_context& ioc)
+    static ConnectionPtr Create(boost::asio::io_context& ioc, size_t ioc_index)
     {
-        return ConnectionPtr(new Connection(ioc));
+        return ConnectionPtr(new Connection(ioc, ioc_index));
     }
 
     Connection(const Connection&) = delete;
@@ -36,7 +36,6 @@ public:
     void StartWrite();
     void Stop();
 
-    void StartChunkedWrite(); //write head
 public:
     Request const& GetRequest() const
     {
@@ -58,6 +57,11 @@ public:
 
     Application& GetApplication();
 
+    size_t GetIOContextIndex() const
+    {
+        return _ioc_index;
+    }
+
 public:
     Tcp::socket& GetSocket()
     {
@@ -72,9 +76,6 @@ private:
     void do_write_header_for_chunked();
     void do_write_next_chunked_body(clock_t start_wait_clock);
     void do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred);
-private:
-    Tcp::socket _socket;
-    std::array<char, 1024 * 4> _buffer;
 
 private:
     void init_parser();
@@ -115,10 +116,17 @@ private:
     MultpartParseStatus do_multipart_parse();
 
     bool try_route_application();
+
 private:
     void prepare_response_headers_about_connection();
     void prepare_response_headers_for_chunked_write();
     void reset();
+
+private:
+    Tcp::socket _socket;
+    size_t _ioc_index;
+    std::array<char, 1024 * 4> _buffer;
+
 private:
     http_parser* _parser;
     http_parser_settings _parser_setting;

@@ -4,21 +4,19 @@
 #include <memory>
 #include <functional>
 #include <list>
-#include <def/asio_def.hpp>
 
 #include "def/def.hpp"
+#include "def/asio_def.hpp"
+#include "def/json_def.hpp"
 
 #include "request.hpp"
 #include "response.hpp"
 #include "templates.hpp"
 #include "intercepter.hpp"
+#include "redis_client.hpp"
 
 namespace da4qi4
 {
-
-using Json = nlohmann::json;
-
-extern Json theEmptyJson;
 
 class Connection;
 using ConnectionPtr = std::shared_ptr<Connection>;
@@ -29,6 +27,7 @@ using Context = std::shared_ptr<ContextIMP>;
 class Application;
 
 class ContextIMP
+    : public std::enable_shared_from_this<ContextIMP>
 {
     ContextIMP(ConnectionPtr cnt);
 public:
@@ -48,7 +47,36 @@ public:
 
     Application& App();
 
+    Json LoadData(std::string const& name) const
+    {
+        auto it = _data.find(name);
+
+        if (it == _data.end())
+        {
+            return theEmptyJson;
+        }
+
+        return *it;
+    }
+
+    void SaveData(std::string const& name, Json const& data)
+    {
+        assert(!name.empty());
+        _data[name] = data;
+    }
+
+    void RemoveData(std::string const& name)
+    {
+        auto it = _data.find(name);
+
+        if (it != _data.end())
+        {
+            _data.erase(it);
+        }
+    }
+
     boost::asio::io_context& IOContext();
+    size_t IOContextIndex() const;
 
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names
@@ -77,6 +105,12 @@ public:
     {
         Render(HTTP_STATUS_NOT_FOUND, data);
     }
+
+    void RenderBadRequest(Json const& data = theEmptyJson)
+    {
+        Render(HTTP_STATUS_BAD_REQUEST, data);
+    }
+
     void RenderUnauthorized(Json const& data = theEmptyJson)
     {
         Render(HTTP_STATUS_UNAUTHORIZED, data);
@@ -103,25 +137,43 @@ public:
     }
 
 public:
-    void Bye();
+    bool HasRedis() const
+    {
+        return _redis != nullptr;
+    }
+
+    PersistentSyncRedisClient* SyncRedis()
+    {
+        return (_redis) ? &(_redis->SyncClient()) : nullptr;
+    }
+
+    PersistentAsyncRedisClient* AsyncRedis()
+    {
+        return (_redis) ? &(_redis->AsyncClient()) : nullptr;
+    }
+
+public:
+    void Start();
+    void Pass();
+    void Stop();
 
 public:
     void StartChunkedResponse();
     void ContinueChunkedResponse(std::string const& body);
-
-public:
-    void SetIntercepterIterator(Intercepter::ChainIterator iter)
-    {
-        _intercepter_iter = iter;
-    }
-
-    Intercepter::ChainIterator GetIntercepterIterator() const
-    {
-        return _intercepter_iter;
-    }
+    void StopChunkedResponse();
 
 private:
-    void end_chunked_response();
+    void do_intercepter_on_req_dir();
+    void do_intercepter_on_res_dir();
+
+    void next(Intercepter::Result result);
+    void next_intercepter_on_req_dir(Intercepter::Result result);
+    void start_intercepter_on_res_dir(Intercepter::Result result);
+    void next_intercepter_on_res_dir(Intercepter::Result result);
+
+private:
+    void end();
+
 private:
     void render_on_template(Template const& templ, Json const& data, http_status status);
     std::string render_on_template(Template const& templ, Json const& data
@@ -192,8 +244,16 @@ private:
 
 private:
     ConnectionPtr _cnt;
+
+    Json _data;
+
     inja::Environment _env;
-    Intercepter::ChainIterator _intercepter_iter;
+
+    Intercepter::On _intercepter_on;
+    Intercepter::ChainIterator  _intercepter_iter;
+    Intercepter::ChainIterator _intercepter_beg, _intercepter_end;
+
+    RedisClientPtr _redis;
 };
 
 

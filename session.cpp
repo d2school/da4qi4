@@ -3,23 +3,21 @@
 namespace da4qi4
 {
 
-std::string SessionData::ToString() const
+Json ToJson(Cookie const& cookie, Json const& data)
 {
-    Json root;
-    root["c"] = cookie;
-    root["d"] = data;
+    Json node;
+    node["cookie"] = cookie;
+    node["data"] = data;
 
-    int const indent = 4;
-    return root.dump(indent);
+    return node;
 }
 
-bool SessionData::FromString(std::string const& str)
+bool FromJson(Json const& node, Cookie& cookie, Json& data)
 {
     try
     {
-        Json root = Json::parse(str);
-        root.at("c").get_to(cookie);
-        data = root.at("d");
+        cookie = node.at("cookie");
+        data = node.at("data");
         return true;
     }
     catch (Json::parse_error const& e)
@@ -33,6 +31,5 @@ bool SessionData::FromString(std::string const& str)
 
     return false;
 }
-
 
 } //namespace da4qi4

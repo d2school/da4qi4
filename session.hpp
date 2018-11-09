@@ -9,19 +9,8 @@
 namespace da4qi4
 {
 
-struct SessionData
-{
-    Cookie cookie;  //json name "c"
-    Json data;      //json name "d"
-
-    std::string const& GetID() const
-    {
-        return cookie.GetValue();
-    }
-
-    std::string ToString() const;
-    bool FromString(std::string const& str);
-};
+Json ToJson(Cookie const& cookie, Json const& data);
+bool FromJson(Json const& node, Cookie& cookie, Json& data);
 
 struct SessionOptions
 {
@@ -29,7 +18,7 @@ struct SessionOptions
     std::string prefix = "sid:";
     std::string domain;
     std::string path = "/";
-    size_t max_age = 3600;
+    int max_age = 3600;
     Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_only;
     Cookie::Secure secure = Cookie::Secure::for_http_and_https;
     Cookie::SameSite samesite = Cookie::SameSite::none;

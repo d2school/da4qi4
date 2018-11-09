@@ -1,7 +1,7 @@
-#ifndef INJA_DEF_HPP
-#define INJA_DEF_HPP
+#ifndef DAQI_INJA_DEF_HPP
+#define DAQI_INJA_DEF_HPP
 
-#include <inja/inja.hpp>
+#include "inja/inja.hpp"
 
 namespace da4qi4
 {

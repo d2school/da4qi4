@@ -83,7 +83,13 @@ void IOContextPool::Stop()
 
 boost::asio::io_context& IOContextPool::GetIOContext()
 {
-    boost::asio::io_context& io_context = *_io_contexts[_next_index];
+    return GetIOContextAndIndex().first;
+}
+
+std::pair<boost::asio::io_context&, size_t> IOContextPool::GetIOContextAndIndex()
+{
+    size_t index = _next_index;
+    boost::asio::io_context& io_context = *_io_contexts[index];
 
     ++_next_index;
 
@@ -92,6 +98,13 @@ boost::asio::io_context& IOContextPool::GetIOContext()
         _next_index = 0;
     }
 
-    return io_context;
+    return {io_context, index};
 }
+
+boost::asio::io_context& IOContextPool::GetIOContextByIndex(size_t index)
+{
+    assert(index < _io_contexts.size());
+    return *(_io_contexts[index]);
+}
+
 }

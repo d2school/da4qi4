@@ -11,8 +11,8 @@
 namespace da4qi4
 {
 
-Connection::Connection(boost::asio::io_context& ioc)
-    : _socket(ioc), _parser(new http_parser)
+Connection::Connection(boost::asio::io_context& ioc, size_t ioc_index)
+    : _socket(ioc), _ioc_index(ioc_index), _parser(new http_parser)
 {
     this->init_parser();
     this->init_parser_setting();
@@ -59,12 +59,14 @@ void Connection::Stop()
 
 void Connection::StartWrite()
 {
-    this->do_write();
-}
-
-void Connection::StartChunkedWrite()
-{
-    this->do_write_header_for_chunked();
+    if (!_response.IsChunked())
+    {
+        this->do_write();
+    }
+    else
+    {
+        this->do_write_header_for_chunked();
+    }
 }
 
 void Connection::update_request_after_header_parsed()
@@ -140,7 +142,7 @@ void Connection::try_init_multipart_parser()
 
 bool Connection::try_route_application()
 {
-    _app = AppMgr()->FindByURL(_request.GetUrl().path);
+    _app = AppMgr().FindByURL(_request.GetUrl().path);
     return _app != nullptr;
 }
 
@@ -514,7 +516,7 @@ void Connection::do_read()
 
         ConnectionPtr this_connection = shared_from_this();
         _response.SetCharset(_app->GetDefaultCharset());
-        _app->StartHandle(ContextIMP::Make(this_connection)); //connection -> ctx -> app
+        ContextIMP::Make(this_connection)->Start();
     });
 }
 
@@ -616,7 +618,7 @@ void Connection::do_write_header_for_chunked()
 void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 {
     bool is_last = false;
-    _current_chunked_body = std::move(_response.PopChunkedBody(is_last));
+    _current_chunked_body = _response.PopChunkedBody(is_last);
 
     ConnectionPtr self = shared_from_this();
 
@@ -646,7 +648,8 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
     });
 }
 
-void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred)
+void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec
+                                                , size_t /*bytes_transferred*/)
 {
     if (ec)
     {

@@ -7,10 +7,10 @@ namespace da4qi4
 
 static char const* default_app_name = "da4qi4-Default";
 
-ApplicationMgr* AppMgr()
+ApplicationMgr& AppMgr()
 {
     static ApplicationMgr mgr;
-    return &mgr;
+    return mgr;
 }
 
 bool UploadFileSaveOptions::IsNeedSave(std::string const& extension
@@ -322,9 +322,9 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return _regexRouter.Add(r, ms, h);
 }
 
-Handler& Application::find_handler(Context ctx)
+Handler& Application::find_handler(Context const& ctx)
 {
-    HandlerMethod m = from_http_method((http_method)ctx->Req().GetMethod());
+    HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
 
     if (m == HandlerMethod::UNSUPPORT)
     {
@@ -340,7 +340,9 @@ Handler& Application::find_handler(Context ctx)
         return *rr.handler;
     }
 
-    if ((rr = _startwithsRouter.Search(url, m), rr.handler))
+    rr = _startwithsRouter.Search(url, m);
+
+    if (rr.handler)
     {
         return *rr.handler;
     }
@@ -356,66 +358,19 @@ Handler& Application::find_handler(Context ctx)
     return theEmptyHandler;
 }
 
-void Application::StartHandle(Context ctx)
+void Application::Handle(Context ctx)
 {
-    ctx->SetIntercepterIterator(_intercepters.begin());
-    do_intercepter(ctx);
+    do_handle(ctx);
 }
 
-void Application::do_intercepter(Context ctx)
+void Application::do_handle(Context& ctx)
 {
-    auto iter = ctx->GetIntercepterIterator();
-
-    if (iter != _intercepters.end())
-    {
-        Intercepter::Handler h = *iter;
-        Intercepter::Next next = std::bind(&Application::NextHandler
-                                           , this
-                                           , ctx, std::placeholders::_1);
-        h(ctx, next);
-    }
-    else
-    {
-        do_handle(ctx);
-    }
-}
-
-void Application::NextHandler(Context ctx, Intercepter::Result result)
-{
-    auto iter = ctx->GetIntercepterIterator();
-
-    if (iter != _intercepters.end())
-    {
-        ctx->SetIntercepterIterator(++iter);
-    }
-
-    switch (result)
-    {
-        case Intercepter::Result::ByeOnError:
-        {
-            return;
-        }
-
-        case Intercepter::Result::ByeOnSuccess:
-        {
-            return;
-        }
-
-        case Intercepter::Result::Skip:
-        {
-            do_intercepter(ctx);
-        }
-    }
-}
-
-void Application::do_handle(Context ctx)
-{
-    Handler h = find_handler(ctx);
+    Handler& h = find_handler(ctx);
 
     if (!h)
     {
-        ctx->Res().ReplyNofound();
-        ctx->Bye();
+        ctx->RenderNofound();
+        ctx->Stop();
         return;
     }
 

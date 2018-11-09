@@ -1,12 +1,13 @@
-#ifndef ASIO_DEF_HPP
-#define ASIO_DEF_HPP
+#ifndef DAQI_ASIO_DEF_HPP
+#define DAQI_ASIO_DEF_HPP
 
 #include <boost/asio.hpp>
 
-namespace da4qi4 {
+namespace da4qi4
+{
 
 using Tcp = boost::asio::ip::tcp;
 
 }
 
-#endif // ASIO_DEF_HPP
+#endif // DAQI_ASIO_DEF_HPP

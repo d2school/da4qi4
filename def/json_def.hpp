@@ -7,7 +7,7 @@ namespace da4qi4
 {
 
 using Json = nlohmann::json;
-
+extern Json theEmptyJson;
 
 } //namespace da4qi4
 

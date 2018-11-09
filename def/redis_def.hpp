@@ -13,6 +13,8 @@ using redisclient::RedisAsyncClient;
 using redisclient::RedisBuffer;
 using redisclient::RedisValue;
 
+void redisEmptyHandler(RedisValue);
+
 } //namespace da4qi4
 
 #endif // DAQI_REDIS_DEF_HPP

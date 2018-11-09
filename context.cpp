@@ -1,12 +1,18 @@
 #include "context.hpp"
 
+#include <iterator>
+
 #include "connection.hpp"
 #include "application.hpp"
 
 namespace da4qi4
 {
 
-Json theEmptyJson;
+RedisClientPtr init_redis_client(ConnectionPtr cnt)
+{
+    size_t index = cnt->GetIOContextIndex();
+    return RedisPool().Get(index);
+}
 
 Context ContextIMP::Make(ConnectionPtr cnt)
 {
@@ -14,7 +20,10 @@ Context ContextIMP::Make(ConnectionPtr cnt)
 }
 
 ContextIMP::ContextIMP(ConnectionPtr cnt)
-    : _cnt(cnt), _env(cnt->GetApplication().GetTemplateRoot().native())
+    : _cnt(cnt)
+    , _env(cnt->GetApplication().GetTemplateRoot().native())
+    , _redis(init_redis_client(cnt))
+
 {
     _env.set_element_notation(inja::ElementNotation::Dot);
     regist_template_enginer_common_functions();
@@ -22,6 +31,11 @@ ContextIMP::ContextIMP(ConnectionPtr cnt)
 
 ContextIMP::~ContextIMP()
 {
+}
+
+size_t ContextIMP::IOContextIndex() const
+{
+    return _cnt->GetIOContextIndex();
 }
 
 void ContextIMP::regist_template_enginer_common_functions()
@@ -501,22 +515,14 @@ void ContextIMP::Render(Json const& data)
     }
 }
 
-void ContextIMP::Bye()
+void ContextIMP::end()
 {
-    if (!Res().IsChunked())
-    {
-        _cnt->StartWrite();
-    }
-    else
-    {
-        end_chunked_response();
-    }
+    _cnt->StartWrite();
 }
 
 void ContextIMP::StartChunkedResponse()
 {
     Res().MarkChunked();
-    _cnt->StartChunkedWrite();
 }
 
 void ContextIMP::ContinueChunkedResponse(std::string const& body)
@@ -524,10 +530,120 @@ void ContextIMP::ContinueChunkedResponse(std::string const& body)
     Res().PushChunkedBody(body, false);
 }
 
-void ContextIMP::end_chunked_response()
+void ContextIMP::StopChunkedResponse()
 {
     Res().PushChunkedBody(Utilities::theEmptyString, true);
 }
 
+void ContextIMP::Start()
+{
+    _intercepter_on = Intercepter::On::Request;
+
+    auto range = App().GetIntercepterChainRange();
+    _intercepter_beg = _intercepter_iter = range.first;
+    _intercepter_end = range.second;
+
+    do_intercepter_on_req_dir();
+}
+
+void ContextIMP::Pass()
+{
+    next(Intercepter::Result::Pass);
+}
+
+void ContextIMP::Stop()
+{
+    next(Intercepter::Result::Stop);
+}
+
+void ContextIMP::do_intercepter_on_req_dir()
+{
+    assert(_intercepter_on == Intercepter::On::Request);
+
+    if (_intercepter_iter == _intercepter_end)
+    {
+        _intercepter_on = Intercepter::On::Handle;
+        App().Handle(shared_from_this());
+        return;
+    }
+
+    auto& handler = *_intercepter_iter; //ref!!
+    handler(shared_from_this(), Intercepter::On::Request);
+}
+
+void ContextIMP::do_intercepter_on_res_dir()
+{
+    assert(_intercepter_on == Intercepter::On::Response);
+
+    Intercepter::ChainReverseIterator r_intercepter_iter(_intercepter_iter);
+    Intercepter::ChainReverseIterator r_end(_intercepter_beg);
+
+    if (r_intercepter_iter == r_end)
+    {
+        end();
+        return;
+    }
+
+    auto& handler = *r_intercepter_iter; //ref!!
+    handler(shared_from_this(), Intercepter::On::Response);
+}
+
+void ContextIMP::next(Intercepter::Result result)
+{
+    if (_intercepter_on == Intercepter::On::Request)
+    {
+        next_intercepter_on_req_dir(result);
+    }
+    else if (_intercepter_on == Intercepter::On::Handle)
+    {
+        _intercepter_on = Intercepter::On::Response;
+        start_intercepter_on_res_dir(result);
+    }
+    else if (_intercepter_on == Intercepter::On::Response)
+    {
+        next_intercepter_on_res_dir(result);
+    }
+}
+
+void ContextIMP::next_intercepter_on_req_dir(Intercepter::Result result)
+{
+    assert(_intercepter_on == Intercepter::On::Request);
+
+    ++_intercepter_iter;
+
+    switch (result)
+    {
+        case Intercepter::Result::Pass :
+            do_intercepter_on_req_dir();
+            break;
+
+        case  Intercepter::Result::Stop :
+            _intercepter_on = Intercepter::On::Response;
+            do_intercepter_on_res_dir();
+            break;
+    }
+}
+
+void ContextIMP::start_intercepter_on_res_dir(Intercepter::Result result)
+{
+    switch (result)
+    {
+        case Intercepter::Result::Pass :
+            do_intercepter_on_res_dir();
+            break;
+
+        case  Intercepter::Result::Stop :
+            end();
+            break;
+    }
+}
+
+void ContextIMP::next_intercepter_on_res_dir(Intercepter::Result result)
+{
+    assert(_intercepter_on == Intercepter::On::Response);
+
+    --_intercepter_iter;
+    start_intercepter_on_res_dir(result);
+}
 
 } //namespace da4qi4

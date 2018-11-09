@@ -51,7 +51,7 @@ void Server::Run()
 
     _ioc_pool.Run();
 
-    std::cout << "Bye, server stop run, now." << std::endl;
+    std::cout << "server's running stopped." << std::endl;
 }
 
 void Server::Stop()
@@ -118,7 +118,7 @@ Application* Server::PrepareApp(std::string const& url)
 {
     make_default_app_if_need();
 
-    auto app = AppMgr()->FindByURL(url);
+    auto app = AppMgr().FindByURL(url);
 
     if (!app)
     {
@@ -131,9 +131,9 @@ Application* Server::PrepareApp(std::string const& url)
 
 void Server::make_default_app_if_need()
 {
-    if (AppMgr()->IsEmpty())
+    if (AppMgr().IsEmpty())
     {
-        AppMgr()->CreateDefaultIfEmpty();
+        AppMgr().CreateDefaultIfEmpty();
     }
 }
 
@@ -145,7 +145,9 @@ void Server::start_accept()
 
 void Server::do_accept()
 {
-    ConnectionPtr cnt = Connection::Create(_ioc_pool.GetIOContext());
+    auto ioc_ctx = _ioc_pool.GetIOContextAndIndex();
+
+    ConnectionPtr cnt = Connection::Create(ioc_ctx.first, ioc_ctx.second);
 
     _acceptor.async_accept(cnt->GetSocket()
                            , [this, cnt](errorcode ec)

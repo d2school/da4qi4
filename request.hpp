@@ -209,7 +209,7 @@ struct FormDataItem
     }
 };
 
-class UploadFileSaveOptions;
+struct UploadFileSaveOptions;
 
 class Request
 {
