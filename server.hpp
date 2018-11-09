@@ -18,8 +18,11 @@ class Server
 public:
     using Ptr = std::unique_ptr<Server>;
 
-    static Ptr Supply(unsigned short port, size_t thread_count = 0);
-    static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count = 0);
+    static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count);
+    static Ptr Supply(unsigned short port, size_t thread_count);
+
+    static Ptr Supply(std::string const& host, unsigned short port);
+    static Ptr Supply(unsigned short port);
 
     ~Server();
 

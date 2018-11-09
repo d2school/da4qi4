@@ -27,42 +27,59 @@ std::string make_session_id(std::string const& prefix)
     return ss.str();
 }
 
-void SessionOnRedis::onRequest(Context& ctx) const
+void SessionOnRedis::create_new_session(Context ctx) const
+{
+    std::string session_id = make_session_id(_options.prefix);
+
+    Cookie cookie(_options.name, session_id, _options.domain, _options.path);
+    cookie.SetMaxAge(_options.max_age);
+    cookie.SetHttpOnly(_options.http_only);
+    cookie.SetSecure(_options.secure);
+    cookie.SetSameSite(_options.samesite);
+
+    Json data = ToJson(cookie, Json());
+
+    ctx->SaveData(data_name, data);
+}
+
+void SessionOnRedis::on_request(Context& ctx) const
 {
     std::string session_id = ctx->Req().GetCookie(this->_options.name);
 
     if (session_id.empty())
     {
-        session_id = make_session_id(_options.prefix);
-
-        Cookie cookie(_options.name, session_id, _options.domain, _options.path);
-        cookie.SetMaxAge(_options.max_age);
-        cookie.SetHttpOnly(_options.http_only);
-        cookie.SetSecure(_options.secure);
-        cookie.SetSameSite(_options.samesite);
-
-        Json data = ToJson(cookie, Json());
-        ctx->SaveData(data_name, data);
+        create_new_session(ctx);
         ctx->Pass();
-
         return;
     }
 
     if (auto redis = ctx->AsyncRedis())
     {
-        redis->Command("GET", {session_id}, [ctx](RedisValue value)
+        redis->Command("GET", {session_id}, [ctx, this](RedisValue value)
         {
             Json data;
+
+            if (value.isError() || value.isNull())
+            {
+                create_new_session(ctx);
+                ctx->Pass();
+                return;
+            }
 
             try
             {
                 data = Json::parse(value.toString());
 
-                if (!data.empty())
+                if (data.empty())
+                {
+                    create_new_session(ctx);
+                }
+                else
                 {
                     ctx->SaveData(data_name, data);
-                    ctx->Pass();
                 }
+
+                ctx->Pass();
             }
             catch (Json::parse_error const& e)
             {
@@ -76,7 +93,7 @@ void SessionOnRedis::onRequest(Context& ctx) const
     }
 }
 
-void SessionOnRedis::onResponse(Context& ctx) const
+void SessionOnRedis::on_response(Context& ctx) const
 {
     Json node = ctx->LoadData(data_name);
 
@@ -138,11 +155,11 @@ void SessionOnRedis::operator()(Context ctx, On on) const
 
     if (on == Intercepter::On::Request)
     {
-        onRequest(ctx);
+        on_request(ctx);
     }
     else
     {
-        onResponse(ctx);
+        on_response(ctx);
     }
 }
 

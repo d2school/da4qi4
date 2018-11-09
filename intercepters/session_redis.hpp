@@ -2,15 +2,8 @@
 #define DAQI_INTERCEPTER_SESSION_REDIS_HPP
 
 #include <string>
-#include <mutex>
-#include <unordered_map>
 
-#include "def/def.hpp"
-#include "def/redis_def.hpp"
-#include "def/inja_def.hpp"
-#include "def/asio_def.hpp"
-#include "def/boost_def.hpp"
-
+#include "def/json_def.hpp"
 #include "intercepter.hpp"
 
 #include "session.hpp"
@@ -105,9 +98,10 @@ public:
     void operator()(Context ctx, On on) const;
 
 private:
-    void onRequest(Context& ctx) const;
-    void onResponse(Context& ctx) const;
+    void on_request(Context& ctx) const;
+    void on_response(Context& ctx) const;
 
+    void create_new_session(Context ctx) const;
 private:
     SessionOptions _options;
 };

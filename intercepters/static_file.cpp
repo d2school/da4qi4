@@ -47,7 +47,7 @@ StaticFile& StaticFile::AddDefaultFileNames(std::vector<std::string> const&
     return *this;
 }
 
-void StaticFile::onRequest(Context& ctx) const
+void StaticFile::on_request(Context& ctx) const
 {
     HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
 
@@ -97,7 +97,7 @@ void StaticFile::onRequest(Context& ctx) const
     ctx->Pass();
 }
 
-void StaticFile::onResponse(Context& ctx) const
+void StaticFile::on_response(Context& ctx) const
 {
     Json status_data = ctx->LoadData(data_name);
 
@@ -227,11 +227,11 @@ void StaticFile::operator()(Context ctx, On on) const
 {
     if (on == Intercepter::On::Request)
     {
-        onRequest(ctx);
+        on_request(ctx);
     }
     else
     {
-        onResponse(ctx);
+        on_response(ctx);
     }
 }
 

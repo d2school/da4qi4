@@ -40,6 +40,17 @@ Server::Ptr Server::Supply(std::string const& host, unsigned short port, size_t 
     return Ptr(new Server(Utilities::make_endpoint(host, port), thread_count));
 }
 
+Server::Ptr Server::Supply(std::string const& host, unsigned short port)
+{
+    return Ptr(new Server(Utilities::make_endpoint(host, port), 0));
+}
+
+Server::Ptr Server::Supply(unsigned short port)
+{
+    return Ptr(new Server({Tcp::v4(), port}, 0));
+}
+
+
 Server::~Server()
 {
     std::cout << "server destory." << std::endl;

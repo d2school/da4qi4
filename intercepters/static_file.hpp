@@ -6,8 +6,8 @@
 #include <string>
 #include <map>
 
-#include "intercepter.hpp"
 #include "def/boost_def.hpp"
+#include "intercepter.hpp"
 
 namespace da4qi4
 {
@@ -83,8 +83,8 @@ struct StaticFile
     void operator()(Context ctx, On on) const;
 
 private:
-    void onRequest(Context& ctx) const;
-    void onResponse(Context& ctx) const;
+    void on_request(Context& ctx) const;
+    void on_response(Context& ctx) const;
 
 private:
     int _cache_max_age;
