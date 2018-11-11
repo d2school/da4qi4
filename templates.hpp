@@ -29,7 +29,7 @@ private:
     size_t load_templates(std::string const& template_ext, std::string const& key_ext);
     bool try_load_template(std::string const& key, std::string const& template_filename);
 
-    std::unordered_map<std::string, inja::Template> _templates;
+    std::unordered_map<std::string, Template> _templates;
     std::string _root, _app_prefix;
 };
 
