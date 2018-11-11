@@ -164,6 +164,10 @@ int Connection::on_headers_complete(http_parser* parser)
         cnt->process_app_no_found();
         return -1;
     }
+    else
+    {
+        std::cout << "found app " << cnt->_app->GetName() << std::endl;
+    }
 
     if (cnt->_request.IsMultiPart())
     {
