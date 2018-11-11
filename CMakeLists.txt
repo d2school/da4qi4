@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 
-#find_program(CCACHE_PROGRAM ccache)
-#if(CCACHE_PROGRAM)
-#    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
-#    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
-#    message(STATUS "use CCACHE program : ${CCACHE_PROGRAM}.")
-#endif()
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
+    message(STATUS "use CCACHE program : ${CCACHE_PROGRAM}.")
+endif()
 
 project(da4qi4)
 
