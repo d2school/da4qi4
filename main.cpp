@@ -23,7 +23,7 @@ int main()
     console->info("Server start at {}", 4099);
 
     Application app1("d2school" //name
-                     , "/"      //url root
+                     , "/v2/"      //url root
                      , "/home/zhuangyan/projects/CPP/test_web_root/static/" //static root
                      , "/home/zhuangyan/projects/CPP/test_web_root/view/"   //template root
                      , "/home/zhuangyan/projects/CPP/test_web_root/upload/" //upload root
