@@ -13,10 +13,12 @@ add_custom_target(Include SOURCES ${HEADER_FILES})
 
 find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
-link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} pthread)
+
+link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlcppconn mysqlclient pthread)
 
 include_directories(.)
 include_directories(./nlohmann_json/include/)
+include_directories(/usr/local/include/mysqlcpp/)
 
 set(JSON_MultipleHeaders ON  CACHE INTERNAL "")
 set(JSON_BuildTests OFF CACHE INTERNAL "")
