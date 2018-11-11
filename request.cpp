@@ -72,7 +72,7 @@ OptionalStringRefConst RoutingPathParameters::TryGet(std::string const& name) co
 
 std::string const& RoutingPathParameters::Get(size_t index) const
 {
-    if (index < 0 || index >= _parameters.size())
+    if (index >= _parameters.size())
     {
         return Utilities::theEmptyString;
     }
@@ -262,7 +262,7 @@ OptionalStringRefConst Request::TryGetParameter(std::string const& name) const
     return OptionalStringRefConst(NoneObject);
 }
 
-bool GetURLPartValue(int url_part_flag,  Url& url, std::string&& value)
+bool GetURLPartValue(unsigned int url_part_flag,  Url& url, std::string&& value)
 {
     switch (url_part_flag)
     {
