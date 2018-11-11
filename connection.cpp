@@ -156,6 +156,8 @@ int Connection::on_headers_complete(http_parser* parser)
         cnt->process_100_continue_request(); //async write
     }
 
+    std::cout << "URL income : " << cnt->_request.GetUrl().full << std::endl;
+
     if (!cnt->try_route_application())
     {
         std::cerr << "no found app." << std::endl;

@@ -23,7 +23,7 @@ int main()
     console->info("Server start at {}", 4099);
 
     Application app1("d2school" //name
-                     , "/v2/"      //url root
+                     , "/"      //url root
                      , "../d2_daqi/static/" //static root
                      , "../d2_daqi/view/"   //template root
                      , "../d2_daqi/upload/" //upload root
