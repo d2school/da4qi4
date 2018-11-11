@@ -15,10 +15,10 @@ using namespace da4qi4;
 
 int main()
 {
-    auto console = spdlog::stdout_color_mt("console");
-    console->info("Wecome to da4qi4");
+    auto console = spdlog::stdout_color_st("console");
+    console->info("Wecome to {}", "da4qi4");
 
-    auto svc = Server::Supply(4099, 1);
+    auto svc = Server::Supply(4099);
 
     console->info("Server start at {}", 4099);
 

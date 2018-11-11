@@ -5,14 +5,10 @@
 
 #pragma once
 
-#ifndef SPDLOG_H
-#error "spdlog.h must be included before this file."
-#endif
+#if defined(__ANDROID__)
 
-#include "spdlog/details/fmt_helper.h"
-#include "spdlog/details/null_mutex.h"
-#include "spdlog/details/os.h"
-#include "spdlog/sinks/base_sink.h"
+#include "../details/os.h"
+#include "sink.h"
 
 #include <android/log.h>
 #include <chrono>
@@ -29,40 +25,29 @@ namespace sinks {
 
 /*
  * Android sink (logging using __android_log_write)
+ * __android_log_write is thread-safe. No lock is needed.
  */
-template<typename Mutex>
-class android_sink final : public base_sink<Mutex>
+class android_sink : public sink
 {
 public:
-    explicit android_sink(std::string tag = "spdlog", bool use_raw_msg = false)
-        : tag_(std::move(tag))
-        , use_raw_msg_(use_raw_msg)
+    explicit android_sink(const std::string &tag = "spdlog", bool use_raw_msg = false)
+        : _tag(tag)
+        , _use_raw_msg(use_raw_msg)
     {
     }
 
-protected:
-    void sink_it_(const details::log_msg &msg) override
+    void log(const details::log_msg &msg) override
     {
-        const android_LogPriority priority = convert_to_android_(msg.level);
-        fmt::memory_buffer formatted;
-        if (use_raw_msg_)
-        {
-            details::fmt_helper::append_string_view(msg.payload, formatted);
-        }
-        else
-        {
-            sink::formatter_->format(msg, formatted);
-        }
-        formatted.push_back('\0');
-        const char *msg_output = formatted.data();
+        const android_LogPriority priority = convert_to_android(msg.level);
+        const char *msg_output = (_use_raw_msg ? msg.raw.c_str() : msg.formatted.c_str());
 
         // See system/core/liblog/logger_write.c for explanation of return value
-        int ret = __android_log_write(priority, tag_.c_str(), msg_output);
+        int ret = __android_log_write(priority, _tag.c_str(), msg_output);
         int retry_count = 0;
         while ((ret == -11 /*EAGAIN*/) && (retry_count < SPDLOG_ANDROID_RETRIES))
         {
             details::os::sleep_for_millis(5);
-            ret = __android_log_write(priority, tag_.c_str(), msg_output);
+            ret = __android_log_write(priority, _tag.c_str(), msg_output);
             retry_count++;
         }
 
@@ -72,10 +57,10 @@ protected:
         }
     }
 
-    void flush_() override {}
+    void flush() override {}
 
 private:
-    static android_LogPriority convert_to_android_(spdlog::level::level_enum level)
+    static android_LogPriority convert_to_android(spdlog::level::level_enum level)
     {
         switch (level)
         {
@@ -96,26 +81,11 @@ private:
         }
     }
 
-    std::string tag_;
-    bool use_raw_msg_;
+    std::string _tag;
+    bool _use_raw_msg;
 };
 
-using android_sink_mt = android_sink<std::mutex>;
-using android_sink_st = android_sink<details::null_mutex>;
 } // namespace sinks
-
-// Create and register android syslog logger
-
-template<typename Factory = default_factory>
-inline std::shared_ptr<logger> android_logger_mt(const std::string &logger_name, const std::string &tag = "spdlog")
-{
-    return Factory::template create<sinks::android_sink_mt>(logger_name, tag);
-}
-
-template<typename Factory = default_factory>
-inline std::shared_ptr<logger> android_logger_st(const std::string &logger_name, const std::string &tag = "spdlog")
-{
-    return Factory::template create<sinks::android_sink_st>(logger_name, tag);
-}
-
 } // namespace spdlog
+
+#endif

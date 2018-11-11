@@ -5,49 +5,41 @@
 
 #pragma once
 
-#ifndef SPDLOG_H
-#error "spdlog.h must be included before this file."
-#endif
-
-#include "spdlog/details/null_mutex.h"
-#include "spdlog/sinks/base_sink.h"
+#include "../details/null_mutex.h"
+#include "base_sink.h"
 
 #include <mutex>
 #include <ostream>
 
 namespace spdlog {
 namespace sinks {
-template<typename Mutex>
-class ostream_sink final : public base_sink<Mutex>
+template<class Mutex>
+class ostream_sink : public base_sink<Mutex>
 {
 public:
     explicit ostream_sink(std::ostream &os, bool force_flush = false)
-        : ostream_(os)
-        , force_flush_(force_flush)
+        : _ostream(os)
+        , _force_flush(force_flush)
     {
     }
     ostream_sink(const ostream_sink &) = delete;
     ostream_sink &operator=(const ostream_sink &) = delete;
 
 protected:
-    void sink_it_(const details::log_msg &msg) override
+    void _sink_it(const details::log_msg &msg) override
     {
-        fmt::memory_buffer formatted;
-        sink::formatter_->format(msg, formatted);
-        ostream_.write(formatted.data(), static_cast<std::streamsize>(formatted.size()));
-        if (force_flush_)
-        {
-            ostream_.flush();
-        }
+        _ostream.write(msg.formatted.data(), msg.formatted.size());
+        if (_force_flush)
+            _ostream.flush();
     }
 
-    void flush_() override
+    void _flush() override
     {
-        ostream_.flush();
+        _ostream.flush();
     }
 
-    std::ostream &ostream_;
-    bool force_flush_;
+    std::ostream &_ostream;
+    bool _force_flush;
 };
 
 using ostream_sink_mt = ostream_sink<std::mutex>;

@@ -10,276 +10,254 @@
 // If user requests a non existing logger, nullptr will be returned
 // This class is thread safe
 
-#include "spdlog/common.h"
-#include "spdlog/details/periodic_worker.h"
-#include "spdlog/logger.h"
-
-#ifndef SPDLOG_DISABLE_DEFAULT_LOGGER
-// support for the default stdout color logger
-#ifdef _WIN32
-#include "spdlog/sinks/wincolor_sink.h"
-#else
-#include "spdlog/sinks/ansicolor_sink.h"
-#endif
-#endif // SPDLOG_DISABLE_DEFAULT_LOGGER
+#include "../async_logger.h"
+#include "../common.h"
+#include "../details/null_mutex.h"
+#include "../logger.h"
 
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
 namespace spdlog {
 namespace details {
-class thread_pool;
-
-class registry
+template<class Mutex>
+class registry_t
 {
 public:
-    registry(const registry &) = delete;
-    registry &operator=(const registry &) = delete;
+    registry_t<Mutex>(const registry_t<Mutex> &) = delete;
+    registry_t<Mutex> &operator=(const registry_t<Mutex> &) = delete;
 
-    void register_logger(std::shared_ptr<logger> new_logger)
+    void register_logger(std::shared_ptr<logger> logger)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        register_logger_(std::move(new_logger));
-    }
-
-    void initialize_logger(std::shared_ptr<logger> new_logger)
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        new_logger->set_formatter(formatter_->clone());
-
-        if (err_handler_)
-        {
-            new_logger->set_error_handler(err_handler_);
-        }
-
-        new_logger->set_level(level_);
-        new_logger->flush_on(flush_level_);
-
-        if (automatic_registration_)
-        {
-            register_logger_(std::move(new_logger));
-        }
+        std::lock_guard<Mutex> lock(_mutex);
+        auto logger_name = logger->name();
+        throw_if_exists(logger_name);
+        _loggers[logger_name] = logger;
     }
 
     std::shared_ptr<logger> get(const std::string &logger_name)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        auto found = loggers_.find(logger_name);
-        return found == loggers_.end() ? nullptr : found->second;
+        std::lock_guard<Mutex> lock(_mutex);
+        auto found = _loggers.find(logger_name);
+        return found == _loggers.end() ? nullptr : found->second;
     }
 
-    std::shared_ptr<logger> default_logger()
+    template<class It>
+    std::shared_ptr<logger> create(const std::string &logger_name, const It &sinks_begin, const It &sinks_end)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        return default_logger_;
-    }
-
-    // Return raw ptr to the default logger.
-    // To be used directly by the spdlog default api (e.g. spdlog::info)
-    // This make the default API faster, but cannot be used concurrently with set_default_logger().
-    // e.g do not call set_default_logger() from one thread while calling spdlog::info() from another.
-    logger *get_default_raw()
-    {
-        return default_logger_.get();
-    }
-
-    // set default logger.
-    // default logger is stored in default_logger_ (for faster retrieval) and in the loggers_ map.
-    void set_default_logger(std::shared_ptr<logger> new_default_logger)
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        // remove previous default logger from the map
-        if (default_logger_ != nullptr)
+        std::lock_guard<Mutex> lock(_mutex);
+        throw_if_exists(logger_name);
+        std::shared_ptr<logger> new_logger;
+        if (_async_mode)
         {
-            loggers_.erase(default_logger_->name());
+            new_logger = std::make_shared<async_logger>(logger_name, sinks_begin, sinks_end, _async_q_size, _overflow_policy,
+                _worker_warmup_cb, _flush_interval_ms, _worker_teardown_cb);
         }
-        if (new_default_logger != nullptr)
+        else
         {
-            loggers_[new_default_logger->name()] = new_default_logger;
+            new_logger = std::make_shared<logger>(logger_name, sinks_begin, sinks_end);
         }
-        default_logger_ = std::move(new_default_logger);
-    }
 
-    void set_tp(std::shared_ptr<thread_pool> tp)
-    {
-        std::lock_guard<std::recursive_mutex> lock(tp_mutex_);
-        tp_ = std::move(tp);
-    }
-
-    std::shared_ptr<thread_pool> get_tp()
-    {
-        std::lock_guard<std::recursive_mutex> lock(tp_mutex_);
-        return tp_;
-    }
-
-    // Set global formatter. Each sink in each logger will get a clone of this object
-    void set_formatter(std::unique_ptr<formatter> formatter)
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        formatter_ = std::move(formatter);
-        for (auto &l : loggers_)
+        if (_formatter)
         {
-            l.second->set_formatter(formatter_->clone());
+            new_logger->set_formatter(_formatter);
         }
-    }
 
-    void set_level(level::level_enum log_level)
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        for (auto &l : loggers_)
+        if (_err_handler)
         {
-            l.second->set_level(log_level);
+            new_logger->set_error_handler(_err_handler);
         }
-        level_ = log_level;
+
+        new_logger->set_level(_level);
+        new_logger->flush_on(_flush_level);
+
+        // Add to registry
+        _loggers[logger_name] = new_logger;
+        return new_logger;
     }
 
-    void flush_on(level::level_enum log_level)
+    template<class It>
+    std::shared_ptr<async_logger> create_async(const std::string &logger_name, size_t queue_size,
+        const async_overflow_policy overflow_policy, const std::function<void()> &worker_warmup_cb,
+        const std::chrono::milliseconds &flush_interval_ms, const std::function<void()> &worker_teardown_cb, const It &sinks_begin,
+        const It &sinks_end)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        for (auto &l : loggers_)
+        std::lock_guard<Mutex> lock(_mutex);
+        throw_if_exists(logger_name);
+        auto new_logger = std::make_shared<async_logger>(
+            logger_name, sinks_begin, sinks_end, queue_size, overflow_policy, worker_warmup_cb, flush_interval_ms, worker_teardown_cb);
+
+        if (_formatter)
         {
-            l.second->flush_on(log_level);
+            new_logger->set_formatter(_formatter);
         }
-        flush_level_ = log_level;
-    }
 
-    void flush_every(std::chrono::seconds interval)
-    {
-        std::lock_guard<std::mutex> lock(flusher_mutex_);
-        std::function<void()> clbk = std::bind(&registry::flush_all, this);
-        periodic_flusher_ = details::make_unique<periodic_worker>(clbk, interval);
-    }
-
-    void set_error_handler(log_err_handler handler)
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        for (auto &l : loggers_)
+        if (_err_handler)
         {
-            l.second->set_error_handler(handler);
+            new_logger->set_error_handler(_err_handler);
         }
-        err_handler_ = handler;
+
+        new_logger->set_level(_level);
+        new_logger->flush_on(_flush_level);
+
+        // Add to registry
+        _loggers[logger_name] = new_logger;
+        return new_logger;
     }
 
-    void apply_all(const std::function<void(const std::shared_ptr<logger>)> &fun)
+    void apply_all(std::function<void(std::shared_ptr<logger>)> fun)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        for (auto &l : loggers_)
+        std::lock_guard<Mutex> lock(_mutex);
+        for (auto &l : _loggers)
         {
             fun(l.second);
         }
     }
 
-    void flush_all()
-    {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        for (auto &l : loggers_)
-        {
-            l.second->flush();
-        }
-    }
-
     void drop(const std::string &logger_name)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        loggers_.erase(logger_name);
-        if (default_logger_ && default_logger_->name() == logger_name)
-        {
-            default_logger_.reset();
-        }
+        std::lock_guard<Mutex> lock(_mutex);
+        _loggers.erase(logger_name);
     }
 
     void drop_all()
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        loggers_.clear();
-        default_logger_.reset();
+        std::lock_guard<Mutex> lock(_mutex);
+        _loggers.clear();
     }
 
-    // clean all resources and threads started by the registry
-    void shutdown()
+    std::shared_ptr<logger> create(const std::string &logger_name, sinks_init_list sinks)
     {
+        return create(logger_name, sinks.begin(), sinks.end());
+    }
+
+    std::shared_ptr<logger> create(const std::string &logger_name, sink_ptr sink)
+    {
+        return create(logger_name, {sink});
+    }
+
+    std::shared_ptr<async_logger> create_async(const std::string &logger_name, size_t queue_size,
+        const async_overflow_policy overflow_policy, const std::function<void()> &worker_warmup_cb,
+        const std::chrono::milliseconds &flush_interval_ms, const std::function<void()> &worker_teardown_cb, sinks_init_list sinks)
+    {
+        return create_async(
+            logger_name, queue_size, overflow_policy, worker_warmup_cb, flush_interval_ms, worker_teardown_cb, sinks.begin(), sinks.end());
+    }
+
+    std::shared_ptr<async_logger> create_async(const std::string &logger_name, size_t queue_size,
+        const async_overflow_policy overflow_policy, const std::function<void()> &worker_warmup_cb,
+        const std::chrono::milliseconds &flush_interval_ms, const std::function<void()> &worker_teardown_cb, sink_ptr sink)
+    {
+        return create_async(logger_name, queue_size, overflow_policy, worker_warmup_cb, flush_interval_ms, worker_teardown_cb, {sink});
+    }
+
+    void formatter(formatter_ptr f)
+    {
+        std::lock_guard<Mutex> lock(_mutex);
+        _formatter = f;
+        for (auto &l : _loggers)
         {
-            std::lock_guard<std::mutex> lock(flusher_mutex_);
-            periodic_flusher_.reset();
+            l.second->set_formatter(_formatter);
         }
+    }
 
-        drop_all();
-
+    void set_pattern(const std::string &pattern)
+    {
+        std::lock_guard<Mutex> lock(_mutex);
+        _formatter = std::make_shared<pattern_formatter>(pattern);
+        for (auto &l : _loggers)
         {
-            std::lock_guard<std::recursive_mutex> lock(tp_mutex_);
-            tp_.reset();
+            l.second->set_formatter(_formatter);
         }
     }
 
-    std::recursive_mutex &tp_mutex()
+    void set_level(level::level_enum log_level)
     {
-        return tp_mutex_;
+        std::lock_guard<Mutex> lock(_mutex);
+        for (auto &l : _loggers)
+        {
+            l.second->set_level(log_level);
+        }
+        _level = log_level;
     }
 
-    void set_automatic_registration(bool automatic_regsistration)
+    void flush_on(level::level_enum log_level)
     {
-        std::lock_guard<std::mutex> lock(logger_map_mutex_);
-        automatic_registration_ = automatic_regsistration;
+        std::lock_guard<Mutex> lock(_mutex);
+        for (auto &l : _loggers)
+        {
+            l.second->flush_on(log_level);
+        }
+        _flush_level = log_level;
     }
 
-    static registry &instance()
+    void set_error_handler(log_err_handler handler)
     {
-        static registry s_instance;
+        for (auto &l : _loggers)
+        {
+            l.second->set_error_handler(handler);
+        }
+        _err_handler = handler;
+    }
+
+    void set_async_mode(size_t q_size, const async_overflow_policy overflow_policy, const std::function<void()> &worker_warmup_cb,
+        const std::chrono::milliseconds &flush_interval_ms, const std::function<void()> &worker_teardown_cb)
+    {
+        std::lock_guard<Mutex> lock(_mutex);
+        _async_mode = true;
+        _async_q_size = q_size;
+        _overflow_policy = overflow_policy;
+        _worker_warmup_cb = worker_warmup_cb;
+        _flush_interval_ms = flush_interval_ms;
+        _worker_teardown_cb = worker_teardown_cb;
+    }
+
+    void set_sync_mode()
+    {
+        std::lock_guard<Mutex> lock(_mutex);
+        _async_mode = false;
+    }
+
+    static registry_t<Mutex> &instance()
+    {
+        static registry_t<Mutex> s_instance;
         return s_instance;
     }
 
 private:
-    registry()
-        : formatter_(new pattern_formatter())
+    registry_t<Mutex>() = default;
+
+    void throw_if_exists(const std::string &logger_name)
     {
-
-#ifndef SPDLOG_DISABLE_DEFAULT_LOGGER
-        // create default logger (ansicolor_stdout_sink_mt or wincolor_stdout_sink_mt in windows).
-#ifdef _WIN32
-        auto color_sink = std::make_shared<sinks::wincolor_stdout_sink_mt>();
-#else
-        auto color_sink = std::make_shared<sinks::ansicolor_stdout_sink_mt>();
-#endif
-
-        const char *default_logger_name = "";
-        default_logger_ = std::make_shared<spdlog::logger>(default_logger_name, std::move(color_sink));
-        loggers_[default_logger_name] = default_logger_;
-
-#endif // SPDLOG_DISABLE_DEFAULT_LOGGER
-    }
-
-    ~registry() = default;
-
-    void throw_if_exists_(const std::string &logger_name)
-    {
-        if (loggers_.find(logger_name) != loggers_.end())
+        if (_loggers.find(logger_name) != _loggers.end())
         {
             throw spdlog_ex("logger with name '" + logger_name + "' already exists");
         }
     }
 
-    void register_logger_(std::shared_ptr<logger> new_logger)
-    {
-        auto logger_name = new_logger->name();
-        throw_if_exists_(logger_name);
-        loggers_[logger_name] = std::move(new_logger);
-    }
-
-    std::mutex logger_map_mutex_, flusher_mutex_;
-    std::recursive_mutex tp_mutex_;
-    std::unordered_map<std::string, std::shared_ptr<logger>> loggers_;
-    std::unique_ptr<formatter> formatter_;
-    level::level_enum level_ = level::info;
-    level::level_enum flush_level_ = level::off;
-    log_err_handler err_handler_;
-    std::shared_ptr<thread_pool> tp_;
-    std::unique_ptr<periodic_worker> periodic_flusher_;
-    std::shared_ptr<logger> default_logger_;
-    bool automatic_registration_ = true;
+    Mutex _mutex;
+    std::unordered_map<std::string, std::shared_ptr<logger>> _loggers;
+    formatter_ptr _formatter;
+    level::level_enum _level = level::info;
+    level::level_enum _flush_level = level::off;
+    log_err_handler _err_handler;
+    bool _async_mode = false;
+    size_t _async_q_size = 0;
+    async_overflow_policy _overflow_policy = async_overflow_policy::block_retry;
+    std::function<void()> _worker_warmup_cb;
+    std::chrono::milliseconds _flush_interval_ms{std::chrono::milliseconds::zero()};
+    std::function<void()> _worker_teardown_cb;
 };
+
+#ifdef SPDLOG_NO_REGISTRY_MUTEX
+using registry = registry_t<spdlog::details::null_mutex>;
+#else
+using registry = registry_t<std::mutex>;
+#endif
 
 } // namespace details
 } // namespace spdlog
