@@ -159,7 +159,7 @@ int main()
     }
 
     svc.reset();
-    std::cout << "Pass." << std::endl;
+    std::cout << "Bye." << std::endl;
 
     return 0;
 }

@@ -333,8 +333,6 @@ Handler& Application::find_handler(Context const& ctx)
 
     std::string const& url = ctx->Req().GetUrl().path;
 
-    std::cout << "Application now is search a handler for " << url << std::endl;
-
     RouterResult rr = _equalRouter.Search(url, m);
 
     if (rr.handler)
