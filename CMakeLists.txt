@@ -18,7 +18,6 @@ link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlclient pthread)
 
 include_directories(.)
 include_directories(./nlohmann_json/include/)
-include_directories(/usr/local/include/mysqlcpp/)
 
 set(JSON_MultipleHeaders ON  CACHE INTERNAL "")
 set(JSON_BuildTests OFF CACHE INTERNAL "")
