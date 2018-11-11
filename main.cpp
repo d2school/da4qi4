@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "def/log_def.hpp"
-#include "utilities/captcha_utilities.hpp"
 
 #include "server.hpp"
 #include "router.hpp"
