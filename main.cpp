@@ -24,9 +24,9 @@ int main()
 
     Application app1("d2school" //name
                      , "/v2/"      //url root
-                     , "../web_d2_daqi/static/" //static root
-                     , "../web_d2_daqi/view/"   //template root
-                     , "../web_d2_daqi/upload/" //upload root
+                     , "../d2_daqi/static/" //static root
+                     , "../d2_daqi/view/"   //template root
+                     , "../d2_daqi/upload/" //upload root
                     );
 
     Intercepter::StaticFile static_file(60);
