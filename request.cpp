@@ -18,6 +18,15 @@
 namespace da4qi4
 {
 
+void Url::UnderApplication(std::string const& app_url_root)
+{
+    assert(Utilities::iStartsWith(full, app_url_root));
+    assert(Utilities::iStartsWith(path, app_url_root));
+
+    full_under_app = full.substr(app_url_root.size());
+    path_under_app = path.substr(app_url_root.size());
+}
+
 std::string make_routing_path_parameter_key(std::string const& name)
 {
     std::stringstream ss;

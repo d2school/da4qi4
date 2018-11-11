@@ -12,9 +12,9 @@ namespace da4qi4
 namespace
 {
 std::string const daqi_HTML_template_ext = ".daqi.HTML";
-std::string const daqi_PLAIN_template_ext = ".daqi.PLAIN";
-std::string const daqi_JSON_template_ext = ".daqi.JSON";
-std::string const daqi_XML_template_ext = ".daqi.XML";
+//std::string const daqi_PLAIN_template_ext = ".daqi.PLAIN";
+//std::string const daqi_JSON_template_ext = ".daqi.JSON";
+//std::string const daqi_XML_template_ext = ".daqi.XML";
 }
 
 void init_template_env(inja::Environment& env)
@@ -109,7 +109,7 @@ size_t Templates::load_templates(std::string const& template_ext, std::string co
                 if (!mpath.empty())
                 {
                     std::string template_filename = mpath + template_ext;
-                    std::string key = mpath + key_ext;
+                    std::string key = _app_prefix + mpath + key_ext;
 
                     if (try_load_template(key, template_filename))
                     {
@@ -131,9 +131,9 @@ size_t Templates::Preload()
     try
     {
         count += load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
-        count += load_templates(daqi_PLAIN_template_ext, ".plain");
-        count += load_templates(daqi_JSON_template_ext, ".json");
-        count += load_templates(daqi_XML_template_ext, ".xml");
+        //        count += load_templates(daqi_PLAIN_template_ext, ".plain");
+        //        count += load_templates(daqi_JSON_template_ext, ".json");
+        //        count += load_templates(daqi_XML_template_ext, ".xml");
         return count;
     }
     catch (fs::filesystem_error const& ec)

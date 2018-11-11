@@ -12,17 +12,16 @@ namespace da4qi4
 class Templates
 {
 public:
-    Templates(std::string const& template_root)
-        : _root(template_root)
+    Templates(std::string const& template_root, std::string const& app_url_root)
+        : _root(template_root), _app_prefix(app_url_root)
     {
+        if (!_app_prefix.empty() && _app_prefix[0] == '/')
+        {
+            _app_prefix = _app_prefix.substr(1);
+        }
     }
 
     size_t Preload();
-    size_t Preload(std::string const& template_root)
-    {
-        _root = template_root;
-        return Preload();
-    }
 
     Template const* Get(std::string const& name);
 
@@ -31,7 +30,7 @@ private:
     bool try_load_template(std::string const& key, std::string const& template_filename);
 
     std::unordered_map<std::string, inja::Template> _templates;
-    std::string _root;
+    std::string _root, _app_prefix;
 };
 
 }

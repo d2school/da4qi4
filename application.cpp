@@ -54,7 +54,7 @@ Application::Application()
     : _name(default_app_name)
     , _default_charset("utf-8")
     , _root_url("/")
-    , _templates("/")
+    , _templates("", "/")
 {
     init_pathes();
 }
@@ -71,7 +71,7 @@ Application::Application(std::string const& name
     , _root_template(root_template)
     , _root_upload(root_upload)
     , _root_temporary(root_temporary)
-    , _templates(root_template.native())
+    , _templates(root_template.native(), root_url)
 
 {
     init_pathes();
@@ -331,7 +331,7 @@ Handler& Application::find_handler(Context const& ctx)
         return theEmptyHandler;
     }
 
-    std::string const& url = ctx->Req().GetUrl().path;// full;
+    std::string const& url = ctx->Req().GetUrl().path;
 
     std::cout << "Application now is search a handler for " << url << std::endl;
 

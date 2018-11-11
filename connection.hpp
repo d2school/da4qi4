@@ -103,6 +103,7 @@ private:
 
 private:
     void update_request_after_header_parsed();
+    void update_request_url_after_app_resolve();
 
     void try_commit_reading_request_header();
     void process_100_continue_request();

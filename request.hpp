@@ -29,9 +29,13 @@ struct Url
     std::string fragment;
     std::string userinfo;
 
+    std::string full_under_app;
+    std::string path_under_app;
+
     UrlParameters parameters;
 
     bool Parse(std::string&& url_value);
+    void UnderApplication(std::string const& app_url_root);
 
     void Clear()
     {
@@ -381,6 +385,11 @@ public:
 public:
     bool ParseUrl(std::string&& url);
     void ParseContentType();
+
+    void ApplyApplication(std::string const& app_url_root)
+    {
+        _url.UnderApplication(app_url_root);
+    }
 
     void AppendHeader(std::string&& field, std::string&& value);
 

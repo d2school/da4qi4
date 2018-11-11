@@ -9,6 +9,7 @@
 
 #include "router.hpp"
 #include "templates.hpp"
+#include "intercepter.hpp"
 
 namespace da4qi4
 {
@@ -37,7 +38,7 @@ class Application
 {
 private:
     Application(std::string const& root_url)
-        : _root_url(root_url), _templates("")
+        : _root_url(root_url), _templates("", "")
     {}
 
 public:
@@ -146,22 +147,12 @@ public:
     void Disable();
     void Enable();
 
-    Application& EnableSession()
-    {
-        if (!IsRuning())
-        {
-            //       if (!)
-        }
-
-        return *this;
-    }
-
     size_t GetUpoadMaxSizeLimitKB() const
     {
         return _upload_max_size_limit_kb;
     }
 
-    void SetUpoadMaxSizeLimitKB(int size_limit_kb)
+    void SetUpoadMaxSizeLimitKB(size_t size_limit_kb)
     {
         _upload_max_size_limit_kb = size_limit_kb;
     }
@@ -277,8 +268,9 @@ struct CompareByUrlRoot_DESC_IC
 
 using ApplicationSet = std::set <Application, CompareByUrlRoot_DESC_IC>;
 
-struct ApplicationMgr
+class ApplicationMgr
 {
+public:
     bool CreateDefaultIfEmpty();
     bool Add(Application& app);
 
