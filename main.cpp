@@ -2,11 +2,6 @@
 
 #include <iostream>
 
-#include <jdbc/mysql_error.h>
-#include <jdbc/mysql_driver.h>
-#include <jdbc/mysql_connection.h>
-#include <jdbc/cppconn/statement.h>
-
 #include "def/log_def.hpp"
 #include "utilities/captcha_utilities.hpp"
 
@@ -17,23 +12,10 @@
 #include "intercepters/static_file.hpp"
 #include "intercepters/session_redis.hpp"
 
-using namespace sql;
 using namespace da4qi4;
 
 int main()
 {
-    mysql::MySQL_Driver* driver = sql::mysql::get_driver_instance();
-    sql::Connection* cnt = driver->connect("tcp://127.0.0.1:3306", "root", "winhome");
-    sql::Statement* stmt = cnt->createStatement();
-    stmt->execute("use d2");
-
-    stmt->execute("DROP TABLE IF EXISTS test");
-    stmt->execute("CREATE TABLE test(id INT, label CHAR(1))");
-    stmt->execute("INSERT INTO test(id, label) VALUES (1, 'a')");
-
-    delete stmt;
-    delete cnt;
-
     auto console = spdlog::stdout_color_mt("console");
     console->info("Wecome to da4qi4");
 
