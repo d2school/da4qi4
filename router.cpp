@@ -3,17 +3,17 @@
 namespace da4qi4
 {
 
-router_equals operator "" _router_equals(char const* str, size_t n)
+router_equals operator "" _router_equals(char const* str, std::size_t n)
 {
     return router_equals(std::string(str, n));
 }
 
-router_starts operator "" _router_starts(char const* str, size_t n)
+router_starts operator "" _router_starts(char const* str, std::size_t n)
 {
     return router_starts(std::string(str, n));
 }
 
-router_regex operator "" _router_regex(char const* str, size_t n)
+router_regex operator "" _router_regex(char const* str, std::size_t n)
 {
     return router_regex(std::string(str, n));
 }

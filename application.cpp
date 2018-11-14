@@ -13,6 +13,146 @@ ApplicationMgr& AppMgr()
     return mgr;
 }
 
+bool ApplicationMgr::CreateDefaultIfEmpty()
+{
+    if (_set.empty())
+    {
+        _set.insert(Application());
+        return true;
+    }
+
+    return false;
+}
+
+bool ApplicationMgr::Add(Application& app)
+{
+    if (_mounted)
+    {
+        return false;
+    }
+
+    if (!app.GetName().empty() && !IsExists(app.GetName()))
+    {
+        _set.insert(app);
+        return true;
+    }
+
+    return false;
+}
+
+void ApplicationMgr::Enable(std::string const& name)
+{
+    auto app = this->FindByName(name);
+
+    if (app && !app->IsEnable())
+    {
+        app->Enable();
+    }
+}
+
+void ApplicationMgr::Disable(std::string const& name)
+{
+    auto app = FindByName(name);
+
+    if (app && app->IsEnable())
+    {
+        app->Disable();
+    }
+}
+
+bool ApplicationMgr::IsExists(std::string const& name) const
+{
+    return FindByName(name) != nullptr;
+}
+
+bool ApplicationMgr::IsEnable(std::string const& name) const
+{
+    auto app = FindByName(name);
+    return app && app->IsEnable();
+}
+
+Application* ApplicationMgr::FindByURL(std::string const& url)
+{
+    auto dst(Application::ForCompareUrl(url));
+    auto l = _set.upper_bound(dst);
+
+    if (l == _set.end())
+    {
+        return nullptr;
+    }
+
+    if (Utilities::iStartsWith(url, l->GetUrlRoot()))
+    {
+        return const_cast<Application*>(&(*l));
+    }
+
+    auto u = _set.lower_bound(dst);
+
+    for (auto it = ++l; it != u && it != _set.end(); ++it)
+    {
+        if (Utilities::iStartsWith(url, it->GetUrlRoot()))
+        {
+            return const_cast<Application*>(&(*l)); //(set's element is always const)
+        }
+    }
+
+    return nullptr;
+}
+
+Application* ApplicationMgr::FindByName(std::string const& name)
+{
+    for (auto& a : _set)
+    {
+        if (a.GetName() == name)
+        {
+            return const_cast<Application*>(&a);
+        }
+    }
+
+    return nullptr;
+}
+
+Application const* ApplicationMgr::FindByName(std::string const& name) const
+{
+    for (auto& a : _set)
+    {
+        if (a.GetName() == name)
+        {
+            return &a;
+        }
+    }
+
+    return nullptr;
+}
+
+std::string join_app_path(std::string const& app_root, std::string const& path)
+{
+    if (!path.empty() && !app_root.empty())
+    {
+        if (*app_root.rbegin() == '/' && *path.begin() == '/')
+        {
+            return app_root + path.substr(1, path.size() - 1);
+        }
+
+        if (*app_root.rbegin() != '/' && *path.begin() != '/')
+        {
+            return app_root + "/" + path;
+        }
+    }
+
+    return app_root + path;
+}
+
+void ApplicationMgr::Mount()
+{
+    _mounted = true;
+
+    for (auto& a : _set)
+    {
+        const_cast<Application&>(a).Mount();
+    }
+}
+
 bool UploadFileSaveOptions::IsNeedSave(std::string const& extension
                                        , size_t filesize_kb) const
 {
@@ -128,132 +268,6 @@ void Application::init_pathes()
     }
 
     _templates.Preload();
-}
-
-bool ApplicationMgr::CreateDefaultIfEmpty()
-{
-    if (_set.empty())
-    {
-        _set.insert(Application());
-        return true;
-    }
-
-    return false;
-}
-
-bool ApplicationMgr::Add(Application& app)
-{
-    if (!app.GetName().empty() && !IsExists(app.GetName()))
-    {
-        app._mounted = true;
-        _set.insert(app);
-        return true;
-    }
-
-    return false;
-}
-
-void ApplicationMgr::Enable(std::string const& name)
-{
-    auto app = this->FindByName(name);
-
-    if (app && !app->IsEnable())
-    {
-        app->Enable();
-    }
-}
-
-void ApplicationMgr::Disable(std::string const& name)
-{
-    auto app = FindByName(name);
-
-    if (app && app->IsEnable())
-    {
-        app->Disable();
-    }
-}
-
-bool ApplicationMgr::IsExists(std::string const& name) const
-{
-    return FindByName(name) != nullptr;
-}
-
-bool ApplicationMgr::IsEnable(std::string const& name) const
-{
-    auto app = FindByName(name);
-    return app && app->IsEnable();
-}
-
-Application* ApplicationMgr::FindByURL(std::string const& url)
-{
-    auto dst(Application::ForCompareUrl(url));
-    auto l = _set.upper_bound(dst);
-
-    if (l == _set.end())
-    {
-        return nullptr;
-    }
-
-    if (Utilities::iStartsWith(url, l->GetUrlRoot()))
-    {
-        return const_cast<Application*>(&(*l));
-    }
-
-    auto u = _set.lower_bound(dst);
-
-    for (auto it = ++l; it != u && it != _set.end(); ++it)
-    {
-        if (Utilities::iStartsWith(url, it->GetUrlRoot()))
-        {
-            return const_cast<Application*>(&(*l)); //(set's element is always const)
-        }
-    }
-
-    return nullptr;
-}
-
-Application* ApplicationMgr::FindByName(std::string const& name)
-{
-    for (auto& a : _set)
-    {
-        if (a.GetName() == name)
-        {
-            return const_cast<Application*>(&a);
-        }
-    }
-
-    return nullptr;
-}
-
-Application const* ApplicationMgr::FindByName(std::string const& name) const
-{
-    for (auto& a : _set)
-    {
-        if (a.GetName() == name)
-        {
-            return &a;
-        }
-    }
-
-    return nullptr;
-}
-
-std::string join_app_path(std::string const& app_root, std::string const& path)
-{
-    if (!path.empty() && !app_root.empty())
-    {
-        if (*app_root.rbegin() == '/' && *path.begin() == '/')
-        {
-            return app_root + path.substr(1, path.size() - 1);
-        }
-
-        if (*app_root.rbegin() != '/' && *path.begin() != '/')
-        {
-            return app_root + "/" + path;
-        }
-    }
-
-    return app_root + path;
 }
 
 bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)

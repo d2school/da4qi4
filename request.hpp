@@ -215,6 +215,97 @@ struct FormDataItem
 
 struct UploadFileSaveOptions;
 
+struct UploadFile
+{
+    UploadFile() = default;
+    UploadFile(UploadFile const&) = default;
+    UploadFile(UploadFile&& o)
+        : _field_name(std::move(o._field_name))
+        , _status(o._status), _stream(std::move(o._stream)), _memory(std::move(o._memory))
+        , _src_filename(std::move(o._src_filename)), _saved_filename(std::move(o._saved_filename))
+        , _content_type(std::move(o._content_type))
+    {
+    }
+
+    bool FromFormDataItem(FormDataItem const& item);
+
+    ~UploadFile()
+    {
+        if (_stream)
+        {
+            _stream.close();
+        }
+    }
+
+    operator bool () const
+    {
+        return (_status != no_found) && !((_status == in_stream) && !_stream)
+               && !((_status == in_memory) && _memory.empty());
+    }
+
+    bool InMemory() const
+    {
+        return _status == in_memory;
+    }
+    bool InStream() const
+    {
+        return _status == in_stream;
+    }
+
+    bool IsNoFound() const
+    {
+        return _status == no_found;
+    }
+
+    std::string const& GetSavedFileName() const
+    {
+        return _saved_filename;
+    }
+
+    std::string const& GetSourceFileName() const
+    {
+        return _src_filename;
+    }
+
+    std::string const& GetFieldName() const
+    {
+        return _field_name;
+    }
+
+    std::string const& GetContentType() const
+    {
+        return _content_type;
+    }
+
+    std::string const& Memory() const
+    {
+        return _memory;
+    }
+
+    std::ifstream& Stream()
+    {
+        return _stream;
+    }
+
+    bool StreamToMemory();
+
+
+private:
+    enum Status {no_found, in_stream, in_memory};
+
+    std::string _field_name;
+
+    Status _status = no_found;
+
+    std::ifstream _stream;
+    std::string _memory;
+
+
+    std::string _src_filename;
+    std::string _saved_filename;
+    std::string _content_type;
+};
+
 class Request
 {
 public:
@@ -271,6 +362,10 @@ public:
                         : (IsExistsCookie(name) ? fromCookie
                            : fromUnknown))));
     }
+
+
+    bool IsExistsFile(std::string const& field_name) const;
+    UploadFile GetFile(std::string const& field_name) const;
 
     std::string const& GetParameter(std::string const& name) const;
     OptionalStringRefConst TryGetParameter(std::string const& name) const;

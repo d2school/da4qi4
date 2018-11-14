@@ -18,7 +18,7 @@ int main()
     auto console = spdlog::stdout_color_st("console");
     console->info("Wecome to {}", "da4qi4");
 
-    auto svc = Server::Supply(4099, 1);
+    auto svc = Server::Supply(4099);
 
     console->info("Server start at {}", 4099, 1);
 
@@ -59,8 +59,9 @@ int main()
     {
         ctx->Res().SetContentType("text/plain");
         ctx->StartChunkedResponse();
-        ctx->NextChunkedResponse("我是一个兵\r\n");
-        ctx->NextChunkedResponse("来自老百姓！\r\n");
+        ctx->NextChunkedResponse("0我是一个兵\r\n");
+        ctx->NextChunkedResponse("1我是一个兵我是一个兵来自老百姓!！\r\n");
+        ctx->NextChunkedResponse("2我是一个兵我是一个兵来自老百姓!！\r\n");
         ctx->StopChunkedResponse();
         ctx->Pass();
     });
@@ -68,11 +69,6 @@ int main()
     app1.AddHandler(_GET_, "usr/{{name}}/{{age}}/regist"_router_regex, [](Context ctx)
     {
         ctx->RenderWithoutData("user/regist");
-        ctx->Pass();
-    });
-    app1.AddHandler(_GET_, "find"_router_starts, [](Context ctx)
-    {
-        ctx->RenderWithoutData();
         ctx->Pass();
     });
     app1.AddHandler(_GET_, "cookie/", [](Context ctx)
@@ -135,11 +131,6 @@ int main()
     svc->AddApp(app1);
     console->info("App {} regist!", app1.GetName());
 
-    svc->AddHandler(_GET_, "/v2/favicon.ico", [](Context ctx)
-    {
-        ctx->Res().ReplyNofound();
-        ctx->Pass();
-    });
     svc->AddHandler(_GET_, "/v2/plain-text", [](Context ctx)
     {
         ctx->Res().SetContentType("text/plain");

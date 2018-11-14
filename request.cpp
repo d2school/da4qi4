@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <fstream>
 #include <algorithm>
 
 #include <boost/uuid/uuid_generators.hpp>
@@ -152,7 +153,96 @@ OptionalStringRefConst Request::TryGetUrlParameter(std::string const& name) cons
     return Utilities::TryGetHeader(_url.parameters, name);
 }
 
-bool Request::IsExistsCookie(std::string const& name) const
+bool UploadFile::StreamToMemory()
+{
+    if ((_status == in_stream && !_stream) || (_status == no_found))
+    {
+        return false;
+    }
+
+    if (_status == in_memory)
+    {
+        return true;
+    }
+
+    size_t const tmp_buf_size = 512;
+    char buf[tmp_buf_size];
+    _memory.clear();
+    _memory.reserve(tmp_buf_size << 1);
+
+    while (_stream)
+    {
+        _stream.read(buf, tmp_buf_size);
+        std::size_t rd = static_cast<std::size_t>(_stream.gcount());
+
+        if (rd > 0)
+        {
+            _memory.append(buf, rd);
+        }
+    }
+
+    _stream.close();
+    _status = in_memory;
+
+    return true;
+}
+
+bool Request::IsExistsFile(std::string const& field_name) const
+{
+    for (auto const& item : _formdata)
+    {
+        if (item.IsFile() && Utilities::iEquals(item.name, field_name))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UploadFile::FromFormDataItem(FormDataItem const& item)
+{
+    _field_name = item.name;
+    _content_type = item.content_type;
+
+    if (item.IsSavedFile())
+    {
+        _status = UploadFile::in_stream;
+        _stream.open(item.GetSavedFileTemporaryName(), std::ios_base::in | std::ios_base::binary);
+        _src_filename = item.filename;
+        _saved_filename = item.GetSavedFileTemporaryName();
+        return true;
+    }
+
+    if (item.IsFile())
+    {
+        _status = UploadFile::in_memory;
+        _memory = item.data;
+        _src_filename = item.filename;
+        return true;
+    }
+
+    _status = no_found;
+    return false;
+}
+
+UploadFile Request::GetFile(std::string const& field_name) const
+{
+    UploadFile uf;
+
+    for (auto const& item : _formdata)
+    {
+        if (Utilities::iEquals(item.name, field_name) && uf.FromFormDataItem(item))
+        {
+            return uf;
+        }
+    }
+
+    return uf;
+}
+
+bool Request::IsExistsCookie(std::string const& name)
+const
 {
     return Utilities::IsExistsHeader(_cookies, name);
 }

@@ -75,6 +75,11 @@ public:
         return *this;
     }
 
+    void Mount()
+    {
+        _mounted = true;
+    }
+
     bool IsRuning() const
     {
         return  _mounted && !_disabled;
@@ -255,7 +260,6 @@ private:
 private:
     Intercepter::Chain _intercepters;
 
-    friend class ApplicationMgr;
 };
 
 struct CompareByUrlRoot_DESC_IC
@@ -290,6 +294,8 @@ public:
         return _set;
     }
 
+    void Mount();
+
     bool IsEmpty() const
     {
         return _set.empty();
@@ -301,6 +307,7 @@ public:
 
 private:
     ApplicationSet _set;
+    bool _mounted = false;
 };
 
 ApplicationMgr& AppMgr();

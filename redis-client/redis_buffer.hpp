@@ -1,5 +1,5 @@
-#ifndef REDIS_BUFFER_H
-#define REDIS_BUFFER_H
+#ifndef DAQI_REDIS_BUFFER_H
+#define DAQI_REDIS_BUFFER_H
 
 #include <string>
 #include <boost/variant.hpp>
@@ -27,4 +27,4 @@ struct RedisBuffer
 
 } // namespace da4qi4
 
-#endif // REDIS_BUFFER_H
+#endif // DAQI_REDIS_BUFFER_H

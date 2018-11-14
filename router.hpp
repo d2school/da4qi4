@@ -80,7 +80,7 @@ struct  router_regex
 
 router_equals operator "" _router_equals(char const* str, std::size_t n);
 router_starts operator "" _router_starts(char const* str, std::size_t n);
-router_regex operator "" _router_regex(char const* str, std::size_t n);
+router_regex operator "" _router_regex(char const*  str, std::size_t n);
 
 template<typename IMP, typename Result>
 class RoutingTable

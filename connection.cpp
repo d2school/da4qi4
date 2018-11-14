@@ -619,32 +619,33 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
     bool is_last = false;
     _current_chunked_body = _response.PopChunkedBody(is_last);
 
+    if (is_last)
+    {
+        return;
+    }
+
     ConnectionPtr self = shared_from_this();
 
     if (_current_chunked_body.empty())
     {
-        if (is_last)
-        {
-            return;
-        }
-
         std::clock_t now = std::clock();
 
-        if (start_wait_clock && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
+        if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
         {
             std::cerr << "Too long to Wait for chunked data." << std::endl;
             return;
         }
 
         _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
-        return;
     }
-
-    boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
-                             , [self](errorcode const & ec, size_t bytes_transferred)
+    else
     {
-        self->do_write_chunked_body_finished(ec, bytes_transferred);
-    });
+        boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
+                                 , [self](errorcode const & ec, size_t bytes_transferred)
+        {
+            self->do_write_chunked_body_finished(ec, bytes_transferred);
+        });
+    }
 }
 
 void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec

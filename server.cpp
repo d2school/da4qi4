@@ -58,6 +58,7 @@ Server::~Server()
 
 void Server::Run()
 {
+    AppMgr().Mount();
     this->start_accept();
 
     _ioc_pool.Run();

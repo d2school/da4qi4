@@ -1,5 +1,5 @@
-#ifndef REDIS_CLIENT_HPP
-#define REDIS_CLIENT_HPP
+#ifndef DAQI_REDIS_CLIENT_HPP
+#define DAQI_FREDIS_CLIENT_HPP
 
 #include <string>
 #include <queue>
@@ -103,4 +103,4 @@ private:
 
 } // namespace da4qi4
 
-#endif // REDIS_CLIENT_HPP
+#endif // DAQI_REDIS_CLIENT_HPP
