@@ -11,6 +11,7 @@ project(da4qi4)
 
 find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
+find_library(LIBMYSQLPP mysqlpp /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 
 link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlclient pthread)
 

@@ -15,7 +15,7 @@ static const char crlf[] = {'\r', '\n'};
 
 void bufferAppend(std::vector<char>& vec, const std::string& s);
 void bufferAppend(std::vector<char>& vec, const std::vector<char>& s);
-void bufferAppend(std::vector<char>& vec, const char* s);
+//void bufferAppend(std::vector<char>& vec, const char* s);
 void bufferAppend(std::vector<char>& vec, char c);
 
 template<std::size_t size>
@@ -43,10 +43,10 @@ void bufferAppend(std::vector<char>& vec, const std::vector<char>& s)
     vec.insert(vec.end(), s.begin(), s.end());
 }
 
-void bufferAppend(std::vector<char>& vec, const char* s)
-{
-    vec.insert(vec.end(), s, s + strlen(s));
-}
+//void bufferAppend(std::vector<char>& vec, const char* s)
+//{
+//    vec.insert(vec.end(), s, s + strlen(s));
+//}
 
 void bufferAppend(std::vector<char>& vec, char c)
 {
