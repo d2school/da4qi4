@@ -207,14 +207,14 @@ void StaticFile::on_response(Context& ctx) const
 
         if (a_chunk_body.size() > max_byte_one_chunked_body)
         {
-            ctx->ContinueChunkedResponse(a_chunk_body);
+            ctx->NextChunkedResponse(a_chunk_body);
             a_chunk_body.clear();
         }
     }
 
     if (!a_chunk_body.empty())
     {
-        ctx->ContinueChunkedResponse(a_chunk_body);
+        ctx->NextChunkedResponse(a_chunk_body);
         a_chunk_body.clear();
     }
 

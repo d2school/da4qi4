@@ -140,7 +140,11 @@ private:
 
     std::string _body;
 
-    enum ReadCompletePart {read_none_complete, read_header_complete, read_message_complete};
+    enum ReadCompletePart {read_none_complete,
+                           read_header_complete,
+                           read_message_complete
+                          };
+
     ReadCompletePart _read_complete = read_none_complete;
 
 private:

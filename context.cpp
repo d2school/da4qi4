@@ -525,7 +525,7 @@ void ContextIMP::StartChunkedResponse()
     Res().MarkChunked();
 }
 
-void ContextIMP::ContinueChunkedResponse(std::string const& body)
+void ContextIMP::NextChunkedResponse(std::string const& body)
 {
     Res().PushChunkedBody(body, false);
 }

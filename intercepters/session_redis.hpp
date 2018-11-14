@@ -7,7 +7,7 @@
 #include "intercepter.hpp"
 
 #include "session.hpp"
-#include "redis_client.hpp"
+#include "rediscli_pool.hpp"
 
 namespace da4qi4
 {
@@ -101,7 +101,7 @@ private:
     void on_request(Context& ctx) const;
     void on_response(Context& ctx) const;
 
-    void create_new_session(Context ctx) const;
+    Json create_new_session() const;
 private:
     SessionOptions _options;
 };

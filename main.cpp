@@ -18,9 +18,9 @@ int main()
     auto console = spdlog::stdout_color_st("console");
     console->info("Wecome to {}", "da4qi4");
 
-    auto svc = Server::Supply(4099);
+    auto svc = Server::Supply(4099, 1);
 
-    console->info("Server start at {}", 4099);
+    console->info("Server start at {}", 4099, 1);
 
     Application app1("d2school" //name
                      , "/v2/"      //url root
@@ -59,8 +59,9 @@ int main()
     {
         ctx->Res().SetContentType("text/plain");
         ctx->StartChunkedResponse();
-        ctx->ContinueChunkedResponse("我是一个兵\r\n");
-        ctx->ContinueChunkedResponse("来自老百姓！\r\n");
+        ctx->NextChunkedResponse("我是一个兵\r\n");
+        ctx->NextChunkedResponse("来自老百姓！\r\n");
+        ctx->StopChunkedResponse();
         ctx->Pass();
     });
 
@@ -134,12 +135,12 @@ int main()
     svc->AddApp(app1);
     console->info("App {} regist!", app1.GetName());
 
-    svc->AddHandler(_GET_, "/favicon.ico", [](Context ctx)
+    svc->AddHandler(_GET_, "/v2/favicon.ico", [](Context ctx)
     {
         ctx->Res().ReplyNofound();
         ctx->Pass();
     });
-    svc->AddHandler(_GET_, "/plain-text", [](Context ctx)
+    svc->AddHandler(_GET_, "/v2/plain-text", [](Context ctx)
     {
         ctx->Res().SetContentType("text/plain");
         ctx->Res().AppendHeader("Content-Language", "zh-CN");
@@ -158,6 +159,7 @@ int main()
         console->error("Server Run Fail ! {}", e.what());
     }
 
+    RedisPool().Stop();
     svc.reset();
     std::cout << "Bye." << std::endl;
 

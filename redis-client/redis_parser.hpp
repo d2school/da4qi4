@@ -1,52 +1,50 @@
-/*
- * Copyright (C) Alex Nekipelov (alex@nekipelov.net)
- * License: MIT
- */
+#ifndef DAQI_REDIS_PARSER_HPP
+#define DAQI_REDIS_PARSER_HPP
 
-#ifndef REDISCLIENT_REDISPARSER_H
-#define REDISCLIENT_REDISPARSER_H
-
-#include <stack>
 #include <vector>
-#include <utility>
+#include <stack>
 
-#include "redisvalue.h"
-#include "config.h"
+#include <boost/variant.hpp>
 
-namespace redisclient {
+#include "redis_value.hpp"
+
+namespace da4qi4
+{
 
 class RedisParser
 {
 public:
-    REDIS_CLIENT_DECL RedisParser();
+    RedisParser();
 
-    enum ParseResult {
+    enum ParseResult
+    {
         Completed,
         Incompleted,
         Error,
     };
 
-    REDIS_CLIENT_DECL std::pair<size_t, ParseResult> parse(const char *ptr, size_t size);
+    std::pair<size_t, ParseResult> Parse(const char* ptr, size_t size);
 
-    REDIS_CLIENT_DECL RedisValue result();
+    RedisValue Result();
 
 protected:
-    REDIS_CLIENT_DECL std::pair<size_t, ParseResult> parseChunk(const char *ptr, size_t size);
+    std::pair<size_t, ParseResult> parse_chunk(const char* ptr, size_t size);
 
-    inline bool isChar(int c)
+    inline bool is_char(int c)
     {
         return c >= 0 && c <= 127;
     }
 
-    inline bool isControl(int c)
+    inline bool is_control(int c)
     {
         return (c >= 0 && c <= 31) || (c == 127);
     }
 
-    REDIS_CLIENT_DECL long int bufToLong(const char *str, size_t size);
+    long int buf_to_long(const char* str, size_t size);
 
 private:
-    enum State {
+    enum State
+    {
         Start = 0,
         StartArray = 1,
 
@@ -86,10 +84,6 @@ private:
     static const char arrayReply = '*';
 };
 
-}
+} //namesapce da4qi4
 
-#ifdef REDIS_CLIENT_HEADER_ONLY
-#include "redisclient/impl/redisparser.cpp"
-#endif
-
-#endif // REDISCLIENT_REDISPARSER_H
+#endif // DAQI_REDIS_PARSER_HPP

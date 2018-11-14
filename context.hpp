@@ -13,7 +13,7 @@
 #include "response.hpp"
 #include "templates.hpp"
 #include "intercepter.hpp"
-#include "redis_client.hpp"
+#include "rediscli_pool.hpp"
 
 namespace da4qi4
 {
@@ -142,14 +142,9 @@ public:
         return _redis != nullptr;
     }
 
-    PersistentSyncRedisClient* SyncRedis()
+    RedisClientPtr Redis()
     {
-        return (_redis) ? &(_redis->SyncClient()) : nullptr;
-    }
-
-    PersistentAsyncRedisClient* AsyncRedis()
-    {
-        return (_redis) ? &(_redis->AsyncClient()) : nullptr;
+        return _redis;
     }
 
 public:
@@ -159,7 +154,7 @@ public:
 
 public:
     void StartChunkedResponse();
-    void ContinueChunkedResponse(std::string const& body);
+    void NextChunkedResponse(std::string const& body);
     void StopChunkedResponse();
 
 private:

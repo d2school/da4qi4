@@ -1,19 +1,11 @@
 #ifndef DAQI_REDIS_DEF_HPP
 #define DAQI_REDIS_DEF_HPP
 
-#include "redisclient/redissyncclient.h"
-#include "redisclient/redisasyncclient.h"
-
 namespace da4qi4
 {
 
-using redisclient::RedisSyncClient;
-using redisclient::RedisAsyncClient;
-
-using redisclient::RedisBuffer;
-using redisclient::RedisValue;
-
-void redisEmptyHandler(RedisValue);
+extern unsigned short int redis_server_default_port;
+extern char const* const redis_server_default_host;
 
 } //namespace da4qi4
 

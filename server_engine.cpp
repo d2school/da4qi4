@@ -41,7 +41,7 @@ void IOContextPool::Run()
 
                     if (ec)
                     {
-                        std::cerr << ec.message() << std::endl;
+                        std::cerr << "~~~~~>" << ec.message() << std::endl;
                     }
                 }
                 catch (std::exception const& e)

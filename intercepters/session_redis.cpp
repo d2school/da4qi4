@@ -27,7 +27,7 @@ std::string make_session_id(std::string const& prefix)
     return ss.str();
 }
 
-void SessionOnRedis::create_new_session(Context ctx) const
+Json SessionOnRedis::create_new_session() const
 {
     std::string session_id = make_session_id(_options.prefix);
 
@@ -37,9 +37,7 @@ void SessionOnRedis::create_new_session(Context ctx) const
     cookie.SetSecure(_options.secure);
     cookie.SetSameSite(_options.samesite);
 
-    Json data = ToJson(cookie, Json());
-
-    ctx->SaveData(data_name, data);
+    return ToJson(cookie, Json());
 }
 
 void SessionOnRedis::on_request(Context& ctx) const
@@ -48,46 +46,51 @@ void SessionOnRedis::on_request(Context& ctx) const
 
     if (session_id.empty())
     {
-        create_new_session(ctx);
+        ctx->SaveData(data_name, create_new_session());
         ctx->Pass();
         return;
     }
 
-    if (auto redis = ctx->AsyncRedis())
+    if (auto redis = ctx->Redis())
     {
         redis->Command("GET", {session_id}, [ctx, this](RedisValue value)
         {
-            Json data;
-
-            if (value.isError() || value.isNull())
+            if (value.IsError())
             {
-                create_new_session(ctx);
-                ctx->Pass();
+                std::cerr << value.ToString() << std::endl;
+                ctx->RenderInternalServerError();
+                ctx->Stop();
                 return;
             }
 
+            Json data;
+
             try
             {
-                data = Json::parse(value.toString());
+                if (!value.ToString().empty())
+                {
+                    data = Json::parse(value.ToString());
+                }
 
                 if (data.empty())
                 {
-                    create_new_session(ctx);
-                }
-                else
-                {
-                    ctx->SaveData(data_name, data);
+                    data =  create_new_session();
                 }
 
+                ctx->SaveData(data_name, std::move(data));
                 ctx->Pass();
             }
             catch (Json::parse_error const& e)
             {
                 std::cerr << e.what() << std::endl; //HINT : can get more detail info from e.
+                ctx->RenderInternalServerError();
+                ctx->Stop();
             }
             catch (std::exception const& e)
             {
                 std::cerr << e.what() << std::endl;
+                ctx->RenderInternalServerError();
+                ctx->Stop();
             }
         });
     }
@@ -118,14 +121,17 @@ void SessionOnRedis::on_response(Context& ctx) const
     size_t const indent = 4;
     std::string session_value = node.dump(indent);
 
-    if (auto redis = ctx->AsyncRedis())
+    if (auto redis = ctx->Redis())
     {
-        redis->Command("SETEX", {session_id, session_timeout_s, session_value}, [ctx](RedisValue value)
+        redis->Command("SETEX"
+                       , {session_id, session_timeout_s, session_value}
+                       , [ctx](RedisValue value)
         {
-            if (value.isError())
+            if (value.IsError())
             {
-                std::cerr << value.toString() << std::endl;
-                return;
+                std::cerr << value.ToString() << std::endl;
+                ctx->RenderInternalServerError();
+                ctx->Stop();
             }
 
             ctx->Pass();

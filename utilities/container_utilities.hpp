@@ -1,6 +1,8 @@
 #ifndef DAQI_CONTAINER_UTILITIES_HPP
 #define DAQI_CONTAINER_UTILITIES_HPP
 
+#include <string>
+
 #include "def/def.hpp"
 #include "def/boost_def.hpp"
 #include "utilities/string_utilities.hpp"

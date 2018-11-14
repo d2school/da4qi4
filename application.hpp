@@ -246,7 +246,7 @@ private:
     fs::path _root_upload;
     fs::path _root_temporary;
 
-    size_t _upload_max_size_limit_kb = 30 * 1024;
+    size_t _upload_max_size_limit_kb = 1 * 1024 * 1024;
 
     Templates _templates;
 
