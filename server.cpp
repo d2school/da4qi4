@@ -1,26 +1,80 @@
 #include  "server.hpp"
-#include "connection.hpp"
+
+#include <functional>
 
 #include "def/boost_def.hpp"
+#include "utilities/asio_utilities.hpp"
+
+#include "connection.hpp"
 
 namespace da4qi4
 {
 
-Server::Ptr Server::Supply(boost::asio::io_context& ioc, short port)
+Server::Server(Tcp::endpoint endpoint, size_t thread_count)
+    : _stopping(false)
+    , _ioc_pool(thread_count)
+    , _acceptor(_ioc_pool.GetIOContext())
+    , _signals(_ioc_pool.GetIOContext())
 {
-    return Ptr(new Server(ioc, port));
+    _signals.add(SIGINT);
+    _signals.add(SIGTERM);
+
+#if defined(SIGQUIT)
+    _signals.add(SIGQUIT);
+#endif
+    _signals.async_wait(std::bind(&Server::do_stop, this));
+
+    _acceptor.open(endpoint.protocol());
+    _acceptor.set_option(Tcp::acceptor::reuse_address(true));
+    _acceptor.bind(endpoint);
+    _acceptor.listen();
 }
 
-Server::Server(boost::asio::io_context& ioc, short port)
-    : _acceptor(ioc, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+Server::Ptr Server::Supply(unsigned short port, size_t thread_count)
 {
+    return Ptr(new Server({Tcp::v4(), port}, thread_count));
+}
+
+Server::Ptr Server::Supply(std::string const& host, unsigned short port, size_t thread_count)
+{
+    return Ptr(new Server(Utilities::make_endpoint(host, port), thread_count));
+}
+
+Server::Ptr Server::Supply(std::string const& host, unsigned short port)
+{
+    return Ptr(new Server(Utilities::make_endpoint(host, port), 0));
+}
+
+Server::Ptr Server::Supply(unsigned short port)
+{
+    return Ptr(new Server({Tcp::v4(), port}, 0));
+}
+
+
+Server::~Server()
+{
+    std::cout << "server destory." << std::endl;
+}
+
+void Server::Run()
+{
+    AppMgr().Mount();
+    this->start_accept();
+
+    _ioc_pool.Run();
+
+    std::cout << "server's running stopped." << std::endl;
+}
+
+void Server::Stop()
+{
+    do_stop();
 }
 
 std::string extract_app_path(std::string const& app_root, std::string const& path)
 {
-    bool _path_must_startswith_app_root_ = Utilities::iStartsWith(path, app_root);
-    assert(_path_must_startswith_app_root_);
-    
+    assert((Utilities::iStartsWith(path, app_root)) && "URL MUST STARTSWITH APPLICATION ROOT");
+
     return path.substr(app_root.size());
 }
 
@@ -28,17 +82,17 @@ template<typename R, typename M>
 Application* ServerAddHandler(Server* s, M m, R r, Handler h)
 {
     Application* app = s->PrepareApp(r.s);
-    
+
     if (app)
     {
         r.s = extract_app_path(app->GetUrlRoot(), r.s);
-        
+
         if (app->AddHandler(m, r, h))
         {
             return app;
         }
     }
-    
+
     return nullptr;
 }
 
@@ -72,52 +126,68 @@ Application* Server::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return ServerAddHandler(this, ms, r, h);
 }
 
-Application* Server::PrepareApp(std::string const& r)
+Application* Server::PrepareApp(std::string const& url)
 {
     make_default_app_if_need();
-    auto app = AppMgr()->FindByURL(r);
-    
+
+    auto app = AppMgr().FindByURL(url);
+
     if (!app)
     {
-        std::cerr << "no found a app for URL. " << r << std::endl;
+        std::cerr << "no found a app for URL. " << url << std::endl;
         return nullptr;
     }
+
+    return app;
 }
 
 void Server::make_default_app_if_need()
 {
-    if (AppMgr()->IsEmpty())
+    if (AppMgr().IsEmpty())
     {
-        AppMgr()->CreateDefaultIfEmpty();
+        AppMgr().CreateDefaultIfEmpty();
     }
 }
 
-void Server::Start()
+void Server::start_accept()
 {
     make_default_app_if_need();
-    this->do_accept();
+    do_accept();
 }
 
 void Server::do_accept()
 {
-    auto self = this->shared_from_this();
-    
-    this->_acceptor.async_accept(
-        [self](errorcode ec, boost::asio::ip::tcp::socket socket)
+    auto ioc_ctx = _ioc_pool.GetIOContextAndIndex();
+
+    ConnectionPtr cnt = Connection::Create(ioc_ctx.first, ioc_ctx.second);
+
+    _acceptor.async_accept(cnt->GetSocket()
+                           , [this, cnt](errorcode ec)
     {
         if (ec)
         {
             std::cerr << ec.message() << std::endl;
+
+            if (_stopping)
+            {
+                return;
+            }
         }
         else
         {
-            //todo :make cnt have owner socket with a io_context
-            auto cnt = std::make_shared<Connection>(std::move(socket));
-            cnt->Start();
+            cnt->StartRead();
         }
-        
-        self->do_accept();
+
+        do_accept();
     });
+}
+
+void Server::do_stop()
+{
+    _stopping = true;
+
+    std::cout << "\r\nReceives an instruction to stop the service." << std::endl;
+    _ioc_pool.Stop();
 }
 
 }//namespace da4qi4

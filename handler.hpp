@@ -1,5 +1,5 @@
-#ifndef HANDLER_HPP
-#define HANDLER_HPP
+#ifndef DAQI_HANDLER_HPP
+#define DAQI_HANDLER_HPP
 
 #include "http-parser/http_parser.h"
 
@@ -14,13 +14,13 @@ namespace da4qi4
 enum class HandlerMethod
 {
     UNSUPPORT = -1,
-    
+
     DELETE = 0,
     GET,
     HEAD,
     POST,
     PUT,
-    
+
     ANY = 999
 };
 
@@ -33,23 +33,23 @@ using HandlerMethodMark = std::bitset<5>;
 struct HandlerMethods
 {
     HandlerMethods() = default;
-    
+
     HandlerMethods(HandlerMethod m);
     HandlerMethods(HandlerMethodMark mark)
         : mark(mark)
     {
     }
-    
+
     HandlerMethods(std::initializer_list<HandlerMethod> lst);
-    
+
     operator HandlerMethodMark() const
     {
         return mark;
     }
-    
+
     void Set(HandlerMethod m);
     bool IsSet(HandlerMethod m) const;
-    
+
     HandlerMethodMark mark;
 };
 
@@ -66,4 +66,4 @@ Handler member_handler(C* o, void (C::*f)(Context))
 
 } //namespace da4qi4
 
-#endif // HANDLER_HPP
+#endif // DAQI_HANDLER_HPP

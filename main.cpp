@@ -1,82 +1,158 @@
+#include <ctime>
+
 #include <iostream>
 
+#include "def/log_def.hpp"
+
 #include "server.hpp"
+#include "router.hpp"
 #include "application.hpp"
 
-#include "utilities/captcha_utilities.hpp"
+#include "intercepters/static_file.hpp"
+#include "intercepters/session_redis.hpp"
+
+using namespace da4qi4;
 
 int main()
 {
-    std::srand(std::time(nullptr));
-    using namespace da4qi4;
+    auto console = spdlog::stdout_color_st("console");
+    console->info("Wecome to {}", "da4qi4");
 
-    for (int i = 0; i < 100; ++i)
+    auto svc = Server::Supply(4099);
+
+    console->info("Server start at {}", 4099, 1);
+
+    Application app1("d2school" //name
+                     , "/v2/"      //url root
+                     , "../d2_daqi/static/" //static root
+                     , "../d2_daqi/view/"   //template root
+                     , "../d2_daqi/upload/" //upload root
+                    );
+
+    Intercepter::StaticFile static_file(60);
+    static_file.SetCacheMaxAge(60).AddEntry("html/", "").AddDefaultFileNames({"index.html", "index.htm"});
+    app1.AddIntercepter(static_file);
+
+    Intercepter::SessionOnRedis session_redis;
+    session_redis.SetHttpOnly(Cookie::HttpOnly::for_http_only);
+    app1.AddIntercepter(session_redis);
+
+    app1.AddHandler(_GET_, "", [](Context ctx)
     {
-        std::string captcha_text = Utilities::get_random_words_for_captcha(4, true);
-        std::cout << captcha_text << std::endl;
-        std::string fn;
+        using namespace nlohmann;
+        json data;
 
-        for (auto c : captcha_text)
+        data["names"] = {"南老师", "林校长", "张校花"};
+
+        std::clock_t beg = std::clock();
+        data["time"]["start"] = beg;
+
+        std::clock_t end = std::clock();
+        data["time"]["end"] = end;
+        data["time"]["long"] = std::to_string((end - beg) * 1000 / CLOCKS_PER_SEC) + " 毫秒";
+
+        ctx->Render(data);
+        ctx->Pass();
+    });
+
+    app1.AddHandler(_GET_, "/chunked", [](Context ctx)
+    {
+        ctx->Res().SetContentType("text/plain");
+        ctx->StartChunkedResponse();
+        ctx->NextChunkedResponse("0我是一个兵\r\n");
+        ctx->NextChunkedResponse("1我是一个兵我是一个兵来自老百姓!！\r\n");
+        ctx->NextChunkedResponse("2我是一个兵我是一个兵来自老百姓!！\r\n");
+        ctx->StopChunkedResponse();
+        ctx->Pass();
+    });
+
+    app1.AddHandler(_GET_, "usr/{{name}}/{{age}}/regist"_router_regex, [](Context ctx)
+    {
+        ctx->RenderWithoutData("user/regist");
+        ctx->Pass();
+    });
+    app1.AddHandler(_GET_, "cookie/", [](Context ctx)
+    {
+        ctx->Res().SetCookie("is_new", "YE\"S!");
+        ctx->Res().SetCookie("do_you_love_me", "NO", 15, Cookie::HttpOnly::for_http_only);
+        ctx->Res().ReplyOk("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE</h2></body></html>");
+        ctx->Pass();
+    });
+    app1.AddHandler(_GET_, "cookie/view", [](Context ctx)
+    {
+        std::string html = "<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/VIEW</h2>";
+
+        for (auto c : ctx->Req().GetCookies())
         {
-            if (Utilities::is_symbol_captcha_char(c))
-            {
-                c = '_';
-            }
-
-            fn.push_back(c);
+            html += "<h3>" + c.first + " = " + c.second + "</h3>";
         }
 
-        fn = "./tmp/" + std::to_string(i) + "-" + fn + ".gif";
-        Utilities::make_captcha_image(captcha_text, fn);
-    }
+        html += "</body></html>";
+        ctx->Res().ReplyOk(html);
+        ctx->Pass();
+    });
+    app1.AddHandler(_GET_, "cookie/delete"_router_starts, [](Context ctx)
+    {
+        ctx->Res().SetCookieExpiredImmediately("is_new");
+        ctx->Res().SetCookieExpiredImmediately("do_you_love_me");
+        ctx->Res().ReplyOk("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/COOKIE/DELETE</h2></body></html>");
+        ctx->Pass();
+    });
 
-    return -1;
-    boost::asio::io_context ioc;
+    app1.AddHandler(_GET_, "form/get", [](Context ctx)
+    {
+        ctx->Res().CacheControlMaxAge(600);
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+    app1.AddHandler(_GET_, "form/post", [](Context ctx)
+    {
+        ctx->Res().CacheControlMaxAge(600);
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+    app1.AddHandler({_GET_, _POST_}, "form/result", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+
+    app1.AddHandler(_GET_, "post/upload", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+    app1.AddHandler(_POST_, "post/upload_result", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+
+    svc->AddApp(app1);
+    console->info("App {} regist!", app1.GetName());
+
+    svc->AddHandler(_GET_, "/v2/plain-text", [](Context ctx)
+    {
+        ctx->Res().SetContentType("text/plain");
+        ctx->Res().AppendHeader("Content-Language", "zh-CN");
+        ctx->Res().SetBody("!!!这是纯纯的纯文本!!!");
+        ctx->Pass();
+    });
+
+    RedisPool().CreateClients(svc->GetIOContextPool(), "127.0.0.1");
 
     try
     {
-        auto svc = Server::Supply(ioc, 4099);
-        Application app1("d2school", "/");
-        app1.AddHandler(_GET_, ""_router_starts, [](Context ctx)
-        {
-            ctx->Res().AddHeader("Context-Type", "text/html; charset=utf-8");
-            ctx->Res().SetBody("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL</h1></body></html>");
-            ctx->Bye();
-        });
-        app1.AddHandler(_GET_, "test/"_router_starts, [](Context ctx)
-        {
-            ctx->Res().AddHeader("Context-Type", "text/html; charset=utf-8");
-            ctx->Res().SetBody("<!DOCTYPE html><html lang=\"zh-cn\"><body><h2>D2SCHOOL/TEST</h2></body></html>");
-            ctx->Bye();
-        });
-        Application app2("d2school-admin", "/admin/");
-        app2.AddHandler(_GET_, ""_router_starts, [](Context ctx)
-        {
-            ctx->Res().AddHeader("Context-Type", "text/html; charset=utf-8");
-            ctx->Res().SetBody("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN</h1></body></html>");
-            ctx->Bye();
-        });
-        svc->AddApp(app1);
-        svc->AddApp(app2);
-        svc->AddHandler(_GET_, "/admin/test/"_router_starts, [](Context ctx)
-        {
-            ctx->Res().AddHeader("Context-Type", "text/html; charset=utf-8");
-            ctx->Res().SetBody("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-ADMIN/TEST</h1></body></html>");
-            ctx->Bye();
-        });
-        svc->AddHandler(_POST_, "/"_router_starts, [](Context ctx)
-        {
-            ctx->Res().AddHeader("Context-Type", "text/html; charset=utf-8");
-            ctx->Res().SetBody("<!DOCTYPE html><html lang=\"zh-cn\"><body><h1>D2SCHOOL-POST</h1></body></html>");
-            ctx->Bye();
-        });
-        svc->Start();
-        ioc.run();
+        svc->Run();
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        console->error("Server Run Fail ! {}", e.what());
     }
+
+    RedisPool().Stop();
+    svc.reset();
+    std::cout << "Bye." << std::endl;
 
     return 0;
 }

@@ -39,7 +39,7 @@ std::string get_random_words_for_captcha(size_t len, bool allow_symbol)
     s.resize(len);
     size_t m_size = m.size() - (allow_symbol ? 0 : 3);
 
-    for (int i = 0; i < len; ++i)
+    for (size_t i = 0; i < len; ++i)
     {
         int rand_index = std::rand() % m_size;
         char c = m[rand_index];

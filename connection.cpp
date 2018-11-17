@@ -1,5 +1,6 @@
 #include "connection.hpp"
 
+#include <ctime>
 #include <ostream>
 
 #include "utilities/string_utilities.hpp"
@@ -10,8 +11,8 @@
 namespace da4qi4
 {
 
-Connection::Connection(Tcp::socket socket)
-    : _socket(std::move(socket)), _parser(new http_parser)
+Connection::Connection(boost::asio::io_context& ioc, size_t ioc_index)
+    : _socket(ioc), _ioc_index(ioc_index), _parser(new http_parser)
 {
     this->init_parser();
     this->init_parser_setting();
@@ -21,6 +22,11 @@ Connection::~Connection()
 {
     delete _parser;
     this->free_multipart_parser();
+}
+
+Application& Connection::GetApplication()
+{
+    return (_app ? *_app : Application::EmptyApplication());
 }
 
 void Connection::init_parser()
@@ -41,7 +47,7 @@ void Connection::init_parser_setting()
     _parser_setting.on_body = &Connection::on_body;
 }
 
-void Connection::Start()
+void Connection::StartRead()
 {
     this->do_read();
 }
@@ -51,9 +57,16 @@ void Connection::Stop()
     this->do_close();
 }
 
-void Connection::Write()
+void Connection::StartWrite()
 {
-    this->do_write();
+    if (!_response.IsChunked())
+    {
+        this->do_write();
+    }
+    else
+    {
+        this->do_write_header_for_chunked();
+    }
 }
 
 void Connection::update_request_after_header_parsed()
@@ -62,30 +75,35 @@ void Connection::update_request_after_header_parsed()
     {
         _request.ParseUrl(std::move(_url));
     }
-    
+
     _request.SetFlags(_parser->flags);
-    
+
     if (_parser->flags &  F_CONTENTLENGTH)
     {
         _request.SetContentLength(_parser->content_length);
     }
-    
+
     _request.MarkKeepAlive(http_should_keep_alive(_parser));
     _request.MarkUpgrade(_parser->upgrade);
-    
     _request.SetMethod(_parser->method);
     _request.SetVersion(_parser->http_major, _parser->http_minor);
-    
+    _response.SetVersion(_parser->http_major, _parser->http_minor);
     try_commit_reading_request_header();
-    
+    _request.TransferHeadersToCookies();
     _request.ParseContentType();
+}
+
+void Connection::update_request_url_after_app_resolve()
+{
+    assert(_app);
+    _request.ApplyApplication(_app->GetUrlRoot());
 }
 
 void Connection::try_commit_reading_request_header()
 {
     bool have_a_uncommit_header = _reading_header_part == Connection::header_value_part
                                   && !_reading_header_field.empty();
-                                  
+
     if (have_a_uncommit_header)
     {
         _request.AppendHeader(std::move(_reading_header_field), std::move(_reading_header_value));
@@ -95,31 +113,33 @@ void Connection::try_commit_reading_request_header()
 
 bool is_100_continue(Request& req)
 {
-    auto value = req.TryGetHeaderValue("Expect");
-    return (value && (*value == "100-continue"));
+    auto value = req.TryGetHeader("Expect");
+    return (value && Utilities::iEquals(*value, "100-continue"));
 }
 
 void Connection::process_100_continue_request()
 {
     assert(is_100_continue(_request));
-    
-    ConnectionPtr self = shared_from_this();
-    
-    boost::asio::async_write(_socket
-                             , boost::asio::const_buffer(continue_100_response, len_continue_100_response)
-                             , [self](errorcode const & ec, size_t bytes_transferred)
-    {
-        if (ec)
-        {
-            std::cerr << ec.message() << std::endl;
-        }
-    });
+    _response.ReplyContinue();
+    this->StartWrite();
+}
+
+void Connection::process_app_no_found()
+{
+    _response.ReplyNofound();
+    this->StartWrite();
+}
+
+void Connection::process_too_large_size_upload()
+{
+    _response.ReplyPayloadTooLarge();
+    this->StartWrite();
 }
 
 void Connection::try_init_multipart_parser()
 {
     assert(_request.IsMultiPart());
-    
+
     if (!_request.GetMultiPartBoundary().empty()) //boundary is unset on some bad request.
     {
         init_multipart_parser(_request.GetMultiPartBoundary());
@@ -128,7 +148,7 @@ void Connection::try_init_multipart_parser()
 
 bool Connection::try_route_application()
 {
-    _app = AppMgr()->FindByURL(_request.GetUrl().path);
+    _app = AppMgr().FindByURL(_request.GetUrl().path);
     return _app != nullptr;
 }
 
@@ -136,25 +156,32 @@ int Connection::on_headers_complete(http_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->update_request_after_header_parsed();
-    
+
+    cnt->_read_complete = Connection::read_header_complete;
+
+    if (!cnt->try_route_application())
+    {
+        cnt->process_app_no_found();
+        return -1;
+    }
+
+    cnt->update_request_url_after_app_resolve();
+
+    if (cnt->_request.GetContentLength() > cnt->_app->GetUpoadMaxSizeLimitKB())
+    {
+        cnt->process_too_large_size_upload();
+        return -1;
+    }
+
     if (is_100_continue(cnt->_request))
     {
         cnt->process_100_continue_request(); //async write
     }
-    
-    if (!cnt->try_route_application())
-    {
-        std::cerr << "no found app." << std::endl;
-        return -1;
-    }
-    
-    if (cnt->_request.IsMultiPart())
+    else if (cnt->_request.IsMultiPart())
     {
         cnt->try_init_multipart_parser();
     }
-    
-    cnt->_read_complete = Connection::read_header_complete;
-    
+
     return 0;
 }
 
@@ -163,60 +190,53 @@ int Connection::on_message_begin(http_parser* parser)
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_read_complete = Connection::read_none_complete;
     cnt->_body.clear();
-    
-    if (cnt->_request.IsKeepAlive())
-    {
-        cnt->_request.Reset();
-    }
-    
+
     return 0;
 }
 
 int Connection::on_message_complete(http_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    
     cnt->_request.SetBody(std::move(cnt->_body));
     cnt->_read_complete = Connection::read_message_complete;
-    
+
     return 0;
 }
 
 int Connection::on_header_field(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    
     cnt->try_commit_reading_request_header();
-    
+
     if (length > 0)
     {
         cnt->_reading_header_part = Connection::header_field_part;
         cnt->_reading_header_field.append(at, length);
     }
-    
+
     return 0;
 }
 
 int Connection::on_header_value(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    
+
     if (cnt->_reading_header_part == Connection::header_field_part
         && !cnt->_reading_header_value.empty())
     {
         cnt->_reading_header_value.clear();
     }
-    
+
     if (length > 0)
     {
         cnt->_reading_header_value.append(at, length);
     }
-    
+
     if (cnt->_reading_header_part != Connection::header_value_part)
     {
         cnt->_reading_header_part = Connection::header_value_part;
     }
-    
+
     return 0;
 }
 
@@ -224,7 +244,6 @@ int Connection::on_header_value(http_parser* parser, char const* at, size_t leng
 int Connection::on_url(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    
     cnt->_url.append(at, length);
     return 0;
 }
@@ -232,23 +251,23 @@ int Connection::on_url(http_parser* parser, char const* at, size_t length)
 void Connection::try_fix_multipart_bad_request_without_boundary()
 {
     assert(!_mp_parser);
-    
+
     if (_body.find("--") == 0)
     {
         constexpr int const length_of_boundary_start_flag = 2;
         std::string::size_type endln_pos = _body.find("\r\n", length_of_boundary_start_flag);
-        
+
         if (endln_pos != std::string::npos)
         {
             std::string boundary = _body.substr(length_of_boundary_start_flag
                                                 , endln_pos - length_of_boundary_start_flag);
             std::string::size_type len = boundary.size();
-            
+
             if (len > 2 && boundary[len - 2] == '-' && boundary[len - 1] == '-')
             {
                 len -= 2;
             }
-            
+
             _request.SetMultiPartBoundary(boundary.c_str(), len);
             init_multipart_parser(_request.GetMultiPartBoundary());
         }
@@ -258,24 +277,24 @@ void Connection::try_fix_multipart_bad_request_without_boundary()
 Connection::MultpartParseStatus Connection::do_multipart_parse()
 {
     assert(_request.IsMultiPart());
-    
+
     if (!_mp_parser)
     {
         try_fix_multipart_bad_request_without_boundary();
     }
-    
+
     if (!_mp_parser)
     {
         return mp_cannot_init;
     }
-    
+
     size_t parsed_bytes = multipart_parser_execute(_mp_parser, _body.c_str(), _body.length());
-    
+
     if (parsed_bytes != _body.length())
     {
         return mp_parse_fail;
     }
-    
+
     _body.clear(); //body -> multi parts
     return mp_parsing;
 }
@@ -283,50 +302,50 @@ Connection::MultpartParseStatus Connection::do_multipart_parse()
 int Connection::on_body(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    
+
+    size_t upload_max_size_limit_kb = (cnt->_app) ? cnt->_app->GetUpoadMaxSizeLimitKB() : 15 * 1024;
+
+    size_t total_byte_kb = (cnt->_body.size() + length) / 1024;
+
+    if (total_byte_kb > upload_max_size_limit_kb)
+    {
+        cnt->process_too_large_size_upload();
+        return -1;
+    }
+
     cnt->_body.append(at, length);
-    
+
     if (cnt->_request.IsMultiPart())
     {
         MultpartParseStatus status = cnt->do_multipart_parse();
-        
+
         switch (status)
         {
             case mp_cannot_init:
             case mp_parsing:
                 break;
-                
+
             case   mp_parse_fail:
                 std::cerr << "multipart parse fail." << std::endl;
                 return -1;
         }
     }
-    
-    return 0;
-}
 
-int Connection::on_multipart_data_begin(multipart_parser* parser)
-{
-    Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    
-    cnt->_reading_header_part = header_none_part;
-    cnt->_reading_header_field.clear();
-    cnt->_reading_header_value.clear();
-    cnt->_reading_part_data.clear();
     return 0;
 }
 
 int Connection::on_multipart_header_field(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    
+    cnt->_multipart_parse_part = mp_parse_header_field;
+
     if (cnt->_reading_header_part == header_value_part && !cnt->_reading_header_field.empty())
     {
-        cnt->_reading_part.AddHeader(std::move(cnt->_reading_header_field)
-                                     , std::move(cnt->_reading_header_value));
+        cnt->_reading_part.AppendHeader(std::move(cnt->_reading_header_field)
+                                        , std::move(cnt->_reading_header_value));
         cnt->_reading_header_part = header_field_part;
     }
-    
+
     cnt->_reading_header_field.append(at, length);
     return 0;
 }
@@ -334,44 +353,59 @@ int Connection::on_multipart_header_field(multipart_parser* parser, char const* 
 int Connection::on_multipart_header_value(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    
+    cnt->_multipart_parse_part = mp_parse_header_value;
+
     if (cnt->_reading_header_part == Connection::header_field_part
         && !cnt->_reading_header_value.empty())
     {
         cnt->_reading_header_value.clear();
     }
-    
+
     if (length > 0)
     {
         cnt->_reading_header_value.append(at, length);
     }
-    
+
     if (cnt->_reading_header_part != Connection::header_value_part)
     {
         cnt->_reading_header_part = Connection::header_value_part;
     }
-    
+
     return 0;
 }
 
 int Connection::on_multipart_headers_complete(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    
+    cnt->_multipart_parse_part = mp_parse_headers_complete;
+
     if (cnt->_reading_header_part == header_value_part && !cnt->_reading_header_field.empty())
     {
-        cnt->_reading_part.AddHeader(std::move(cnt->_reading_header_field)
-                                     , std::move(cnt->_reading_header_value));
+        cnt->_reading_part.AppendHeader(std::move(cnt->_reading_header_field)
+                                        , std::move(cnt->_reading_header_value));
         cnt->_reading_header_part = header_none_part;
     }
-    
+
     return 0;
 }
 
+int Connection::on_multipart_data_begin(multipart_parser* parser)
+{
+    Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data_begin;
+
+    cnt->_reading_header_part = header_none_part;
+    cnt->_reading_header_field.clear();
+    cnt->_reading_header_value.clear();
+    cnt->_reading_part_data.clear();
+
+    return 0;
+}
 
 int Connection::on_multipart_data(multipart_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data;
     cnt->_reading_part_data.append(at, length);
     return 0;
 }
@@ -379,6 +413,8 @@ int Connection::on_multipart_data(multipart_parser* parser, char const* at, size
 int Connection::on_multipart_data_end(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
+    cnt->_multipart_parse_part = mp_parse_data_end;
+
     cnt->_reading_part.SetData(std::move(cnt->_reading_part_data));
     cnt->_request.AddMultiPart(std::move(cnt->_reading_part));
     return 0;
@@ -387,7 +423,8 @@ int Connection::on_multipart_data_end(multipart_parser* parser)
 int Connection::on_multipart_body_end(multipart_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
-    cnt->free_multipart_parser(will_free_mp_parser);
+    cnt->_multipart_parse_part = mp_parse_body_end;
+
     return 0;
 }
 
@@ -406,16 +443,13 @@ void Connection::init_multipart_parser(std::string const& boundary)
             _mp_parser_setting->on_headers_complete = &Connection::on_multipart_headers_complete;
             _mp_parser_setting->on_body_end = &Connection::on_multipart_body_end;
         }
-        
+
         if (_mp_parser)
         {
-            multipart_parser_free(_mp_parser);
+            this->free_multipart_parser(will_free_mp_parser);
         }
-        
-        int const length_of_boundary_start_flag = 2;
-        std::string boundary_with_prefix;
-        boundary_with_prefix.reserve(length_of_boundary_start_flag + boundary.size());
-        boundary_with_prefix = "--" + boundary;
+
+        std::string boundary_with_prefix("--" + boundary);
         _mp_parser = multipart_parser_init(boundary_with_prefix.c_str(), _mp_parser_setting);
         multipart_parser_set_data(_mp_parser, this);
     }
@@ -428,10 +462,10 @@ void Connection::free_multipart_parser(mp_free_flag flag)
         delete _mp_parser_setting;
         _mp_parser_setting = nullptr;
     }
-    
-    if (_mp_parser && will_free_mp_parser)
+
+    if (_mp_parser && (flag & will_free_mp_parser))
     {
-        multipart_parser_free(_mp_parser);
+        ::multipart_parser_free(_mp_parser);
         _mp_parser = nullptr;
     }
 }
@@ -445,34 +479,44 @@ void Connection::do_read()
 {
     auto self(this->shared_from_this());
     _socket.async_read_some(boost::asio::buffer(_buffer)
-                            , [self, this](boost::system::error_code ec, std::size_t bytes_transferred)
+                            , [self, this](boost::system::error_code ec
+                                           , std::size_t bytes_transferred)
     {
         if (ec)
         {
             return;
         }
-        
-        int parsed = http_parser_execute(_parser, &_parser_setting, _buffer.data(), bytes_transferred);
-        
-        if (parsed != bytes_transferred)
+
+        auto parsed = http_parser_execute(_parser, &_parser_setting, _buffer.data(), bytes_transferred);
+
+        if (parsed != bytes_transferred || _parser->http_errno)
         {
-            std::cerr << "Error: "
-                      << http_errno_description(HTTP_PARSER_ERRNO(_parser))
-                      << http_errno_name(HTTP_PARSER_ERRNO(_parser));
             return;
         }
-        
+
         if (_read_complete != read_message_complete)
         {
             do_read();
             return;
         }
-        
-        bool must_have_route_a_app_after_message_read_complete = (_app != nullptr);
-        assert(must_have_route_a_app_after_message_read_complete);
-        
-        auto self = shared_from_this();
-        _app->Handle(ContextIMP::Make(self)); //connection -> ctx -> app
+
+        free_multipart_parser(will_free_mp_parser);
+
+        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER MESSAGE READ COMPLETED.");
+
+        if (_request.IsFormUrlEncoded())
+        {
+            _request.ParseFormUrlEncodedData();
+        }
+        else if (_request.IsFormData())
+        {
+            auto const& options = _app->GetUploadFileSaveOptions();
+            std::string dir = _app->GetUploadRoot().native();
+            _request.TransferMultiPartsToFormData(options, dir);
+        }
+
+        _response.SetCharset(_app->GetDefaultCharset());
+        ContextIMP::Make(shared_from_this())->Start(); //cnt -> app -> ctx
     });
 }
 
@@ -480,41 +524,156 @@ void Connection::prepare_response_headers_about_connection()
 {
     auto v = _request.GetVersion();
     bool keepalive = _request.IsKeepAlive();
-    
-    if (v.first == 1 && v.second == 0 && keepalive)
+
+    if (v.first < 1 || (v.first == 1 && v.second == 0))
     {
-        _response.AddHeader("Connection", "keep-alive");
+        _response.SetVersion(1, 0);
+
+        if (keepalive)
+        {
+            _response.MarkKeepAlive();
+        }
     }
-    else if (!keepalive && (v.first == 1 && v.second >= 1 || v.first > 1))
+    else
     {
-        _response.AddHeader("Connection", "close");
+        _response.SetVersion(1, 1);
+
+        if (!keepalive)
+        {
+            _response.MarkClose();
+        }
     }
 }
 
 void Connection::do_write()
 {
     prepare_response_headers_about_connection();
-    
     std::ostream os(&_write_buffer);
     os << _response;
-    
+
     ConnectionPtr self = shared_from_this();
     boost::asio::async_write(_socket
                              , _write_buffer
-                             , [self](errorcode const & ec, size_t bytes_transferred)
+                             , [self, this](errorcode const & ec, size_t bytes_transferred)
     {
         if (ec)
         {
             return;
         }
-        
-        self->_write_buffer.consume(bytes_transferred);
-        
-        if (self->_request.IsKeepAlive())
+
+        _write_buffer.consume(bytes_transferred);
+
+        if (_request.IsKeepAlive() && _response.IsKeepAlive())
         {
-            self->do_read();
+            this->reset();
+            this->do_read();
         }
     });
+}
+
+void Connection::prepare_response_headers_for_chunked_write()
+{
+    if (!_response.IsChunked())
+    {
+        _response.MarkChunked();
+    }
+
+    auto v = _response.GetVersion();
+
+    if (v.first < 1 || (v.first == 1 && v.second == 0))
+    {
+        _response.SetVersion(1, 1);
+    }
+
+    if (_response.IsClose())
+    {
+        _response.MarkKeepAlive();
+    }
+}
+
+void Connection::do_write_header_for_chunked()
+{
+    prepare_response_headers_for_chunked_write();
+
+    std::ostream os(&_write_buffer);
+    os << _response;
+
+    ConnectionPtr self = shared_from_this();
+
+    boost::asio::async_write(_socket
+                             , _write_buffer
+                             , [self, this](errorcode const & ec, size_t bytes_transferred)
+    {
+        if (ec)
+        {
+            return;
+        }
+
+        _write_buffer.consume(bytes_transferred);
+        do_write_next_chunked_body(0);
+    });
+}
+
+void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
+{
+    bool is_last = false;
+    _current_chunked_body = _response.PopChunkedBody(is_last);
+
+    if (is_last)
+    {
+        return;
+    }
+
+    ConnectionPtr self = shared_from_this();
+
+    if (_current_chunked_body.empty())
+    {
+        std::clock_t now = std::clock();
+
+        if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
+        {
+            std::cerr << "Too long to Wait for chunked data." << std::endl;
+            return;
+        }
+
+        _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
+    }
+    else
+    {
+        boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
+                                 , [self](errorcode const & ec, size_t bytes_transferred)
+        {
+            self->do_write_chunked_body_finished(ec, bytes_transferred);
+        });
+    }
+}
+
+void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec
+                                                , size_t /*bytes_transferred*/)
+{
+    if (ec)
+    {
+        std::cerr << "write chunked body fail. " << ec.message() << std::endl;
+        return;
+    }
+
+    do_write_next_chunked_body(0);
+}
+
+void Connection::reset()
+{
+    _url.clear();
+    _body.clear();
+    _reading_header_part = header_none_part;
+    _reading_header_field.clear();
+    _reading_header_value.clear();
+    _read_complete = read_none_complete;
+    _reading_part.Clear();
+    _reading_part_data.clear();
+    _multipart_parse_part = mp_parse_none;
+    _request.Reset();
+    _response.Reset();
+    _app = nullptr;
 }
 
 } //namespace da4qi4
