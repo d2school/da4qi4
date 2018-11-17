@@ -15,25 +15,25 @@ ApplicationMgr& AppMgr()
 
 bool ApplicationMgr::CreateDefaultIfEmpty()
 {
-    if (_set.empty())
+    if (_map.empty())
     {
-        _set.insert(Application());
+        _map.insert(std::make_pair("/", Application::Default()));
         return true;
     }
 
     return false;
 }
 
-bool ApplicationMgr::Add(Application& app)
+bool ApplicationMgr::Add(ApplicationPtr app)
 {
     if (_mounted)
     {
         return false;
     }
 
-    if (!app.GetName().empty() && !IsExists(app.GetName()))
+    if (!app->GetName().empty() && !IsExists(app->GetName()))
     {
-        _set.insert(app);
+        _map.insert(std::make_pair(app->GetUrlRoot(), app));
         return true;
     }
 
@@ -71,54 +71,53 @@ bool ApplicationMgr::IsEnable(std::string const& name) const
     return app && app->IsEnable();
 }
 
-Application* ApplicationMgr::FindByURL(std::string const& url)
+ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 {
-    auto dst(Application::ForCompareUrl(url));
-    auto l = _set.upper_bound(dst);
+    auto l = _map.upper_bound(url);
 
-    if (l == _set.end())
+    if (l == _map.end())
     {
         return nullptr;
     }
 
-    if (Utilities::iStartsWith(url, l->GetUrlRoot()))
+    if (Utilities::iStartsWith(url, l->first))
     {
-        return const_cast<Application*>(&(*l));
+        return l->second;
     }
 
-    auto u = _set.lower_bound(dst);
+    auto u = _map.lower_bound(url);
 
-    for (auto it = ++l; it != u && it != _set.end(); ++it)
+    for (auto it = ++l; it != u && it != _map.end(); ++it)
     {
-        if (Utilities::iStartsWith(url, it->GetUrlRoot()))
+        if (Utilities::iStartsWith(url, it->first))
         {
-            return const_cast<Application*>(&(*l)); //(set's element is always const)
+            return it->second;
         }
     }
 
     return nullptr;
 }
 
-Application* ApplicationMgr::FindByName(std::string const& name)
+ApplicationPtr ApplicationMgr::FindByName(std::string const& name)
 {
-    for (auto& a : _set)
+    for (auto a : _map)
     {
-        if (a.GetName() == name)
+        if (a.second->GetName() == name)
         {
-            return const_cast<Application*>(&a);
+            return a.second;
         }
     }
 
     return nullptr;
 }
 
-Application const* ApplicationMgr::FindByName(std::string const& name) const
+ApplicationPtr const ApplicationMgr::FindByName(std::string const& name) const
 {
-    for (auto& a : _set)
+    for (auto a : _map)
     {
-        if (a.GetName() == name)
+        if (a.second->GetName() == name)
         {
-            return &a;
+            return a.second;
         }
     }
 
@@ -147,9 +146,17 @@ void ApplicationMgr::Mount()
 {
     _mounted = true;
 
-    for (auto& a : _set)
+    for (auto a : _map)
     {
-        const_cast<Application&>(a).Mount();
+        a.second->Mount();
+    }
+}
+
+void ApplicationMgr::CheckTemplatesUpdate()
+{
+    for (auto a : _map)
+    {
+        a.second->GetTemplates().ReloadIfUpdate();
     }
 }
 

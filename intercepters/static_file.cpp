@@ -74,8 +74,15 @@ void StaticFile::on_request(Context& ctx) const
                                     ? ctx->App().GetStaticRootPath().native() + entry.second
                                     : entry.second);
 
+            std::string::size_type beg_pos = url_starts.size();
+            std::string::size_type end_pos = (url.find('?', beg_pos));
+            std::string::size_type url_size = url.size();
+            std::string::size_type sub_len = url_size - beg_pos
+                                             - (end_pos != std::string::npos
+                                                ? (url_size - end_pos) : 0);
+
             dst_file = dir_root;
-            dst_file /= url.substr(url_starts.size());
+            dst_file /= url.substr(beg_pos, sub_len);
             entry_found = true;
             break;
         }

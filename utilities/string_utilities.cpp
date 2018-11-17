@@ -24,6 +24,16 @@ bool iStartsWith(std::string const& m, std::string const& s)
     return boost::algorithm::istarts_with(m, s);
 }
 
+bool StartsWith(std::string const& m, std::string const& s)
+{
+    return boost::algorithm::starts_with(m, s);
+}
+
+bool iEndsWith(std::string const& m, std::string const& s)
+{
+    return boost::algorithm::iends_with(m, s);
+}
+
 bool EndsWith(std::string const& m, std::string const& s)
 {
     return boost::algorithm::ends_with(m, s);

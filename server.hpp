@@ -3,6 +3,8 @@
 
 #include <atomic>
 
+#include <boost/asio/deadline_timer.hpp>
+
 #include "def/asio_def.hpp"
 
 #include "server_engine.hpp"
@@ -35,31 +37,31 @@ public:
     void Stop();
 
 public:
-    bool AddApp(Application& app)
+    bool AddApp(ApplicationPtr app)
     {
         return AppMgr().Add(app);
     }
 
 public:
-    Application* AddHandler(HandlerMethod m, std::string const& url, Handler h)
+    ApplicationPtr AddHandler(HandlerMethod m, std::string const& url, Handler h)
     {
         return AddHandler(m, router_equals(url), h);
     }
 
-    Application* AddHandler(HandlerMethod m, router_equals r, Handler h);
-    Application* AddHandler(HandlerMethod m, router_starts r, Handler h);
-    Application* AddHandler(HandlerMethod m, router_regex r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethod m, router_equals r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethod m, router_starts r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethod m, router_regex r, Handler h);
 
-    Application* AddHandler(HandlerMethods ms, std::string const& url, Handler h)
+    ApplicationPtr AddHandler(HandlerMethods ms, std::string const& url, Handler h)
     {
         return AddHandler(ms, router_equals(url), h);
     }
-    Application* AddHandler(HandlerMethods ms, router_equals r, Handler h);
-    Application* AddHandler(HandlerMethods ms, router_starts r, Handler h);
-    Application* AddHandler(HandlerMethods ms, router_regex r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethods ms, router_equals r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethods ms, router_starts r, Handler h);
+    ApplicationPtr AddHandler(HandlerMethods ms, router_regex r, Handler h);
 
 public:
-    Application* PrepareApp(std::string const& url);
+    ApplicationPtr PrepareApp(std::string const& url);
 
 private:
     void start_accept();
@@ -68,12 +70,17 @@ private:
 private:
     void make_default_app_if_need();
 
+    void start_idle_timer();
+    void on_idle_timer(errorcode const& ec);
+    void stop_idle_timer();
 private:
     std::atomic_bool _stopping;
 
     IOContextPool _ioc_pool;
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
+
+    boost::asio::deadline_timer _idle_timer;
 };
 
 }

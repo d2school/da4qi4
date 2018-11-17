@@ -46,6 +46,7 @@ public:
     }
 
     Application& App();
+    Application const& App() const;
 
     Json LoadData(std::string const& name) const
     {

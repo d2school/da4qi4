@@ -55,7 +55,11 @@ public:
         return _response;
     }
 
-    Application& GetApplication();
+    bool HasApplication() const
+    {
+        return _app != nullptr;
+    }
+    std::shared_ptr<Application> GetApplication();
 
     size_t GetIOContextIndex() const
     {
@@ -168,7 +172,7 @@ private:
 private:
     Request _request;
     Response _response;
-    Application* _app = nullptr;
+    std::shared_ptr<Application> _app = nullptr;
 };
 
 } //namespace da4qi4

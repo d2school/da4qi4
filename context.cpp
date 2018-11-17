@@ -21,9 +21,8 @@ Context ContextIMP::Make(ConnectionPtr cnt)
 
 ContextIMP::ContextIMP(ConnectionPtr cnt)
     : _cnt(cnt)
-    , _env(cnt->GetApplication().GetTemplateRoot().native())
+    , _env(cnt->HasApplication() ? cnt->GetApplication()->GetTemplateRoot().native() : "")
     , _redis(init_redis_client(cnt))
-
 {
     _env.set_element_notation(inja::ElementNotation::Dot);
     regist_template_enginer_common_functions();
@@ -369,9 +368,16 @@ Response& ContextIMP::Res()
     return _cnt->GetResponse();
 }
 
-Application& ContextIMP::App()
+Application&  ContextIMP::App()
 {
-    return _cnt->GetApplication();
+    assert(_cnt->GetApplication() != nullptr);
+    return *(_cnt->GetApplication());
+}
+
+Application const& ContextIMP::App() const
+{
+    assert(_cnt->GetApplication() != nullptr);
+    return *(_cnt->GetApplication());
 }
 
 boost::asio::io_context& ContextIMP::IOContext()

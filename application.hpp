@@ -3,6 +3,7 @@
 
 #include <set>
 #include <map>
+#include <memory>
 
 #include "def/boost_def.hpp"
 #include "utilities/string_utilities.hpp"
@@ -33,39 +34,36 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
-
 class Application
 {
 private:
-    Application(std::string const& root_url)
-        : _root_url(root_url), _templates("", "")
-    {}
-
-public:
-    static Application ForCompareUrl(std::string const& url)
-    {
-        return Application(url);
-    }
-
-    static Application& EmptyApplication()
-    {
-        static Application emptyApp("");
-        return emptyApp;
-    }
-
-public:
     Application();
 
     Application(std::string const& name
                 , std::string const& root_url
-                , fs::path const& root_static = ""
-                , fs::path const& root_template = ""
-                , fs::path const& root_upload = ""
-                , fs::path const& root_temporary = ""
+                , fs::path const& root_static
+                , fs::path const& root_template
+                , fs::path const& root_upload
+                , fs::path const& root_temporary
                );
+public:
+    static std::shared_ptr<Application> Default()
+    {
+        return std::shared_ptr<Application>(new Application());
+    }
 
-    Application(Application const&) = default;
-    Application& operator = (Application const&) = delete;
+    static std::shared_ptr<Application> Customize(std::string const& name
+                                                  , std::string const& root_url
+                                                  , fs::path const& root_static = ""
+                                                  , fs::path const& root_template = ""
+                                                  , fs::path const& root_upload = ""
+                                                  , fs::path const& root_temporary = "")
+    {
+        return std::shared_ptr<Application>(new Application(name,
+                                                            root_url, root_static,
+                                                            root_template, root_upload,
+                                                            root_temporary));
+    }
 
     ~Application();
 
@@ -151,6 +149,8 @@ public:
     }
     void Disable();
     void Enable();
+
+    void CheckUpdate();
 
     size_t GetUpoadMaxSizeLimitKB() const
     {
@@ -259,24 +259,18 @@ private:
 
 private:
     Intercepter::Chain _intercepters;
-
 };
 
-struct CompareByUrlRoot_DESC_IC
-{
-    bool operator()(Application const& app1, Application const& app2)
-    {
-        return !Utilities::iLess(app1.GetUrlRoot(), app2.GetUrlRoot());
-    }
-};
+using ApplicationPtr = std::shared_ptr<Application>;
 
-using ApplicationSet = std::set <Application, CompareByUrlRoot_DESC_IC>;
+using ApplicationMap = std::map<std::string /* url */
+                       , ApplicationPtr, Utilities::IgnoreCaseCompareDESC>;
 
 class ApplicationMgr
 {
 public:
     bool CreateDefaultIfEmpty();
-    bool Add(Application& app);
+    bool Add(ApplicationPtr app);
 
     void Enable(std::string const& name);
     void Disable(std::string const& name);
@@ -284,29 +278,30 @@ public:
     bool IsExists(std::string const& name) const;
     bool IsEnable(std::string const& name) const;
 
-    Application* FindByURL(std::string const& url);
+    ApplicationPtr FindByURL(std::string const& url);
 
-    Application* FindByName(std::string const& name);
-    Application const* FindByName(std::string const& name) const;
+    ApplicationPtr FindByName(std::string const& name);
+    ApplicationPtr const FindByName(std::string const& name) const;
 
-    ApplicationSet const& All() const
+    ApplicationMap const& All() const
     {
-        return _set;
+        return _map;
     }
 
     void Mount();
+    void CheckTemplatesUpdate();
 
     bool IsEmpty() const
     {
-        return _set.empty();
+        return _map.empty();
     }
     size_t Count() const
     {
-        return _set.size();
+        return _map.size();
     }
 
 private:
-    ApplicationSet _set;
+    ApplicationMap _map;
     bool _mounted = false;
 };
 

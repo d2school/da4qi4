@@ -2,6 +2,7 @@
 #define DAQI_TEMPLATES_HPP
 
 #include <string>
+#include <mutex>
 #include <unordered_map>
 
 #include "def/inja_def.hpp"
@@ -23,16 +24,29 @@ public:
 
     size_t Preload();
 
-    Template const* Get(std::string const& name);
+    TemplatePtr const Get(std::string const& name);
+
+    bool ReloadIfUpdate();
 
 private:
-    size_t load_templates(std::string const& template_ext, std::string const& key_ext);
-    bool try_load_template(std::string const& key, std::string const& template_filename);
+    mutable std::mutex _m;
 
-    std::unordered_map<std::string, Template> _templates;
+    size_t load_templates(std::string const& template_ext, std::string const& key_ext);
+    bool try_load_template(std::string const& key
+                           , std::string const& template_filename
+                           , std::string const& full_template_filename);
+
+    struct Item
+    {
+        TemplatePtr templ;
+        std::time_t load_time;
+        std::string filename;
+    };
+
+    std::unordered_map<std::string, Item> _templates;
     std::string _root, _app_prefix;
 };
 
-}
+} //namesapce da4qi4
 
 #endif // DAQI_TEMPLATE_LIBRARY_HPP

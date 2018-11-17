@@ -24,9 +24,9 @@ Connection::~Connection()
     this->free_multipart_parser();
 }
 
-Application& Connection::GetApplication()
+ApplicationPtr Connection::GetApplication()
 {
-    return (_app ? *_app : Application::EmptyApplication());
+    return _app;
 }
 
 void Connection::init_parser()
