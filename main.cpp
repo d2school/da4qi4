@@ -43,11 +43,10 @@ int main()
         ctx->Pass();
     });
 
+    svc->Mount(admin);
+    console->info("App {} mounted.", admin->GetName());
 
-    svc->AddApp(admin);
-    console->info("App {} regist!", admin->GetName());
-
-    RedisPool().CreateClients(svc->GetIOContextPool(), "127.0.0.1");
+    RedisPool().CreateClients(svc->GetIOContextPool());
 
     try
     {

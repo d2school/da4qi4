@@ -37,7 +37,7 @@ public:
     void Stop();
 
 public:
-    bool AddApp(ApplicationPtr app)
+    bool Mount(ApplicationPtr app)
     {
         return AppMgr().Add(app);
     }
