@@ -3,6 +3,7 @@
 #include <functional>
 #include <boost/date_time/posix_time/ptime.hpp>
 
+#include "def/log_def.hpp"
 #include "def/boost_def.hpp"
 #include "utilities/asio_utilities.hpp"
 
@@ -30,6 +31,12 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     _acceptor.set_option(Tcp::acceptor::reuse_address(true));
     _acceptor.bind(endpoint);
     _acceptor.listen();
+
+    server_logger()->info("Suppied on {} : {}, with {} thread(s).",
+                          endpoint.address().to_string()
+                          , endpoint.port()
+                          , _ioc_pool.Size()
+                         );
 }
 
 Server::Ptr Server::Supply(unsigned short port, size_t thread_count)
@@ -52,21 +59,33 @@ Server::Ptr Server::Supply(unsigned short port)
     return Ptr(new Server({Tcp::v4(), port}, 0));
 }
 
-
 Server::~Server()
 {
-    std::cout << "server destory." << std::endl;
+    server_logger()->info("Destroied.");
+}
+
+bool Server::Mount(ApplicationPtr app)
+{
+    if (AppMgr().Add(app))
+    {
+        server_logger()->info("Application {} mounted.", app->GetName());
+        return true;
+    }
+
+    server_logger()->error("Application {} mount fail.", app->GetName());
+    return false;
 }
 
 void Server::Run()
 {
     AppMgr().Mount();
+
     start_idle_timer();
     start_accept();
 
     _ioc_pool.Run();
 
-    std::cout << "server's running stopped." << std::endl;
+    server_logger()->info("Stopped.");
 }
 
 void Server::Stop()
@@ -137,7 +156,7 @@ ApplicationPtr Server::PrepareApp(std::string const& url)
 
     if (!app)
     {
-        std::cerr << "no found a app for URL. " << url << std::endl;
+        server_logger()->warn("Application on url \"{}\" no found.", url);
         return nullptr;
     }
 
@@ -169,7 +188,7 @@ void Server::do_accept()
     {
         if (ec)
         {
-            std::cerr << ec.message() << std::endl;
+            server_logger()->error("Acceptor error: {}", ec.message());
 
             if (_stopping)
             {
@@ -189,7 +208,8 @@ void Server::do_stop()
 {
     _stopping = true;
 
-    std::cout << "\r\nReceives an instruction to stop the service." << std::endl;
+    server_logger()->info("Stopping...");
+
     stop_idle_timer();
     _ioc_pool.Stop();
 }
@@ -201,7 +221,7 @@ void Server::start_idle_timer()
 
     if (ec)
     {
-        std::cerr << "Set server's idle timer expires time fail." << std::endl;
+        server_logger()->error("Idle timer set expires fail.");
     }
     else
     {
@@ -214,7 +234,11 @@ void Server::on_idle_timer(errorcode const& ec)
 {
     if (ec)
     {
-        std::cerr << "Server idle timer exception. " << ec.message() << std::endl;
+        if (ec != boost::system::errc::operation_canceled)
+        {
+            server_logger()->error("Idle timer exception. {}", ec.message());
+        }
+
         return;
     }
 

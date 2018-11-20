@@ -136,13 +136,14 @@ private:
     http_parser* _parser;
     http_parser_settings _parser_setting;
 
-    std::string  _url;
+    std::string  _url_buffer;
 
     enum ReadingHeaderPart {header_none_part, header_field_part, header_value_part};
     ReadingHeaderPart  _reading_header_part = header_none_part;
-    std::string _reading_header_field, _reading_header_value;
+    std::string _reading_header_field;
+    std::string _reading_header_value;
 
-    std::string _body;
+    std::string _body_buffer;
 
     enum ReadCompletePart {read_none_complete,
                            read_header_complete,
@@ -164,11 +165,11 @@ private:
     multipart_parser_settings* _mp_parser_setting = nullptr;
     multipart_parser* _mp_parser = nullptr;
     MultiPart _reading_part;
-    std::string _reading_part_data;
+    std::string _reading_part_buffer;
     MultipartParsePart _multipart_parse_part = mp_parse_none;
 
     boost::asio::streambuf _write_buffer;
-    std::string _current_chunked_body;
+    std::string _current_chunked_body_buffer;
 private:
     Request _request;
     Response _response;

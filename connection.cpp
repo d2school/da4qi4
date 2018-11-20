@@ -5,6 +5,7 @@
 
 #include "utilities/string_utilities.hpp"
 
+#include "def/log_def.hpp"
 #include "def/boost_def.hpp"
 #include "application.hpp"
 
@@ -71,9 +72,9 @@ void Connection::StartWrite()
 
 void Connection::update_request_after_header_parsed()
 {
-    if (!_url.empty())
+    if (!_url_buffer.empty())
     {
-        _request.ParseUrl(std::move(_url));
+        _request.ParseUrl(std::move(_url_buffer));
     }
 
     _request.SetFlags(_parser->flags);
@@ -189,7 +190,7 @@ int Connection::on_message_begin(http_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_read_complete = Connection::read_none_complete;
-    cnt->_body.clear();
+    cnt->_body_buffer.clear();
 
     return 0;
 }
@@ -197,7 +198,7 @@ int Connection::on_message_begin(http_parser* parser)
 int Connection::on_message_complete(http_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    cnt->_request.SetBody(std::move(cnt->_body));
+    cnt->_request.SetBody(std::move(cnt->_body_buffer));
     cnt->_read_complete = Connection::read_message_complete;
 
     return 0;
@@ -244,7 +245,7 @@ int Connection::on_header_value(http_parser* parser, char const* at, size_t leng
 int Connection::on_url(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    cnt->_url.append(at, length);
+    cnt->_url_buffer.append(at, length);
     return 0;
 }
 
@@ -252,15 +253,15 @@ void Connection::try_fix_multipart_bad_request_without_boundary()
 {
     assert(!_mp_parser);
 
-    if (_body.find("--") == 0)
+    if (_body_buffer.find("--") == 0)
     {
         constexpr int const length_of_boundary_start_flag = 2;
-        std::string::size_type endln_pos = _body.find("\r\n", length_of_boundary_start_flag);
+        std::string::size_type endln_pos = _body_buffer.find("\r\n", length_of_boundary_start_flag);
 
         if (endln_pos != std::string::npos)
         {
-            std::string boundary = _body.substr(length_of_boundary_start_flag
-                                                , endln_pos - length_of_boundary_start_flag);
+            std::string boundary = _body_buffer.substr(length_of_boundary_start_flag
+                                                       , endln_pos - length_of_boundary_start_flag);
             std::string::size_type len = boundary.size();
 
             if (len > 2 && boundary[len - 2] == '-' && boundary[len - 1] == '-')
@@ -288,14 +289,14 @@ Connection::MultpartParseStatus Connection::do_multipart_parse()
         return mp_cannot_init;
     }
 
-    size_t parsed_bytes = multipart_parser_execute(_mp_parser, _body.c_str(), _body.length());
+    size_t parsed_bytes = multipart_parser_execute(_mp_parser, _body_buffer.c_str(), _body_buffer.length());
 
-    if (parsed_bytes != _body.length())
+    if (parsed_bytes != _body_buffer.length())
     {
         return mp_parse_fail;
     }
 
-    _body.clear(); //body -> multi parts
+    _body_buffer.clear(); //body -> multi parts
     return mp_parsing;
 }
 
@@ -305,7 +306,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
 
     size_t upload_max_size_limit_kb = (cnt->_app) ? cnt->_app->GetUpoadMaxSizeLimitKB() : 15 * 1024;
 
-    size_t total_byte_kb = (cnt->_body.size() + length) / 1024;
+    size_t total_byte_kb = (cnt->_body_buffer.size() + length) / 1024;
 
     if (total_byte_kb > upload_max_size_limit_kb)
     {
@@ -313,7 +314,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
         return -1;
     }
 
-    cnt->_body.append(at, length);
+    cnt->_body_buffer.append(at, length);
 
     if (cnt->_request.IsMultiPart())
     {
@@ -326,7 +327,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
                 break;
 
             case   mp_parse_fail:
-                std::cerr << "multipart parse fail." << std::endl;
+                server_logger()->error("Parse multi-part data fail.");
                 return -1;
         }
     }
@@ -397,7 +398,7 @@ int Connection::on_multipart_data_begin(multipart_parser* parser)
     cnt->_reading_header_part = header_none_part;
     cnt->_reading_header_field.clear();
     cnt->_reading_header_value.clear();
-    cnt->_reading_part_data.clear();
+    cnt->_reading_part_buffer.clear();
 
     return 0;
 }
@@ -406,7 +407,7 @@ int Connection::on_multipart_data(multipart_parser* parser, char const* at, size
 {
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
     cnt->_multipart_parse_part = mp_parse_data;
-    cnt->_reading_part_data.append(at, length);
+    cnt->_reading_part_buffer.append(at, length);
     return 0;
 }
 
@@ -415,7 +416,7 @@ int Connection::on_multipart_data_end(multipart_parser* parser)
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
     cnt->_multipart_parse_part = mp_parse_data_end;
 
-    cnt->_reading_part.SetData(std::move(cnt->_reading_part_data));
+    cnt->_reading_part.SetData(std::move(cnt->_reading_part_buffer));
     cnt->_request.AddMultiPart(std::move(cnt->_reading_part));
     return 0;
 }
@@ -617,7 +618,7 @@ void Connection::do_write_header_for_chunked()
 void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 {
     bool is_last = false;
-    _current_chunked_body = _response.PopChunkedBody(is_last);
+    _current_chunked_body_buffer = _response.PopChunkedBody(is_last);
 
     if (is_last)
     {
@@ -626,13 +627,13 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 
     ConnectionPtr self = shared_from_this();
 
-    if (_current_chunked_body.empty())
+    if (_current_chunked_body_buffer.empty())
     {
         std::clock_t now = std::clock();
 
         if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
         {
-            std::cerr << "Too long to Wait for chunked data." << std::endl;
+            server_logger()->warn("Too long to wait for next chunked data when response.");
             return;
         }
 
@@ -640,7 +641,7 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
     }
     else
     {
-        boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body)
+        boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body_buffer)
                                  , [self](errorcode const & ec, size_t bytes_transferred)
         {
             self->do_write_chunked_body_finished(ec, bytes_transferred);
@@ -653,7 +654,7 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
 {
     if (ec)
     {
-        std::cerr << "write chunked body fail. " << ec.message() << std::endl;
+        server_logger()->error("Write chunked body fail. {}", ec.message());
         return;
     }
 
@@ -662,14 +663,14 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
 
 void Connection::reset()
 {
-    _url.clear();
-    _body.clear();
+    _url_buffer.clear();
+    _body_buffer.clear();
     _reading_header_part = header_none_part;
     _reading_header_field.clear();
     _reading_header_value.clear();
     _read_complete = read_none_complete;
     _reading_part.Clear();
-    _reading_part_data.clear();
+    _reading_part_buffer.clear();
     _multipart_parse_part = mp_parse_none;
     _request.Reset();
     _response.Reset();

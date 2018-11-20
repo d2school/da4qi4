@@ -1,6 +1,6 @@
 #include "rediscli_pool.hpp"
 
-#include "def/debug_def.hpp"
+#include "def/log_def.hpp"
 #include "utilities/asio_utilities.hpp"
 
 #include "server_engine.hpp"
@@ -17,16 +17,20 @@ void RedisClientPool::CreateClients(IOContextPool* ioc_pool
                                                      , RedisClientErrorHandlePolicy::auto_reconnect));
         _clients.push_back(client);
         client->Connect(std::bind(&RedisClientPool::on_connect_finished
-                                  , this
+                                  , this, i
                                   , std::placeholders::_1), host, port);
     }
 }
 
-void RedisClientPool::on_connect_finished(boost::system::error_code const& ec)
+void RedisClientPool::on_connect_finished(std::size_t index, boost::system::error_code const& ec)
 {
     if (!ec)
     {
-        std::cout << "connect to redis server success." << std::endl;
+        server_logger()->info("Redis server connected. (client {}).", index);
+    }
+    else
+    {
+        server_logger()->error("Redis server connect fail. (client {}).", index);
     }
 }
 

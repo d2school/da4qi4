@@ -2,7 +2,7 @@
 
 #include <thread>
 
-#include "def/debug_def.hpp"
+#include "def/log_def.hpp"
 #include "def/boost_def.hpp"
 
 namespace da4qi4
@@ -41,16 +41,24 @@ void IOContextPool::Run()
 
                     if (ec)
                     {
-                        std::cerr << "~~~~~>" << ec.message() << std::endl;
+                        server_logger()->error("Engine running exception. {0}", ec.message());
                     }
                 }
                 catch (std::exception const& e)
                 {
-                    std::cerr << e.what() << std::endl;
+                    server_logger()->error("Engine running exception. {0}", e.what());
+                }
+                catch (std::string const& s)
+                {
+                    server_logger()->error("Engine running exception. {0}", s);
+                }
+                catch (char const* s)
+                {
+                    server_logger()->error("Engine running exception. {0}", s);
                 }
                 catch (...)
                 {
-                    std::cerr << "unknown exception." << std::endl;
+                    server_logger()->error("Engine running unknown exception.");
                 }
             }
         }));
@@ -62,8 +70,6 @@ void IOContextPool::Run()
     {
         thread_ptr->join();
     }
-
-    std::cout << "all threads exits." << std::endl;
 }
 
 void IOContextPool::Stop()

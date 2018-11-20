@@ -15,36 +15,38 @@ using namespace da4qi4;
 
 int main()
 {
-    auto console = spdlog::stdout_color_st("console");
-    console->info("Wecome to {}", "da4qi4");
+    if (!init_server_logger())
+    {
+        std::cerr << "Create server logger fail." << std::endl;
+        return -1;
+    }
+
+    server_logger()->info("Wecome to {}", "da4qi4");
 
     auto svc = Server::Supply(4099);
 
-    console->info("Server start at {}", 4099);
-
-    auto admin = Application::Customize("d2-admin"
-                                        , "/admin/"
-                                        , "../d2_daqi/static/"
-                                        , "../d2_daqi/view/admin/"
-                                        , "../d2_daqi/upload/admin/"
-                                       );
+    auto web = Application::Customize("d2school"
+                                      , "/"
+                                      , "../d2_daqi/static/"
+                                      , "../d2_daqi/view/"
+                                      , "../d2_daqi/upload/"
+                                     );
 
     Intercepter::StaticFile static_file;
-    static_file.SetCacheMaxAge(600).AddEntry("layui/", "layui/");
-    admin->AddIntercepter(static_file);
+    static_file.SetCacheMaxAge(600).AddEntry("static/", "/");
+    web->AddIntercepter(static_file);
 
     Intercepter::SessionOnRedis session_redis;
     session_redis.SetHttpOnly(Cookie::HttpOnly::for_http_only);
-    admin->AddIntercepter(session_redis);
+    web->AddIntercepter(session_redis);
 
-    admin->AddHandler(_GET_, "/new_lesson", [](Context ctx)
+    web->AddHandler(_GET_, "/", [](Context ctx)
     {
         ctx->RenderWithoutData();
         ctx->Pass();
     });
 
-    svc->Mount(admin);
-    console->info("App {} mounted.", admin->GetName());
+    svc->Mount(web);
 
     RedisPool().CreateClients(svc->GetIOContextPool());
 
@@ -54,12 +56,12 @@ int main()
     }
     catch (std::exception const& e)
     {
-        console->error("Server Run Fail ! {}", e.what());
+        server_logger()->error("Run exception. {}.", e.what());
     }
 
     RedisPool().Stop();
     svc.reset();
-    std::cout << "Bye." << std::endl;
+    server_logger()->info("Bye.");
 
     return 0;
 }

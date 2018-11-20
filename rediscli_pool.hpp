@@ -44,7 +44,7 @@ public:
 
 private:
     void clear();
-    void on_connect_finished(boost::system::error_code const& ec);
+    void on_connect_finished(std::size_t index, boost::system::error_code const& ec);
 private:
     std::vector<RedisClientPtr> _clients;
 

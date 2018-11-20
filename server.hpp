@@ -37,10 +37,7 @@ public:
     void Stop();
 
 public:
-    bool Mount(ApplicationPtr app)
-    {
-        return AppMgr().Add(app);
-    }
+    bool Mount(ApplicationPtr app);
 
 public:
     ApplicationPtr AddHandler(HandlerMethod m, std::string const& url, Handler h)

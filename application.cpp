@@ -73,7 +73,7 @@ bool ApplicationMgr::IsEnable(std::string const& name) const
 
 ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 {
-    auto l = _map.upper_bound(url);
+    auto l = _map.lower_bound(url);
 
     if (l == _map.end())
     {
@@ -85,7 +85,7 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
         return l->second;
     }
 
-    auto u = _map.lower_bound(url);
+    auto u = _map.upper_bound(url);
 
     for (auto it = ++l; it != u && it != _map.end(); ++it)
     {
