@@ -26,11 +26,11 @@ void RedisClientPool::on_connect_finished(std::size_t index, boost::system::erro
 {
     if (!ec)
     {
-        server_logger()->info("Redis server connected. (client {}).", index);
+        ServerLogger()->info("Redis server connected. (client {}).", index);
     }
     else
     {
-        server_logger()->error("Redis server connect fail. (client {}).", index);
+        ServerLogger()->error("Redis server connect fail. (client {}).", index);
     }
 }
 

@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 
+#include "def/log_def.hpp"
 #include "def/boost_def.hpp"
 #include "utilities/string_utilities.hpp"
 
@@ -41,6 +42,7 @@ private:
 
     Application(std::string const& name
                 , std::string const& root_url
+                , fs::path const& root_log
                 , fs::path const& root_static
                 , fs::path const& root_template
                 , fs::path const& root_upload
@@ -54,18 +56,24 @@ public:
 
     static std::shared_ptr<Application> Customize(std::string const& name
                                                   , std::string const& root_url
+                                                  , fs::path const& root_log
                                                   , fs::path const& root_static = ""
                                                   , fs::path const& root_template = ""
                                                   , fs::path const& root_upload = ""
                                                   , fs::path const& root_temporary = "")
     {
         return std::shared_ptr<Application>(new Application(name,
-                                                            root_url, root_static,
+                                                            root_url, root_log, root_static,
                                                             root_template, root_upload,
                                                             root_temporary));
     }
 
     ~Application();
+
+    bool Init()
+    {
+        return init_logger() && init_pathes() && init_templates();
+    }
 
     Application& SetStaticRoot(std::string const& root_static)
     {
@@ -128,6 +136,11 @@ public:
         return _root_url;
     }
 
+    fs::path const& GetLogRoot() const
+    {
+        return _root_log;
+    }
+
     fs::path const& GetStaticRootPath() const
     {
         return _root_static;
@@ -182,6 +195,11 @@ public:
         return _templates;
     }
 
+    LoggerPtr GetLogger()
+    {
+        return _logger;
+    }
+
     void Handle(Context ctx);
 
 public:
@@ -228,8 +246,9 @@ public:
     }
 
 private:
-    void init_pathes();
-
+    bool init_pathes();
+    bool init_logger();
+    bool init_templates();
 private:
     Handler& find_handler(const Context& ctx);
     void do_handle(Context& ctx);
@@ -246,6 +265,7 @@ private:
     std::string _default_charset = "UTF-8";
 
     std::string _root_url;
+    fs::path _root_log;
     fs::path _root_static;
     fs::path _root_template;
     fs::path _root_upload;
@@ -259,6 +279,9 @@ private:
 
 private:
     Intercepter::Chain _intercepters;
+
+private:
+    LoggerPtr _logger;
 };
 
 using ApplicationPtr = std::shared_ptr<Application>;
@@ -270,7 +293,7 @@ class ApplicationMgr
 {
 public:
     bool CreateDefaultIfEmpty();
-    bool Add(ApplicationPtr app);
+    bool MountApplication(ApplicationPtr app);
 
     void Enable(std::string const& name);
     void Disable(std::string const& name);
@@ -282,6 +305,12 @@ public:
 
     ApplicationPtr FindByName(std::string const& name);
     ApplicationPtr const FindByName(std::string const& name) const;
+
+    LoggerPtr GetApplicationLogger(std::string const& application_name)
+    {
+        auto it = _app_loggers.find(application_name);
+        return (it == _app_loggers.end() ? nullptr : it->second);
+    }
 
     ApplicationMap const& All() const
     {
@@ -303,6 +332,10 @@ public:
 private:
     ApplicationMap _map;
     bool _mounted = false;
+
+    using ApplicationLoggerMap = std::map<std::string /* name */, LoggerPtr>;
+
+    ApplicationLoggerMap _app_loggers;
 };
 
 ApplicationMgr& AppMgr();

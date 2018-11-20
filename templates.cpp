@@ -2,7 +2,7 @@
 
 #include "inja/inja.hpp"
 
-#include "def/debug_def.hpp"
+#include "def/log_def.hpp"
 #include "def/boost_def.hpp"
 #include "utilities/string_utilities.hpp"
 
@@ -12,9 +12,6 @@ namespace da4qi4
 namespace
 {
 std::string const daqi_HTML_template_ext = ".daqi.HTML";
-//std::string const daqi_PLAIN_template_ext = ".daqi.PLAIN";
-//std::string const daqi_JSON_template_ext = ".daqi.JSON";
-//std::string const daqi_XML_template_ext = ".daqi.XML";
 }
 
 void init_template_env(inja::Environment& env)
@@ -62,12 +59,15 @@ bool Templates::try_load_template(std::string const& key
 
         if (tmpl_src.empty())
         {
+            _app_logger->error("Load template file {} fail.", full_template_filename);
             return false;
         }
 
         TemplatePtr templ = TemplatePtr(new Template(env.parse(tmpl_src)));
         Item item {templ, std::time(nullptr), full_template_filename};
         _templates.insert(std::make_pair(key, item));
+
+        _app_logger->info("Template {} loaded.", template_filename);
 
         return true;
     }
@@ -127,35 +127,36 @@ size_t Templates::load_templates(std::string const& template_ext, std::string co
     return count;
 }
 
-size_t Templates::Preload()
+bool Templates::Preload(LoggerPtr app_logger)
 {
     std::lock_guard<std::mutex> guard(_m);
 
+    if (_app_logger != app_logger)
+    {
+        _app_logger = app_logger;
+    }
+
     _templates.clear();
-    size_t count = 0;
 
     try
     {
-        count += load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
-        //        count += load_templates(daqi_PLAIN_template_ext, ".plain");
-        //        count += load_templates(daqi_JSON_template_ext, ".json");
-        //        count += load_templates(daqi_XML_template_ext, ".xml");
-        return count;
+        load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        return true;
     }
     catch (fs::filesystem_error const& ec)
     {
-        std::cerr << ec.what() << std::endl;
+        _app_logger->error("Template file \"{}\" load exception.", ec.what());
     }
     catch (std::exception const& ec)
     {
-        std::cerr << ec.what() << std::endl;
+        _app_logger->error("Template file \"{}\" load exception.", ec.what());
     }
     catch (...)
     {
-        std::cerr << "unknown exception" << std::endl;
+        _app_logger->error("Template file load unknown exception.");
     }
 
-    return 0;
+    return false;
 }
 
 TemplatePtr const  Templates::Get(std::string const& name)
@@ -206,11 +207,18 @@ bool Templates::ReloadIfUpdate()
 
     if (!found_filename.empty())
     {
-        std::cout << "one or more template file modified from disk, will reload all." << std::endl;
-        Preload();
-        std::cout << "templates reloaded." << std::endl;
+        _app_logger->info("Templates update detected.");
 
-        return true;
+        if (reload())
+        {
+            _app_logger->info("All templates reloaded.");
+            return true;
+        }
+        else
+        {
+            _app_logger->error("Templates reload fail.");
+            return false;
+        }
     }
 
     return false;

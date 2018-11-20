@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "def/inja_def.hpp"
+#include "def/log_def.hpp"
 
 namespace da4qi4
 {
@@ -22,11 +23,17 @@ public:
         }
     }
 
-    size_t Preload();
+    bool Preload(LoggerPtr app_logger);
 
     TemplatePtr const Get(std::string const& name);
 
     bool ReloadIfUpdate();
+
+private:
+    bool reload()
+    {
+        return (_app_logger == nullptr) ? false : Preload(_app_logger);
+    }
 
 private:
     mutable std::mutex _m;
@@ -43,6 +50,7 @@ private:
         std::string filename;
     };
 
+    LoggerPtr _app_logger;
     std::unordered_map<std::string, Item> _templates;
     std::string _root, _app_prefix;
 };

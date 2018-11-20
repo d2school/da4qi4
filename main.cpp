@@ -15,22 +15,31 @@ using namespace da4qi4;
 
 int main()
 {
-    if (!init_server_logger())
+    std::string www_root = "../d2_daqi/";
+
+    if (!InitServerLogger(www_root + "logs/"))
     {
         std::cerr << "Create server logger fail." << std::endl;
         return -1;
     }
 
-    server_logger()->info("Wecome to {}", "da4qi4");
+    ServerLogger()->info("Wecome to {}", "da4qi4");
 
     auto svc = Server::Supply(4099);
 
     auto web = Application::Customize("d2school"
                                       , "/"
-                                      , "../d2_daqi/static/"
-                                      , "../d2_daqi/view/"
-                                      , "../d2_daqi/upload/"
+                                      , www_root + "logs/"
+                                      , www_root + "static/"
+                                      , www_root + "view/"
+                                      , www_root + "upload/"
                                      );
+
+    if (!web->Init())
+    {
+        std::cerr << "Init application " << web->GetName() << " fail." << std::endl;
+        return -2;
+    }
 
     Intercepter::StaticFile static_file;
     static_file.SetCacheMaxAge(600).AddEntry("static/", "/");
@@ -46,7 +55,11 @@ int main()
         ctx->Pass();
     });
 
-    svc->Mount(web);
+    if (!svc->Mount(web))
+    {
+        std::cerr << "Mount application " << web->GetName() << " fail." << std::endl;
+        return -2;
+    }
 
     RedisPool().CreateClients(svc->GetIOContextPool());
 
@@ -56,12 +69,12 @@ int main()
     }
     catch (std::exception const& e)
     {
-        server_logger()->error("Run exception. {}.", e.what());
+        ServerLogger()->error("Run exception. {}.", e.what());
     }
 
     RedisPool().Stop();
     svc.reset();
-    server_logger()->info("Bye.");
+    ServerLogger()->info("Bye.");
 
     return 0;
 }

@@ -32,7 +32,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     _acceptor.bind(endpoint);
     _acceptor.listen();
 
-    server_logger()->info("Suppied on {} : {}, with {} thread(s).",
+    ServerLogger()->info("Suppied on {} : {}, with {} thread(s).",
                           endpoint.address().to_string()
                           , endpoint.port()
                           , _ioc_pool.Size()
@@ -61,18 +61,18 @@ Server::Ptr Server::Supply(unsigned short port)
 
 Server::~Server()
 {
-    server_logger()->info("Destroied.");
+    ServerLogger()->info("Destroied.");
 }
 
 bool Server::Mount(ApplicationPtr app)
 {
-    if (AppMgr().Add(app))
+    if (AppMgr().MountApplication(app))
     {
-        server_logger()->info("Application {} mounted.", app->GetName());
+        ServerLogger()->info("Application {} mounted.", app->GetName());
         return true;
     }
 
-    server_logger()->error("Application {} mount fail.", app->GetName());
+    ServerLogger()->error("Application {} mount fail.", app->GetName());
     return false;
 }
 
@@ -85,7 +85,7 @@ void Server::Run()
 
     _ioc_pool.Run();
 
-    server_logger()->info("Stopped.");
+    ServerLogger()->info("Stopped.");
 }
 
 void Server::Stop()
@@ -156,7 +156,7 @@ ApplicationPtr Server::PrepareApp(std::string const& url)
 
     if (!app)
     {
-        server_logger()->warn("Application on url \"{}\" no found.", url);
+        ServerLogger()->warn("Application on url \"{}\" no found.", url);
         return nullptr;
     }
 
@@ -188,7 +188,7 @@ void Server::do_accept()
     {
         if (ec)
         {
-            server_logger()->error("Acceptor error: {}", ec.message());
+            ServerLogger()->error("Acceptor error: {}", ec.message());
 
             if (_stopping)
             {
@@ -208,7 +208,7 @@ void Server::do_stop()
 {
     _stopping = true;
 
-    server_logger()->info("Stopping...");
+    ServerLogger()->info("Stopping...");
 
     stop_idle_timer();
     _ioc_pool.Stop();
@@ -221,7 +221,7 @@ void Server::start_idle_timer()
 
     if (ec)
     {
-        server_logger()->error("Idle timer set expires fail.");
+        ServerLogger()->error("Idle timer set expires fail.");
     }
     else
     {
@@ -236,7 +236,7 @@ void Server::on_idle_timer(errorcode const& ec)
     {
         if (ec != boost::system::errc::operation_canceled)
         {
-            server_logger()->error("Idle timer exception. {}", ec.message());
+            ServerLogger()->error("Idle timer exception. {}", ec.message());
         }
 
         return;

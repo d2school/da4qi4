@@ -1,11 +1,16 @@
 #include "application.hpp"
 
-#include "def/debug_def.hpp"
+#include <iostream>
 
 namespace da4qi4
 {
 
 static char const* default_app_name = "da4qi4-Default";
+
+LoggerPtr AppLogger(std::string const& application_name)
+{
+    return AppMgr().GetApplicationLogger(application_name);
+}
 
 ApplicationMgr& AppMgr()
 {
@@ -17,22 +22,33 @@ bool ApplicationMgr::CreateDefaultIfEmpty()
 {
     if (_map.empty())
     {
-        _map.insert(std::make_pair("/", Application::Default()));
+        auto app = Application::Default();
+
+        if (!app->Init())
+        {
+            return false;
+        }
+
+        _map.insert(std::make_pair("/", app));
         return true;
     }
 
     return false;
 }
 
-bool ApplicationMgr::Add(ApplicationPtr app)
+bool ApplicationMgr::MountApplication(ApplicationPtr app)
 {
     if (_mounted)
     {
         return false;
     }
 
-    if (!app->GetName().empty() && !IsExists(app->GetName()))
+    assert(!app->GetName().empty());
+    assert(app->GetLogger() != nullptr);
+
+    if (!IsExists(app->GetName()))
     {
+        _app_loggers.insert(std::make_pair(app->GetName(), app->GetLogger()));
         _map.insert(std::make_pair(app->GetUrlRoot(), app));
         return true;
     }
@@ -203,17 +219,18 @@ Application::Application()
     , _root_url("/")
     , _templates("", "/")
 {
-    init_pathes();
 }
 
 Application::Application(std::string const& name
                          , std::string const& root_url
+                         , fs::path const& root_log
                          , fs::path const& root_static
                          , fs::path const& root_template
                          , fs::path const& root_upload
                          , fs::path const& root_temporary)
     : _name(name)
     , _root_url(root_url)
+    , _root_log(root_log)
     , _root_static(root_static)
     , _root_template(root_template)
     , _root_upload(root_upload)
@@ -221,7 +238,6 @@ Application::Application(std::string const& name
     , _templates(root_template.native(), root_url)
 
 {
-    init_pathes();
 }
 
 Application::~Application()
@@ -238,8 +254,52 @@ void Application::Enable()
     _disabled = false;
 }
 
-void Application::init_pathes()
+bool Application::init_logger()
 {
+    assert(!IsRuning());
+
+    try
+    {
+        if (_root_log.empty())
+        {
+            _root_log = fs::current_path();
+        }
+        else if (!_root_log.is_absolute())
+        {
+            _root_log = fs::absolute(_root_log);
+        }
+    }
+    catch (fs::filesystem_error const& e)
+    {
+        std::cerr << "Init " << _name << " log path exception. " << e.what() << std::endl;
+        return false;
+    }
+    catch (std::exception const& e)
+    {
+        std::cerr << "Init " << _name << " log path exception. " << e.what() << std::endl;
+        return false;
+    }
+    catch (...)
+    {
+        std::cerr << "Init " << _name << " log path unknown exception." << std::endl;
+        return false;
+    }
+
+    _logger = CreateApplicationLoger(_name, _root_log.native());
+
+    if (!_logger)
+    {
+        std::cerr << "Create appliction" << _name << " logger fail." << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+bool Application::init_pathes()
+{
+    assert(!IsRuning());
+
     try
     {
         if (_root_template.empty())
@@ -249,6 +309,15 @@ void Application::init_pathes()
         else if (!_root_template.is_absolute())
         {
             _root_template = fs::absolute(_root_template);
+        }
+
+        if (_root_static.empty())
+        {
+            _root_static = fs::current_path();
+        }
+        else if (!_root_static.is_absolute())
+        {
+            _root_static = fs::absolute(_root_static);
         }
 
         if (_root_upload.empty())
@@ -268,13 +337,31 @@ void Application::init_pathes()
         {
             _root_temporary = fs::absolute(_root_temporary);
         }
+
+        return true;
     }
     catch (fs::filesystem_error const& e)
     {
-        std::cerr << e.what() << std::endl;
+        _logger->error("Init pathes exception. {}", e.what());
+    }
+    catch (std::exception const& e)
+    {
+        _logger->error("Init pathes exception. {}", e.what());
+    }
+    catch (...)
+    {
+        _logger->error("Init pathes unknown exception.");
     }
 
-    _templates.Preload();
+    return false;
+}
+
+bool Application::init_templates()
+{
+    assert(!IsRuning());
+    assert(_logger != nullptr);
+
+    return _templates.Preload(_logger);
 }
 
 bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)
