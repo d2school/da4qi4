@@ -70,9 +70,14 @@ public:
 
     ~Application();
 
-    bool Init()
+    enum class NeedLogger {no, yes};
+    bool Init(NeedLogger create_logger = NeedLogger::no, log::Level level = log::Level::info,
+              size_t max_file_size_kb = 5 * 1024, size_t max_file_count = 9)
     {
-        return init_logger() && init_pathes() && init_templates();
+        assert(!_inited);
+        _inited = true;
+        return init_logger(create_logger, level, max_file_size_kb, max_file_count)
+               && init_pathes() && init_templates();
     }
 
     Application& SetStaticRoot(std::string const& root_static)
@@ -195,7 +200,7 @@ public:
         return _templates;
     }
 
-    LoggerPtr GetLogger()
+    log::LoggerPtr GetLogger()
     {
         return _logger;
     }
@@ -247,7 +252,7 @@ public:
 
 private:
     bool init_pathes();
-    bool init_logger();
+    bool init_logger(NeedLogger will_create_logger, log::Level level, size_t max_file_size_kb, size_t max_file_count);
     bool init_templates();
 private:
     Handler& find_handler(const Context& ctx);
@@ -258,6 +263,7 @@ private:
     RegexMatchRoutingTable _regexRouter;
 
 private:
+    bool _inited = false;
     bool _disabled = false;
     bool _mounted = false;
 
@@ -281,7 +287,7 @@ private:
     Intercepter::Chain _intercepters;
 
 private:
-    LoggerPtr _logger;
+    log::LoggerPtr _logger;
 };
 
 using ApplicationPtr = std::shared_ptr<Application>;
@@ -306,10 +312,10 @@ public:
     ApplicationPtr FindByName(std::string const& name);
     ApplicationPtr const FindByName(std::string const& name) const;
 
-    LoggerPtr GetApplicationLogger(std::string const& application_name)
+    log::LoggerPtr GetApplicationLogger(std::string const& application_name)
     {
         auto it = _app_loggers.find(application_name);
-        return (it == _app_loggers.end() ? nullptr : it->second);
+        return (it == _app_loggers.end() ? log::Null() : it->second);
     }
 
     ApplicationMap const& All() const
@@ -333,7 +339,7 @@ private:
     ApplicationMap _map;
     bool _mounted = false;
 
-    using ApplicationLoggerMap = std::map<std::string /* name */, LoggerPtr>;
+    using ApplicationLoggerMap = std::map<std::string /* name */, log::LoggerPtr>;
 
     ApplicationLoggerMap _app_loggers;
 };

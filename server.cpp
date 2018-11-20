@@ -17,6 +17,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     , _ioc_pool(thread_count)
     , _acceptor(_ioc_pool.GetIOContext())
     , _signals(_ioc_pool.GetIOContext())
+    , _detect_templates(false)
     , _idle_timer(_ioc_pool.GetIOContext())
 {
     _signals.add(SIGINT);
@@ -32,11 +33,11 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     _acceptor.bind(endpoint);
     _acceptor.listen();
 
-    ServerLogger()->info("Suppied on {} : {}, with {} thread(s).",
-                          endpoint.address().to_string()
-                          , endpoint.port()
-                          , _ioc_pool.Size()
-                         );
+    log::Server()->info("Suppied on {} : {}, with {} thread(s).",
+                        endpoint.address().to_string()
+                        , endpoint.port()
+                        , _ioc_pool.Size()
+                       );
 }
 
 Server::Ptr Server::Supply(unsigned short port, size_t thread_count)
@@ -61,18 +62,18 @@ Server::Ptr Server::Supply(unsigned short port)
 
 Server::~Server()
 {
-    ServerLogger()->info("Destroied.");
+    log::Server()->info("Destroied.");
 }
 
 bool Server::Mount(ApplicationPtr app)
 {
     if (AppMgr().MountApplication(app))
     {
-        ServerLogger()->info("Application {} mounted.", app->GetName());
+        log::Server()->info("Application {} mounted.", app->GetName());
         return true;
     }
 
-    ServerLogger()->error("Application {} mount fail.", app->GetName());
+    log::Server()->error("Application {} mount fail.", app->GetName());
     return false;
 }
 
@@ -85,7 +86,7 @@ void Server::Run()
 
     _ioc_pool.Run();
 
-    ServerLogger()->info("Stopped.");
+    log::Server()->info("Stopped.");
 }
 
 void Server::Stop()
@@ -156,7 +157,7 @@ ApplicationPtr Server::PrepareApp(std::string const& url)
 
     if (!app)
     {
-        ServerLogger()->warn("Application on url \"{}\" no found.", url);
+        log::Server()->warn("Application on url \"{}\" no found.", url);
         return nullptr;
     }
 
@@ -188,7 +189,7 @@ void Server::do_accept()
     {
         if (ec)
         {
-            ServerLogger()->error("Acceptor error: {}", ec.message());
+            log::Server()->error("Acceptor error: {}", ec.message());
 
             if (_stopping)
             {
@@ -208,7 +209,7 @@ void Server::do_stop()
 {
     _stopping = true;
 
-    ServerLogger()->info("Stopping...");
+    log::Server()->info("Stopping...");
 
     stop_idle_timer();
     _ioc_pool.Stop();
@@ -221,7 +222,7 @@ void Server::start_idle_timer()
 
     if (ec)
     {
-        ServerLogger()->error("Idle timer set expires fail.");
+        log::Server()->error("Idle timer set expires fail.");
     }
     else
     {
@@ -236,13 +237,16 @@ void Server::on_idle_timer(errorcode const& ec)
     {
         if (ec != boost::system::errc::operation_canceled)
         {
-            ServerLogger()->error("Idle timer exception. {}", ec.message());
+            log::Server()->error("Idle timer exception. {}", ec.message());
         }
 
         return;
     }
 
-    AppMgr().CheckTemplatesUpdate();
+    if (_detect_templates)
+    {
+        AppMgr().CheckTemplatesUpdate();
+    }
 
     start_idle_timer();
 }

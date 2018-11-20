@@ -41,24 +41,24 @@ void IOContextPool::Run()
 
                     if (ec)
                     {
-                        ServerLogger()->error("Engine running exception. {0}", ec.message());
+                        log::Server()->error("Engine running exception. {0}", ec.message());
                     }
                 }
                 catch (std::exception const& e)
                 {
-                    ServerLogger()->error("Engine running exception. {0}", e.what());
+                    log::Server()->error("Engine running exception. {0}", e.what());
                 }
                 catch (std::string const& s)
                 {
-                    ServerLogger()->error("Engine running exception. {0}", s);
+                    log::Server()->error("Engine running exception. {0}", s);
                 }
                 catch (char const* s)
                 {
-                    ServerLogger()->error("Engine running exception. {0}", s);
+                    log::Server()->error("Engine running exception. {0}", s);
                 }
                 catch (...)
                 {
-                    ServerLogger()->error("Engine running unknown exception.");
+                    log::Server()->error("Engine running unknown exception.");
                 }
             }
         }));

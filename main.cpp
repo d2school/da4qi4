@@ -1,12 +1,6 @@
-#include <ctime>
-
 #include <iostream>
 
-#include "def/log_def.hpp"
-
-#include "server.hpp"
-#include "router.hpp"
-#include "application.hpp"
+#include "da4qi4.hpp"
 
 #include "intercepters/static_file.hpp"
 #include "intercepters/session_redis.hpp"
@@ -17,25 +11,24 @@ int main()
 {
     std::string www_root = "../d2_daqi/";
 
-    if (!InitServerLogger(www_root + "logs/"))
+    if (!log::InitServerLogger(www_root + "logs/"))
     {
         std::cerr << "Create server logger fail." << std::endl;
         return -1;
     }
 
-    ServerLogger()->info("Wecome to {}", "da4qi4");
-
     auto svc = Server::Supply(4099);
 
-    auto web = Application::Customize("d2school"
+    std::string app_root = www_root;
+    auto web = Application::Customize("web"
                                       , "/"
-                                      , www_root + "logs/"
-                                      , www_root + "static/"
-                                      , www_root + "view/"
-                                      , www_root + "upload/"
+                                      , app_root + "logs/"
+                                      , app_root + "static/"
+                                      , app_root + "view/"
+                                      , app_root + "upload/"
                                      );
 
-    if (!web->Init())
+    if (!web->Init(Application::NeedLogger::yes))
     {
         std::cerr << "Init application " << web->GetName() << " fail." << std::endl;
         return -2;
@@ -69,12 +62,12 @@ int main()
     }
     catch (std::exception const& e)
     {
-        ServerLogger()->error("Run exception. {}.", e.what());
+        log::Server()->error("Run exception. {}.", e.what());
     }
 
     RedisPool().Stop();
     svc.reset();
-    ServerLogger()->info("Bye.");
+    log::Server()->info("Bye.");
 
     return 0;
 }

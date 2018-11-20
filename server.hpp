@@ -37,6 +37,22 @@ public:
     void Stop();
 
 public:
+    void EnableDetectTemplates()
+    {
+        _detect_templates = true;
+    }
+
+    void DisableDetectTemplates()
+    {
+        _detect_templates = false;
+    }
+
+    bool IsEnabledDetetTemplates() const
+    {
+        return _detect_templates;
+    }
+
+public:
     bool Mount(ApplicationPtr app);
 
 public:
@@ -77,6 +93,7 @@ private:
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
 
+    std::atomic_bool _detect_templates;
     boost::asio::deadline_timer _idle_timer;
 };
 

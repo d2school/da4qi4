@@ -327,7 +327,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
                 break;
 
             case   mp_parse_fail:
-                ServerLogger()->error("Parse multi-part data fail.");
+                log::Server()->error("Parse multi-part data fail.");
                 return -1;
         }
     }
@@ -633,7 +633,7 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 
         if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
         {
-            ServerLogger()->warn("Too long to wait for next chunked data when response.");
+            log::Server()->warn("Too long to wait for next chunked data when response.");
             return;
         }
 
@@ -654,7 +654,7 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
 {
     if (ec)
     {
-        ServerLogger()->error("Write chunked body fail. {}", ec.message());
+        log::Server()->error("Write chunked body fail. {}", ec.message());
         return;
     }
 

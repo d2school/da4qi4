@@ -23,7 +23,7 @@ public:
         }
     }
 
-    bool Preload(LoggerPtr app_logger);
+    bool Preload(log::LoggerPtr app_logger);
 
     TemplatePtr const Get(std::string const& name);
 
@@ -50,7 +50,7 @@ private:
         std::string filename;
     };
 
-    LoggerPtr _app_logger;
+    log::LoggerPtr _app_logger;
     std::unordered_map<std::string, Item> _templates;
     std::string _root, _app_prefix;
 };

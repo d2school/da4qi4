@@ -127,7 +127,7 @@ size_t Templates::load_templates(std::string const& template_ext, std::string co
     return count;
 }
 
-bool Templates::Preload(LoggerPtr app_logger)
+bool Templates::Preload(log::LoggerPtr app_logger)
 {
     std::lock_guard<std::mutex> guard(_m);
 

@@ -7,11 +7,6 @@ namespace da4qi4
 
 static char const* default_app_name = "da4qi4-Default";
 
-LoggerPtr AppLogger(std::string const& application_name)
-{
-    return AppMgr().GetApplicationLogger(application_name);
-}
-
 ApplicationMgr& AppMgr()
 {
     static ApplicationMgr mgr;
@@ -254,9 +249,17 @@ void Application::Enable()
     _disabled = false;
 }
 
-bool Application::init_logger()
+bool Application::init_logger(NeedLogger will_create_logger, log::Level level,
+                              size_t max_file_size_kb,
+                              size_t max_file_count)
 {
     assert(!IsRuning());
+
+    if (will_create_logger == NeedLogger::no)
+    {
+        _logger = log::Null();
+        return true;
+    }
 
     try
     {
@@ -285,7 +288,7 @@ bool Application::init_logger()
         return false;
     }
 
-    _logger = CreateApplicationLoger(_name, _root_log.native());
+    _logger = log::CreateAppLogger(_name, _root_log.native(), level, max_file_size_kb, max_file_count);
 
     if (!_logger)
     {

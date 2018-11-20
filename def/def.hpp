@@ -14,6 +14,8 @@
 namespace da4qi4
 {
 
+extern char const* const the_daqi_name;
+
 enum class CacheControl {Public, Private};
 enum PathResolve {is_relative, is_absolute}; //for url and dist-directory
 

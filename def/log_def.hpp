@@ -10,18 +10,31 @@
 namespace da4qi4
 {
 
+namespace log
+{
+
+using Level = spdlog::level::level_enum;
 using LoggerPtr = std::shared_ptr<spdlog::logger>;
 
-bool InitServerLogger(std::string const& log_dir);
+bool InitServerLogger(std::string const& log_dir, Level level = Level::info,
+                      size_t max_file_size_kb = 5 * 1024,
+                      size_t max_file_count = 9);
 
-inline LoggerPtr ServerLogger()
-{
-    return spdlog::get("server");
-}
+LoggerPtr CreateAppLogger(std::string const& application_name,
+                          std::string const& application_root_log,
+                          Level level,
+                          size_t max_file_size_kb,
+                          size_t max_file_count);
 
-LoggerPtr CreateApplicationLoger(std::string const& application_name
-                                 , std::string const& application_root_log);
+LoggerPtr Null();
+LoggerPtr Server();
+LoggerPtr App(std::string const& application_name);
 
-LoggerPtr AppLogger(std::string const& application_name);
+void SetLogLevel(Level level);
+void SetServerLogLevel(Level level);
+void SetAppLogLevel(std::string const& application_name, Level level);
+
+} // namespace log
+
 }
 #endif // DAQI_LOG_DEF_HPP
