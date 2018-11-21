@@ -103,6 +103,12 @@ void RedisClient::Reconnect(std::function<void (boost::system::error_code const&
 {
     if (IsConnectting())
     {
+        if (on)
+        {
+            auto ec = boost::system::errc::make_error_code(boost::system::errc::operation_in_progress);
+            on(ec);
+        }
+
         return;
     }
 
