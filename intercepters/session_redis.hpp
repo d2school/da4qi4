@@ -19,13 +19,26 @@ struct SessionOnRedis
     static std::string const data_name;
 
     SessionOnRedis() = default;
-    SessionOnRedis(std::string const& name,
+
+    SessionOnRedis(std::string const& application_name)
+        : _application_name(application_name)
+    {}
+
+    SessionOnRedis(std::string const& application_name,
+                   std::string const& name,
                    std::string const& prefix,
                    int session_max_age_seconds)
+        : _application_name(application_name)
     {
         _options.name = name;
         _options.prefix = prefix;
         _options.max_age = session_max_age_seconds;
+    }
+
+    SessionOnRedis& SetApplicationName(std::string const& name)
+    {
+        _application_name = name;
+        return *this;
     }
 
     SessionOnRedis(int session_max_age_seconds)
@@ -103,6 +116,7 @@ private:
 
     Json create_new_session() const;
 private:
+    std::string _application_name;
     SessionOptions _options;
 };
 

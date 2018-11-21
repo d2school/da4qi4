@@ -8,7 +8,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-#include "def/debug_def.hpp"
+#include "def/log_def.hpp"
 
 #include "utilities/string_utilities.hpp"
 #include "utilities/file_utilities.hpp"
@@ -606,8 +606,7 @@ fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& 
             {
                 if (++retry_count > 9)
                 {
-                    std::cerr << "Too many temporary files in the upload directory. "
-                              << dir << ". removed them please." << std::endl;
+                    log::Server()->error("Too many files in upload directory: {}.", dir);
                     return Utilities::theEmptyString;
                 }
 
@@ -616,7 +615,7 @@ fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& 
         }
         catch (std::exception const& e)
         {
-            std::cerr << e.what() << std::endl;
+            log::Server()->error("Test file {} exists exception. {}", disk_fn.string(), e.what());
             return Utilities::theEmptyString;
         }
     }
@@ -720,11 +719,10 @@ void Request::TransferMultiPartsToFormData(UploadFileSaveOptions const& options,
     }
 }
 
-
-std::string Request::dump() const
+std::string Request::Dump() const
 {
     std::stringstream ss;
-    ss << "====== URL ======\r\n";
+
     ss << "url : " << _url.full <<  "\r\n";
     ss << "host : " << _url.host <<  "\r\n";
     ss << "port : " << _url.port <<  "\r\n";
@@ -732,23 +730,23 @@ std::string Request::dump() const
     ss << "query : " << _url.query <<  "\r\n";
     ss << "fragment : " << _url.fragment <<  "\r\n";
     ss << "userinfo : " << _url.userinfo <<  "\r\n";
-    ss << "====== URL PARAMETERS ======\r\n";
+
+    ss << "url-parameters : \r\n";
 
     for (auto const& p : _url.parameters)
     {
         ss << p.first << " : " << p.second <<  "\r\n";
     }
 
-    ss << "====== METHOD ======\r\n";
     ss << "method : " << this->GetMethodName() <<  "\r\n";
-    ss << "====== HEADERS ======\r\n";
+
+    ss << "headers : \r\n";
 
     for (auto const& p : _headers)
     {
         ss << p.first << " : " << p.second << "\r\n";
     }
 
-    ss << "====== FLAGS ======\r\n";
     ss << "upgrade : " << std::boolalpha << this->IsUpgrade() << "\r\n";
     ss << "has content-length : " << std::boolalpha << this->IsContentLengthProvided() << "\r\n";
     ss << "chunked : " << std::boolalpha << this->IsChunked() << "\r\n";
@@ -761,9 +759,10 @@ std::string Request::dump() const
         ss << "boundary : " << GetMultiPartBoundary() << "\r\n";
     }
 
-    ss << "====== BODY ======\r\n";
+    ss << "body : \r\n";
     ss << _body <<  "\r\n";
-    ss << "======MULTIPART======\r\n";
+
+    ss << "multi-parts : \r\n";
 
     for (auto const& mp : this->_multiparts)
     {
@@ -776,13 +775,27 @@ std::string Request::dump() const
         ss << mp.GetData() <<  "\r\n";
     }
 
-    ss << "======FORMDATA======\r\n";
+    ss << "form-data : \r\n";
 
     for (auto const& fd : this->_formdata)
     {
-        ss << "name => " << fd.name << "\r\n"
-           << "is file => " << fd.IsFile() << "\r\n"
-           << "data => \r\n" << fd.data << "\r\n";
+        ss << "name : " << fd.name << "\r\n"
+           << "is-file : " << fd.IsFile() << "\r\n"
+           << "data : \r\n" << fd.data << "\r\n";
+    }
+
+    ss << "path-parameters : \r\n";
+
+    for (auto const& pp : this->_path_parameters.Items())
+    {
+        ss << pp.first << " : " << pp.second << "\r\n";
+    }
+
+    ss << "cookies : \r\n";
+
+    for (auto const& c : this->_cookies)
+    {
+        ss << c.first << " : " << c.second << "\r\n";
     }
 
     return ss.str();

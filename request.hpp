@@ -70,6 +70,11 @@ struct RoutingPathParameters
         _parameters.clear();
     }
 
+    std::map<std::string, std::string> const& Items() const
+    {
+        return _parameters;
+    }
+
     bool IsExists(std::string const& name) const;
     std::string const& Get(std::string const& name) const;
     OptionalStringRefConst TryGet(std::string const& name) const;
@@ -548,7 +553,7 @@ public:
 
     void Reset();
 
-    std::string dump() const;
+    std::string Dump() const;
 
 private:
     static int const upgrade_bit = 0;

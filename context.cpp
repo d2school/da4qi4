@@ -2,6 +2,7 @@
 
 #include <iterator>
 
+#include "def/log_def.hpp"
 #include "connection.hpp"
 #include "application.hpp"
 
@@ -37,325 +38,99 @@ size_t ContextIMP::IOContextIndex() const
     return _cnt->GetIOContextIndex();
 }
 
+
+void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function_name,
+                                                            PSSFun func,
+                                                            std::string defaultValue)
+{
+    _env.add_callback(function_name, 1
+                      , [this, func, function_name, defaultValue](inja::Parsed::Arguments args
+                                                                  , Json data) -> std::string
+    {
+        try
+        {
+            if (args.size() == 1)
+            {
+                std::string name = _env.get_argument<std::string>(args, 0, data);
+
+                if (!name.empty())
+                {
+                    return (this->*func)(name);
+                }
+            }
+
+            return defaultValue;
+        }
+        catch (std::exception const& e)
+        {
+            if (auto logger = this->_cnt->GetApplication()->GetLogger())
+            {
+                logger->error("Regist templage enginer function {} exception. {}"
+                              , function_name, e.what());
+            }
+        }
+
+        return defaultValue;
+    });
+}
+
+void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_name,
+                                                          PBSFun func,
+                                                          bool defaultValue)
+{
+    _env.add_callback(function_name, 1
+                      , [this, func, function_name, defaultValue](inja::Parsed::Arguments args
+                                                                  , Json data) -> bool
+    {
+        try
+        {
+            if (args.size() == 1)
+            {
+                std::string name = _env.get_argument<std::string>(args, 0, data);
+
+                if (!name.empty())
+                {
+                    return (this->*func)(name);
+                }
+            }
+
+            return defaultValue;
+        }
+        catch (std::exception const& e)
+        {
+            if (auto logger = this->_cnt->GetApplication()->GetLogger())
+            {
+                logger->error("Regist templage enginer function {} exception. {}"
+                              , function_name, e.what());
+            }
+        }
+
+        return defaultValue;
+    });
+}
+
 void ContextIMP::regist_template_enginer_common_functions()
 {
-    _env.add_callback("_PARAMETER_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
+    auto logger = _cnt->GetApplication()->GetLogger();
 
-                if (!name.empty())
-                {
-                    return this->parameter(name);
-                }
-            }
+    typedef ContextIMP Self;
+    RegistStringFunctionWithOneStringParameter("_PARAMETER_", &Self::parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_PARAMETER_EXISTS_", &Self::is_exists_parameter);
 
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
+    RegistStringFunctionWithOneStringParameter("_HEADER_", &Self::header);
+    RegistBoolFunctionWithOneStringParameter("_IS_HEADER_EXISTS_", &Self::is_exists_header);
 
-        return Utilities::theEmptyString;
-    });
+    RegistStringFunctionWithOneStringParameter("_URL_PARAMETER_", &Self::url_parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_URL_PARAMETER_EXISTS_", &Self::is_exists_url_parameter);
 
+    RegistStringFunctionWithOneStringParameter("_PATH_PARAMETER_", &Self::path_parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_PATH_PARAMETER_EXISTS_", &Self::is_exists_path_parameter);
 
-    _env.add_callback("_IS_PARAMETER_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
+    RegistStringFunctionWithOneStringParameter("_FORM_DATA_", &Self::form_data);
+    RegistBoolFunctionWithOneStringParameter("_IS_FORM_DATA_EXISTS_", &Self::is_exists_form_data);
 
-                if (!name.empty())
-                {
-                    return this->is_exists_parameter(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
-
-    _env.add_callback("_HEADER_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->header(name);
-                }
-            }
-
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return Utilities::theEmptyString;
-    });
-
-
-    _env.add_callback("_IS_HEADER_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->is_exists_header(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
-
-    _env.add_callback("_URL_PARAMETER_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->url_parameter(name);
-                }
-            }
-
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return Utilities::theEmptyString;
-    });
-
-
-    _env.add_callback("_IS_URL_PARAMETER_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->is_exists_url_parameter(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
-
-    _env.add_callback("_PATH_PARAMETER_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->path_parameter(name);
-                }
-            }
-
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return Utilities::theEmptyString;
-    });
-
-
-    _env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->is_exists_path_parameter(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
-
-    _env.add_callback("_FORM_DATA_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->form_data(name);
-                }
-            }
-
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return Utilities::theEmptyString;
-    });
-
-
-    _env.add_callback("_IS_FORM_DATA_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->is_exists_form_data(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
-
-    _env.add_callback("_COOKIE_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> std::string
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->cookie(name);
-                }
-            }
-
-            return Utilities::theEmptyString;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return Utilities::theEmptyString;
-    });
-
-
-    _env.add_callback("_IS_COOKIE_EXISTS_", 1
-                      , [this](inja::Parsed::Arguments args, Json data) -> bool
-    {
-        try
-        {
-            if (args.size() == 1)
-            {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
-
-                if (!name.empty())
-                {
-                    return this->is_exists_cookie(name);
-                }
-            }
-
-            return false;
-        }
-        catch (std::exception const& e)
-        {
-            std::cerr << e.what()
-                      << std::endl;
-        }
-
-        return false;
-    });
+    RegistStringFunctionWithOneStringParameter("_COOKIE_", &Self::cookie);
+    RegistBoolFunctionWithOneStringParameter("_IS_COOKIE_EXISTS_", &Self::is_exists_cookie);
 }
 
 Request const& ContextIMP::Req() const

@@ -34,11 +34,11 @@ int main()
         return -2;
     }
 
-    Intercepter::StaticFile static_file;
+    Intercepter::StaticFile static_file(web->GetName());
     static_file.SetCacheMaxAge(600).AddEntry("static/", "/");
     web->AddIntercepter(static_file);
 
-    Intercepter::SessionOnRedis session_redis;
+    Intercepter::SessionOnRedis session_redis(web->GetName());
     session_redis.SetHttpOnly(Cookie::HttpOnly::for_http_only);
     web->AddIntercepter(session_redis);
 

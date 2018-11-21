@@ -171,6 +171,17 @@ private:
     void end();
 
 private:
+    typedef std::string const& (ContextIMP::*PSSFun)(std::string const&) const;
+    void RegistStringFunctionWithOneStringParameter(char const* function_name,
+                                                    PSSFun func,
+                                                    std::string defaultValue = Utilities::theEmptyString
+                                                   );
+
+    typedef bool (ContextIMP::*PBSFun)(std::string const&) const;
+    void RegistBoolFunctionWithOneStringParameter(char const* function_name,
+                                                  PBSFun func, bool defaultValue = false);
+
+private:
     void render_on_template(Template const& templ, Json const& data, http_status status);
     std::string render_on_template(Template const& templ, Json const& data
                                    , bool& server_render_error
@@ -237,7 +248,6 @@ private:
     {
         return this->Req().IsExistsCookie(name);
     }
-
 private:
     ConnectionPtr _cnt;
 

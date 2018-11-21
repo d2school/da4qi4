@@ -5,8 +5,11 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+#include "../def/log_def.hpp"
+
 #include "redis_command.hpp"
 #include "redis_parser.hpp"
+
 
 namespace da4qi4
 {
@@ -98,7 +101,12 @@ void RedisClient::Connect(std::function<void (boost::system::error_code const& e
 
 void RedisClient::Reconnect(std::function<void (boost::system::error_code const& ec)> on)
 {
-    if (IsConnected())
+    if (IsConnectting())
+    {
+        return;
+    }
+
+    if (!IsConnected())
     {
         boost::system::error_code ec;
         _reconnect_timer.cancel(ec);
@@ -162,23 +170,19 @@ void try_on_redis_handler(On on, Parame const& p, AsyncHandlerAction aha)
     }
     catch (std::exception const& e)
     {
-        std::cerr << "handle " << get_async_handler_action_name(aha)
-                  << "result exception. [" << e.what() << "]" << std::endl;
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), e.what());
     }
     catch (std::string const& s)
     {
-        std::cerr << "handle " << get_async_handler_action_name(aha)
-                  << "result exception. [" << s << "]" << std::endl;
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), s);
     }
     catch (char const* s)
     {
-        std::cerr << "handle " << get_async_handler_action_name(aha)
-                  << "result exception. [" << s << "]" << std::endl;
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), s);
     }
     catch (...)
     {
-        std::cerr << "handle " << get_async_handler_action_name(aha)
-                  << "result exception. [unknown]" << std::endl;
+        log::Server()->error("Redis handle {} result unknown exception.", get_async_handler_action_name(aha));
     }
 }
 
@@ -190,14 +194,13 @@ void RedisClient::on_connect_finished(std::function<void (boost::system::error_c
     if (ec)
     {
         _connect_status = not_connect;
-        std::cerr << "connect to redis server fail. " << ec.message() << std::endl;
+        log::Server()->error("Connect to redis server fail. {}", ec.message());
     }
     else
     {
         if (_reconnect_count > 0)
         {
-            std::cout << "reconnect to redis server success, after "
-                      << _reconnect_count << " time." << std::endl;
+            log::Server()->info("Reconnect to redis server success, after {} time(s).", _reconnect_count);
             _reconnect_count = 0;
         }
 
@@ -221,7 +224,7 @@ bool RedisClient::start_reconnect_timer(std::function<void (boost::system::error
 
     if (timer_ec)
     {
-        std::cerr << "set reconnect redis server timer expires time fail. " << timer_ec.message() << std::endl;
+        log::Server()->error("Set reconnect redis server timer expires time fail. {}", timer_ec.message());
         return false;
     }
 
@@ -229,7 +232,7 @@ bool RedisClient::start_reconnect_timer(std::function<void (boost::system::error
     {
         if (ec)
         {
-            std::cerr << "start reconnect redis server timer fail. " << ec.message() << std::endl;
+            log::Server()->error("Start reconnect redis server timer fail. {}", ec.message());
             return;
         }
 

@@ -152,7 +152,7 @@ void ChunkedBodies::Clear()
 
 Response::Response()
 {
-    _headers["Server"] = "da4qi4/0.99";
+    _headers["Server"] = "da4qi4/1.10";
 }
 
 void Response::Reset()
@@ -430,8 +430,8 @@ void Response::ReplyMovedPermanently(std::string const& dst_location, std::strin
 }
 
 void Response::ReplyRedirect(std::string const& dst_location
-                        , RedirectType type
-                        , std::string body)
+                             , RedirectType type
+                             , std::string body)
 {
     _status_code = (type != RedirectType::permanent) ? HTTP_STATUS_PERMANENT_REDIRECT
                    : HTTP_STATUS_TEMPORARY_REDIRECT;
@@ -509,4 +509,5 @@ std::ostream& operator << (std::ostream& os, Response const& res)
 
     return os;
 }
-}
+
+} //namespace da4qi4

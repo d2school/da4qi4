@@ -32,7 +32,7 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parse_chunk(const char*
     {
         char c = ptr[position++];
 
-        switch (state)
+        switch (static_cast<int>(state))
         {
             case StartArray:
             case Start:
@@ -177,15 +177,15 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parse_chunk(const char*
                     }
                     else
                     {
-                        buf.reserve(bulkSize);
+                        buf.reserve(static_cast<std::size_t>(bulkSize));
 
-                        long int available = size - position;
+                        long int available = static_cast<long>(size - position);
                         long int canRead = std::min(bulkSize, available);
 
                         if (canRead > 0)
                         {
                             buf.assign(ptr + position, ptr + position + canRead);
-                            position += canRead;
+                            position += static_cast<unsigned long>(canRead);
                             bulkSize -= canRead;
                         }
 
@@ -212,12 +212,12 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parse_chunk(const char*
             {
                 assert(bulkSize > 0);
 
-                long int available = size - position + 1;
+                long int available = static_cast<long int>(size - position + 1);
                 long int canRead = std::min(available, bulkSize);
 
                 buf.insert(buf.end(), ptr + position - 1, ptr + position - 1 + canRead);
                 bulkSize -= canRead;
-                position += canRead - 1;
+                position += static_cast<unsigned long>(canRead - 1);
 
                 if (bulkSize == 0)
                 {
@@ -302,7 +302,7 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parse_chunk(const char*
                     }
                     else
                     {
-                        array.reserve(arraySize);
+                        array.reserve(static_cast<std::size_t>(arraySize));
                         arraySizes.push(arraySize);
                         arrayValues.push(std::move(array));
 
