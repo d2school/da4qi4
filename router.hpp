@@ -34,6 +34,7 @@ struct RouterResult
     }
 
     Handler* handler = nullptr;
+    std::string error;
 };
 
 struct router_equals
@@ -92,12 +93,9 @@ private:
     }
 
 public:
-    bool Add(std::string const& url_matcher, HandlerMethod method,  Handler handler)
+    bool Add(std::string const& url_matcher, HandlerMethod method,  Handler handler, std::string& error)
     {
-        if (url_matcher.empty())
-        {
-            return false;
-        }
+        assert(!url_matcher.empty());
 
         typename IMP::Item* item = imp()->Exists(url_matcher);
 
@@ -105,7 +103,7 @@ public:
         {
             typename IMP::Item ri;
             ri.handlers[method] = handler;
-            return imp()->Insert(url_matcher, ri);
+            return imp()->Insert(url_matcher, ri, error);
         }
         else
         {
@@ -114,7 +112,7 @@ public:
         }
     }
 
-    bool Add(std::string const& url_matcher, HandlerMethods methods, Handler handler)
+    bool Add(std::string const& url_matcher, HandlerMethods methods, Handler handler, std::string& error)
     {
         for (size_t i = 0; i < methods.mark.size(); ++i)
         {
@@ -122,7 +120,7 @@ public:
             {
                 HandlerMethod method = static_cast<HandlerMethod>(i);
 
-                if (!this->Add(url_matcher, method, handler))
+                if (!this->Add(url_matcher, method, handler, error))
                 {
                     return false;
                 }
@@ -145,7 +143,7 @@ public:
     using Item = RouterItem;
     using Result = RouterResult;
 
-    bool Insert(std::string const&  url_matcher, RouterItem const& item)
+    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string&)
     {
         _map.insert(std::make_pair(url_matcher, item));
         return true;
@@ -174,7 +172,7 @@ public:
     using Item = RouterItem;
     using Result = RouterResult;
 
-    bool Insert(std::string const&  url_matcher, RouterItem const& item)
+    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string&)
     {
         _map.insert(std::make_pair(url_matcher, item));
         return true;
@@ -187,6 +185,14 @@ public:
     }
 
     Result Match(std::string const& url, HandlerMethod method);
+
+    std::string const& GetError() const
+    {
+        return Utilities::theEmptyString;
+    }
+
+    void ClearError()
+    {}
 private:
     Map _map;
 };
@@ -227,10 +233,9 @@ public:
     using Item = RegexRouterItem;
     using Result = RegexRouterResult;
 
-    bool Insert(std::string const&    url_matcher, RouterItem const& item);
+    bool Insert(std::string const&    url_matcher, RouterItem const& item, std::string& error);
     Item* Exists(std::string const& url_matcher);
     Result Match(std::string const& url, HandlerMethod method);
-
 private:
     List _lst;
 };

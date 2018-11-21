@@ -65,7 +65,8 @@ std::string to_parameter_pattern(std::string simple_pattern
     return simple_pattern;
 }
 
-bool RegexMatchRoutingTable::Insert(std::string const&  url_matcher, RouterItem const& item)
+bool RegexMatchRoutingTable::Insert(std::string const&  url_matcher,
+                                    RouterItem const& item, std::string& error)
 {
     Item ri(item);
 
@@ -80,10 +81,12 @@ bool RegexMatchRoutingTable::Insert(std::string const&  url_matcher, RouterItem 
     }
     catch (std::regex_error const& e)
     {
+        error = e.what();
         return false;
     }
     catch (std::exception const& e)
     {
+        error = e.what();
         return false;
     }
 }
@@ -103,6 +106,8 @@ RegexMatchRoutingTable::Item* RegexMatchRoutingTable::Exists(std::string const& 
 
 RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& url, HandlerMethod method)
 {
+    Result r;
+
     try
     {
         for (auto& item : _lst)
@@ -133,14 +138,15 @@ RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& 
     }
     catch (std::regex_error const& e)
     {
-        std::cerr << e.what() << std::endl;
+        r.error = e.what();
+        return r;
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        r.error = e.what();
     }
 
-    return Result();
+    return r;
 }
 
 } //namespace da4qi4

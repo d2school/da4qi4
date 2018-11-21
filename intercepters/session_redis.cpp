@@ -116,6 +116,7 @@ void SessionOnRedis::on_response(Context& ctx) const
     }
 
     ctx->Res().SetCookie(cookie);
+
     std::string session_timeout_s = std::to_string(cookie.GetMaxAge());
     std::string session_id = cookie.GetValue();
     size_t const indent = 4;

@@ -33,7 +33,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     _acceptor.bind(endpoint);
     _acceptor.listen();
 
-    log::Server()->info("Suppied on {} : {}, with {} thread(s).",
+    log::Server()->info("Supping on {} : {}, with {} thread(s).",
                         endpoint.address().to_string()
                         , endpoint.port()
                         , _ioc_pool.Size()
