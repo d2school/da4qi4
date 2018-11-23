@@ -78,7 +78,7 @@ private:
     void do_close();
 
     void do_write_header_for_chunked();
-    void do_write_next_chunked_body(clock_t start_wait_clock);
+    void do_write_next_chunked_body(clock_t start_wait_clock = 0);
     void do_write_chunked_body_finished(boost::system::error_code const& ec, size_t bytes_transferred);
 
 private:

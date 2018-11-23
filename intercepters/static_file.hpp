@@ -81,7 +81,7 @@ struct StaticFile
         return *this;
     }
 
-    StaticFile& AddEntry(std::string const& url_root, std::string const& dir_root);
+    StaticFile& AddEntry(std::string const& url_root, std::string const& dir_root = "");
     StaticFile& AddDefaultFileName(std::string const& index_filename);
     StaticFile& AddDefaultFileNames(std::vector<std::string> const& index_filenames);
 

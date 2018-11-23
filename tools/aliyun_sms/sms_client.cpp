@@ -303,7 +303,6 @@ void SmsClient::start_read_body(std::string::size_type head_end_flag_pos)
     }
 
     std::string slen = _header.substr(beg_pos, end_pos - beg_pos);
-    // Utilities::Trim(slen);
 
     _content_len = 0;
     std::stringstream sslen(slen);

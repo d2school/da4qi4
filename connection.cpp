@@ -612,7 +612,7 @@ void Connection::do_write_header_for_chunked()
         }
 
         _write_buffer.consume(bytes_transferred);
-        do_write_next_chunked_body(0);
+        do_write_next_chunked_body();
     });
 }
 
@@ -634,11 +634,17 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 
         if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
         {
-            log::Server()->warn("Too long to wait for next chunked data when response.");
+            log::Server()->error("Too long to wait next chunked data on response.");
             return;
         }
 
-        _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body, self, now));
+        if (start_wait_clock == 0)
+        {
+            start_wait_clock = now;
+        }
+
+        _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body
+                                                , self, start_wait_clock));
     }
     else
     {
@@ -659,7 +665,7 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
         return;
     }
 
-    do_write_next_chunked_body(0);
+    do_write_next_chunked_body();
 }
 
 void Connection::reset()

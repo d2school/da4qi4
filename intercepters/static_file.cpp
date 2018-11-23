@@ -16,7 +16,7 @@ std::string const StaticFile::data_name = "static-file";
 StaticFile& StaticFile::AddEntry(std::string const& url_root
                                  , std::string const& dir_root)
 {
-    _root_entries.insert(std::make_pair(url_root, dir_root));
+    _root_entries.insert(std::make_pair(url_root, (dir_root.empty() ? url_root : dir_root)));
     return *this;
 }
 

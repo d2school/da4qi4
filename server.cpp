@@ -18,6 +18,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     , _acceptor(_ioc_pool.GetIOContext())
     , _signals(_ioc_pool.GetIOContext())
     , _detect_templates(false)
+    , _idle_interval_seconds(_defalut_idle_interval_seconds_)
     , _idle_timer(_ioc_pool.GetIOContext())
 {
     _signals.add(SIGINT);
@@ -218,7 +219,7 @@ void Server::do_stop()
 void Server::start_idle_timer()
 {
     errorcode ec;
-    _idle_timer.expires_from_now(boost::posix_time::seconds(25), ec);
+    _idle_timer.expires_from_now(boost::posix_time::seconds(_idle_interval_seconds), ec);
 
     if (ec)
     {
@@ -248,12 +249,71 @@ void Server::on_idle_timer(errorcode const& ec)
         AppMgr().CheckTemplatesUpdate();
     }
 
-    start_idle_timer();
+    if (_idle_interval_seconds > 0)
+    {
+        start_idle_timer();
+    }
 }
 
 void Server::stop_idle_timer()
 {
-    _idle_timer.cancel();
+    errorcode ec;
+    _idle_timer.cancel(ec);
+
+    if (ec)
+    {
+        log::Server()->error("Cancel idle timer exception. {}", ec.message());
+    }
+}
+
+void Server::EnableIdleTimer(std::size_t interval_seconds)
+{
+    if (interval_seconds > 24 * 60 * 60)
+    {
+        interval_seconds = 24 * 60 * 60;
+    }
+    else if (interval_seconds == 0)
+    {
+        if (_idle_interval_seconds < 0)
+        {
+            _idle_interval_seconds *= -1;
+        }
+        else if (_idle_interval_seconds  == 0)
+        {
+            _idle_interval_seconds = _defalut_idle_interval_seconds_;
+        }
+    }
+    else
+    {
+        _idle_interval_seconds  = static_cast<int>(interval_seconds);
+    }
+
+    stop_idle_timer();
+    start_idle_timer();
+}
+
+void Server::DisableIdleTimer()
+{
+    if (_idle_interval_seconds > 0)
+    {
+        _idle_interval_seconds *= -1;
+    }
+}
+
+void Server::SetIdleTimerInterval(std::size_t seconds)
+{
+    if (seconds > 24 * 60 * 60)
+    {
+        seconds = 24 * 60 * 60;
+    }
+
+    bool is_stopped = _idle_interval_seconds < 0;
+    _idle_interval_seconds = static_cast<int>(seconds);
+
+    if (is_stopped && _idle_interval_seconds > 0)
+    {
+        start_idle_timer();
+    }
 }
 
 

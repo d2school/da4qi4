@@ -37,6 +37,10 @@ public:
     void Stop();
 
 public:
+    void EnableIdleTimer(std::size_t interval_seconds = 0);
+    void DisableIdleTimer();
+    void SetIdleTimerInterval(std::size_t seconds = 20);
+
     void EnableDetectTemplates()
     {
         _detect_templates = true;
@@ -93,7 +97,10 @@ private:
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
 
+    static int const _defalut_idle_interval_seconds_ = 25;
+
     std::atomic_bool _detect_templates;
+    int _idle_interval_seconds;
     boost::asio::deadline_timer _idle_timer;
 };
 

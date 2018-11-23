@@ -11,36 +11,6 @@ using namespace da4qi4;
 
 int main()
 {
-    char const* accessKeyId = "LTAIUKE0VtpC1M2g";
-    char const* secretAccessKey = "Qny6V8pQFYzMeIGgawwzHSFXiAKQiN";
-    std::string code = "9845";
-    IOC ioc;
-    alisms::SmsClient::Ptr cli = alisms::SmsClient::Create(ioc, accessKeyId, secretAccessKey);
-    cli->Request([](alisms::SmsClient::Ptr client, errorcode const & ec)
-    {
-        if (ec)
-        {
-            std::cout << ec.message() << std::endl;
-
-            if (client->GetErrorStep())
-            {
-                std::cerr << client->GetErrorMsg() << std::endl;
-            }
-
-            return;
-        }
-        else
-        {
-            std::cout << client->GetResponseHeader() << "\r\n" << std::endl;
-            std::cout << client->GetResponseBody() << std::endl;
-        }
-    }, "18650125181", "第2学堂", "SMS_127167744", "{\"code\":\"" + code + "\"}");
-
-    // ioc.run();
-
-
-    /////////////////////////////////////////////
-
     std::string www_root = "../d2_daqi/";
 
     if (!log::InitServerLogger(www_root + "logs/"))
@@ -67,7 +37,7 @@ int main()
     }
 
     Intercepter::StaticFile static_file(web->GetName());
-    static_file.SetCacheMaxAge(600).AddEntry("static/", "/");
+    static_file.SetCacheMaxAge(600).AddEntry("css/").AddEntry("js/");
     web->AddIntercepter(static_file);
 
     Intercepter::SessionOnRedis session_redis(web->GetName());
@@ -76,9 +46,7 @@ int main()
 
     web->AddHandler(_GET_, "/", [](Context ctx)
     {
-        Json data;
-        data["names"] = {"张三", "李四", "王五"};
-        ctx->Render(data);
+        ctx->RenderWithoutData();
         ctx->Pass();
     });
 
@@ -88,6 +56,7 @@ int main()
         return -2;
     }
 
+    svc->SetIdleTimerInterval(5);
     svc->EnableDetectTemplates();
 
     RedisPool().CreateClients(svc->GetIOContextPool());
