@@ -6,8 +6,8 @@
 #include <deque>
 
 #include <boost/noncopyable.hpp>
-#include <boost/asio.hpp>
 
+#include "def/asio_def.hpp"
 #include "redis_buffer.hpp"
 #include "redis_value.hpp"
 
@@ -21,7 +21,7 @@ class RedisClient
     : public boost::noncopyable
 {
 public:
-    RedisClient(boost::asio::io_context& ioc,
+    RedisClient(IOC& ioc,
                 RedisClientErrorHandlePolicy policy = RedisClientErrorHandlePolicy::do_nothing)
         : _socket(ioc), _reconnect_timer(ioc), _error_handle_policy(policy)
     {

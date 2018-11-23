@@ -19,12 +19,7 @@ std::string const SessionOnRedis::data_name = "session-redis";
 
 std::string make_session_id(std::string const& prefix)
 {
-    static boost::uuids::random_generator gen;
-    boost::uuids::uuid uid = gen();
-    std::stringstream ss;
-    ss << prefix << uid;
-
-    return ss.str();
+    return Utilities::GetUUID(prefix);
 }
 
 Json SessionOnRedis::create_new_session() const

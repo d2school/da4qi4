@@ -4,6 +4,7 @@
 
 #include "def/log_def.hpp"
 #include "def/boost_def.hpp"
+#include "def/asio_def.hpp"
 
 namespace da4qi4
 {
@@ -19,7 +20,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
 
     for (std::size_t i = 0; i < pool_size; ++i)
     {
-        IOContextPtr ioc(new boost::asio::io_context);
+        IOContextPtr ioc(new IOC);
         _io_contexts.push_back(ioc);
 
         _work.push_back(boost::asio::make_work_guard(*ioc));
@@ -87,15 +88,15 @@ void IOContextPool::Stop()
     }
 }
 
-boost::asio::io_context& IOContextPool::GetIOContext()
+IOC& IOContextPool::GetIOContext()
 {
     return GetIOContextAndIndex().first;
 }
 
-std::pair<boost::asio::io_context&, size_t> IOContextPool::GetIOContextAndIndex()
+std::pair<IOC&, size_t> IOContextPool::GetIOContextAndIndex()
 {
     size_t index = _next_index;
-    boost::asio::io_context& io_context = *_io_contexts[index];
+    IOC& io_context = *_io_contexts[index];
 
     ++_next_index;
 
@@ -107,7 +108,7 @@ std::pair<boost::asio::io_context&, size_t> IOContextPool::GetIOContextAndIndex(
     return {io_context, index};
 }
 
-boost::asio::io_context& IOContextPool::GetIOContextByIndex(size_t index)
+IOC& IOContextPool::GetIOContextByIndex(size_t index)
 {
     assert(index < _io_contexts.size());
     return *(_io_contexts[index]);

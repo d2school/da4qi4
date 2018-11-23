@@ -7,6 +7,9 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/trim.hpp>
 
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
 namespace da4qi4
 {
 namespace Utilities
@@ -93,6 +96,17 @@ void Trim(std::string& m)
 std::string TrimCopy(std::string const& m)
 {
     return boost::trim_copy(m);
+}
+
+std::string GetUUID(const std::string& prefix)
+{
+    static boost::uuids::random_generator gen;
+
+    boost::uuids::uuid uid = gen();
+    std::stringstream ss;
+    ss << prefix << uid;
+
+    return ss.str();
 }
 
 } //namespace Utilities

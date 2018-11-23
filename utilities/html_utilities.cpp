@@ -9,8 +9,8 @@ namespace Utilities
 
 namespace
 {
+
 std::string theOctetStreamMIMEType = "application/octet-stream";
-}
 
 std::unordered_map<std::string, std::string> _mime_map_ =
 {
@@ -500,6 +500,8 @@ std::unordered_map<std::string, std::string> _mime_map_ =
     { ".json", "application/json" },
 };
 
+}
+
 std::string const& GetMIMEType(std::string const&  extension)
 {
     std::string key = extension;
@@ -546,7 +548,9 @@ std::string UrlEncode(const std::string& value)
         if ((ch >= '0' && ch <= '9')
             || (ch >= 'A' && ch <= 'Z')
             || (ch >= 'a' && ch <= 'z')
-            || ch == '-')
+            || ch == '-' || ch == '_' || ch == '!'
+            || ch == '\'' || ch == '(' || ch == ')'
+            || ch == '*' || ch == '~' || ch == '.')  // !'()*-._~
         {
             result.push_back(ch);
         }

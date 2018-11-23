@@ -7,12 +7,13 @@
 
 #include "def/log_def.hpp"
 #include "def/boost_def.hpp"
+#include "def/asio_def.hpp"
 #include "application.hpp"
 
 namespace da4qi4
 {
 
-Connection::Connection(boost::asio::io_context& ioc, size_t ioc_index)
+Connection::Connection(IOC& ioc, size_t ioc_index)
     : _socket(ioc), _ioc_index(ioc_index), _parser(new http_parser)
 {
     this->init_parser();

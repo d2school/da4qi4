@@ -38,6 +38,11 @@ size_t ContextIMP::IOContextIndex() const
     return _cnt->GetIOContextIndex();
 }
 
+log::LoggerPtr ContextIMP::logger()
+{
+    assert(_cnt && _cnt->GetApplication() && _cnt->GetApplication()->GetLogger());
+    return _cnt->GetApplication()->GetLogger();
+}
 
 void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function_name,
                                                             PSSFun func,
@@ -63,11 +68,8 @@ void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function
         }
         catch (std::exception const& e)
         {
-            if (auto logger = this->_cnt->GetApplication()->GetLogger())
-            {
-                logger->error("Regist templage enginer function {} exception. {}"
-                              , function_name, e.what());
-            }
+            logger()
+            ->error("Regist templage enginer function {} exception. {}", function_name, e.what());
         }
 
         return defaultValue;
@@ -98,11 +100,9 @@ void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_n
         }
         catch (std::exception const& e)
         {
-            if (auto logger = this->_cnt->GetApplication()->GetLogger())
-            {
-                logger->error("Regist templage enginer function {} exception. {}"
-                              , function_name, e.what());
-            }
+            logger()
+            ->error("Regist templage enginer function {} exception. {}"
+                    , function_name, e.what());
         }
 
         return defaultValue;
@@ -111,9 +111,6 @@ void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_n
 
 void ContextIMP::regist_template_enginer_common_functions()
 {
-    auto logger = _cnt->GetApplication()->GetLogger();
-
-    typedef ContextIMP Self;
     RegistStringFunctionWithOneStringParameter("_PARAMETER_", &Self::parameter);
     RegistBoolFunctionWithOneStringParameter("_IS_PARAMETER_EXISTS_", &Self::is_exists_parameter);
 
@@ -155,7 +152,7 @@ Application const& ContextIMP::App() const
     return *(_cnt->GetApplication());
 }
 
-boost::asio::io_context& ContextIMP::IOContext()
+IOC& ContextIMP::IOContext()
 {
     return _cnt->GetSocket().get_executor().context();
 }
@@ -166,7 +163,8 @@ void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
     _cnt->GetRequest().InitPathParameters(names, values);
 }
 
-std::string ContextIMP::render_on_template(Template const& templ, Json const& data
+std::string ContextIMP::render_on_template(std::string const& templ_name, Template const& templ
+                                           , Json const& data
                                            , bool& server_render_error
                                            , std::string& error_detail)
 {
@@ -181,18 +179,30 @@ std::string ContextIMP::render_on_template(Template const& templ, Json const& da
     {
         server_render_error = true;
         error_detail = e.what();
+
+        static std::string const inja_exception_prefix = "[inja.exception.render_error] ";
+        auto pos = error_detail.find(inja_exception_prefix);
+        std::string::size_type offset = 0;
+
+        if (pos == 0)
+        {
+            offset = inja_exception_prefix.size();
+        }
+
+        logger()->error("Render template \"{}\" exception. {}. {}"
+                        , templ_name, error_detail.c_str() + offset, templ.parsed_template().inner);
     }
 
     return Utilities::theEmptyString;
 }
 
-void ContextIMP::render_on_template(Template const& templ, Json const& data, http_status status)
+void ContextIMP::render_on_template(std::string const& templ_name, Template const& templ
+                                    , Json const& data, http_status status)
 {
     bool error = false;
     std::string error_detail;
-    std::string view = render_on_template(templ, data, error, error_detail);
 
-    Res().SetStatusCode(status);
+    std::string view = render_on_template(templ_name, templ, data, error, error_detail);
 
     if (error)
     {
@@ -209,6 +219,8 @@ void ContextIMP::render_on_template(Template const& templ, Json const& data, htt
 
         return;
     }
+
+    Res().SetStatusCode(status);
 
     if (!view.empty())
     {
@@ -229,7 +241,7 @@ void ContextIMP::Render(http_status status, Json const& data)
 
     if (auto templ = App().GetTemplates().Get(template_name))
     {
-        render_on_template(*templ, data, status);
+        render_on_template(template_name, *templ, data, status);
     }
     else
     {
@@ -243,11 +255,12 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
 
     if (!templ)
     {
+        logger()->error("No found template {0}.", template_name);
         RenderNofound();
         return;
     }
 
-    render_on_template(*templ, data, HTTP_STATUS_OK);
+    render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
 }
 
 void ContextIMP::Render(Json const& data)
@@ -275,7 +288,7 @@ void ContextIMP::Render(Json const& data)
 
     if (templ)
     {
-        render_on_template(*templ, data, HTTP_STATUS_OK);
+        render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
         return;
     }
 
@@ -292,7 +305,7 @@ void ContextIMP::Render(Json const& data)
             return;
         }
 
-        render_on_template(*templ, data, HTTP_STATUS_OK);
+        render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
     }
 }
 

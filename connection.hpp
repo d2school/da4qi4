@@ -20,9 +20,9 @@ class Application;
 class Connection
     : public std::enable_shared_from_this<Connection>
 {
-    explicit Connection(boost::asio::io_context& ioc, size_t ioc_index);
+    explicit Connection(IOC& ioc, size_t ioc_index);
 public:
-    static ConnectionPtr Create(boost::asio::io_context& ioc, size_t ioc_index)
+    static ConnectionPtr Create(IOC& ioc, size_t ioc_index)
     {
         return ConnectionPtr(new Connection(ioc, ioc_index));
     }

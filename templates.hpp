@@ -30,14 +30,9 @@ public:
     bool ReloadIfUpdate();
 
 private:
-    bool reload()
-    {
-        return (_app_logger == nullptr) ? false : Preload(_app_logger);
-    }
+    bool reload();
 
 private:
-    mutable std::mutex _m;
-
     size_t load_templates(std::string const& template_ext, std::string const& key_ext);
     bool try_load_template(std::string const& key
                            , std::string const& template_filename
@@ -50,6 +45,7 @@ private:
         std::string filename;
     };
 
+    std::mutex _m;  // for _templates reload and get
     log::LoggerPtr _app_logger;
     std::unordered_map<std::string, Item> _templates;
     std::string _root, _app_prefix;

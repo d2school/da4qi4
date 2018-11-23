@@ -22,8 +22,6 @@ std::string DecIntToHexStr(std::size_t num);
 std::map<std::string, std::string> ParseQueryParameters(std::string const& query);
 std::map<std::string, std::string> ParsePlainTextFormData(std::string const& body); //from html 4.01
 
-
-
 } //Utilities
 } //da4qi4
 

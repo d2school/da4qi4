@@ -13,7 +13,7 @@ find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH
 find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 find_library(LIBMYSQLPP mysqlpp /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 
-link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlclient pthread)
+link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlclient pthread crypto)
 
 include_directories(.)
 
@@ -28,6 +28,8 @@ aux_source_directory(./intercepters SRC_FILES)
 aux_source_directory(./multipart-parser SRC_FILES)
 aux_source_directory(./redis-client SRC_FILES)
 aux_source_directory(./utilities SRC_FILES)
+aux_source_directory(./tools/aliyun_sms SRC_FILES)
+
 aux_source_directory(. SRC_FILES)
 
 add_definitions(-Dcimg_display=0)

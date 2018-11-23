@@ -127,14 +127,19 @@ size_t Templates::load_templates(std::string const& template_ext, std::string co
     return count;
 }
 
+bool Templates::reload()
+{
+    return (!_app_logger) ? false : Preload(_app_logger);
+}
+
 bool Templates::Preload(log::LoggerPtr app_logger)
 {
-    std::lock_guard<std::mutex> guard(_m);
-
     if (_app_logger != app_logger)
     {
         _app_logger = app_logger;
     }
+
+    std::lock_guard<std::mutex> _guard_(_m);
 
     _templates.clear();
 
@@ -161,19 +166,9 @@ bool Templates::Preload(log::LoggerPtr app_logger)
 
 TemplatePtr const  Templates::Get(std::string const& name)
 {
-    std::string const* pname = &name;
-    std::string tmp;
+    std::lock_guard<std::mutex> _guard_(_m);
 
-    if (Utilities::iEndsWith(name, ".html"))
-    {
-        size_t const len_of_ext_html = 5;
-        tmp = name.substr(0, name.size() - len_of_ext_html);
-        pname = &tmp;
-    }
-
-    std::lock_guard<std::mutex> guard(_m);
-
-    auto it = _templates.find(*pname);
+    auto it = _templates.find(name);
 
     if (it == _templates.end())
     {
@@ -187,23 +182,17 @@ bool Templates::ReloadIfUpdate()
 {
     std::string found_filename;
 
-    do
+    for (auto const& item : _templates)
     {
-        std::lock_guard<std::mutex> guard(_m);
+        auto fp(boost::filesystem::path(item.second.filename));
+        std::time_t t = boost::filesystem::last_write_time(fp);
 
-        for (auto const& item : _templates)
+        if (t > item.second.load_time)
         {
-            auto fp(boost::filesystem::path(item.second.filename));
-            std::time_t t = boost::filesystem::last_write_time(fp);
-
-            if (t > item.second.load_time)
-            {
-                found_filename = item.second.filename;
-                break;
-            }
+            found_filename = item.second.filename;
+            break;
         }
     }
-    while (false);
 
     if (!found_filename.empty())
     {
