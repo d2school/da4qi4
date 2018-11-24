@@ -3,6 +3,7 @@
 
 #include <string>
 #include <mutex>
+#include <vector>
 #include <unordered_map>
 
 #include "def/inja_def.hpp"
@@ -41,13 +42,16 @@ private:
     struct Item
     {
         TemplatePtr templ;
-        std::time_t load_time;
         std::string filename;
     };
 
     std::mutex _m;  // for _templates reload and get
     log::LoggerPtr _app_logger;
+
+    std::time_t _loaded_time;
     std::unordered_map<std::string, Item> _templates;
+    std::vector<std::string> _includes;
+
     std::string _root, _app_prefix;
 };
 

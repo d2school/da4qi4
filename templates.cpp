@@ -64,7 +64,7 @@ bool Templates::try_load_template(std::string const& key
         }
 
         TemplatePtr templ = TemplatePtr(new Template(env.parse(tmpl_src)));
-        Item item {templ, std::time(nullptr), full_template_filename};
+        Item item {templ, full_template_filename};
         _templates.insert(std::make_pair(key, item));
 
         _app_logger->info("Template {} loaded.", template_filename);
@@ -78,7 +78,7 @@ bool Templates::try_load_template(std::string const& key
     }
 }
 
-size_t Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
+std::size_t Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
 {
     fs::path root(_root);
 
@@ -100,9 +100,17 @@ size_t Templates::load_templates(std::string const& template_ext, std::string co
 
             if (Utilities::EndsWith(path.filename().native(), template_ext))
             {
+                if (path.string().find("_deprecated/") != std::string::npos
+                    || path.string().find("_deprecated\\") != std::string::npos
+                    || path.string().find(".deprecated.") != std::string::npos)
+                {
+                    continue;
+                }
+
                 if (path.native().find("/i/") != std::string::npos
                     || path.native().find("\\i\\") != std::string::npos)
                 {
+                    _includes.push_back(path.string());
                     continue;
                 }
 
@@ -142,10 +150,14 @@ bool Templates::Preload(log::LoggerPtr app_logger)
     std::lock_guard<std::mutex> _guard_(_m);
 
     _templates.clear();
+    _includes.clear();
 
     try
     {
-        load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        std::size_t count = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        _loaded_time = std::time(nullptr);
+        app_logger->info("{} template(s) loaded.", count);
+
         return true;
     }
     catch (fs::filesystem_error const& ec)
@@ -180,37 +192,64 @@ TemplatePtr const  Templates::Get(std::string const& name)
 
 bool Templates::ReloadIfUpdate()
 {
-    std::string found_filename;
+    std::string modified_file;
 
-    for (auto const& item : _templates)
+    for (auto item : _templates)
     {
-        auto fp(boost::filesystem::path(item.second.filename));
-        std::time_t t = boost::filesystem::last_write_time(fp);
+        auto fp = fs::path(item.second.filename);
+        errorcode ec;
+        std::time_t t = fs::last_write_time(fp, ec);
 
-        if (t > item.second.load_time)
+        if (ec)
         {
-            found_filename = item.second.filename;
+            _app_logger->warn("Check templates file \"{}\" last-write-time exception. {}",
+                              item.second.filename, ec.message());
+        }
+        else if (t > _loaded_time)
+        {
+            modified_file = item.second.filename;
             break;
         }
     }
 
-    if (!found_filename.empty())
+    if (modified_file.empty())
     {
-        _app_logger->info("Templates update detected.");
+        for (auto filename : _includes)
+        {
+            auto fp = fs::path(filename);
+            errorcode ec;
+            std::time_t t = fs::last_write_time(fp, ec);
 
-        if (reload())
-        {
-            _app_logger->info("All templates reloaded.");
-            return true;
-        }
-        else
-        {
-            _app_logger->error("Templates reload fail.");
-            return false;
+            if (ec)
+            {
+                _app_logger->warn("Check templates include file \"{}\" last-write-time exception. {}",
+                                  filename, ec.message());
+            }
+            else if (t > _loaded_time)
+            {
+                modified_file = filename;
+                break;
+            }
         }
     }
 
-    return false;
+    if (modified_file.empty())
+    {
+        return false;
+    }
+
+    _app_logger->info("Templates update detected.");
+
+    if (reload())
+    {
+        _app_logger->info("All templates reloaded.");
+        return true;
+    }
+    else
+    {
+        _app_logger->error("Templates reload fail.");
+        return false;
+    }
 }
 
 } //namespace da4qi4
