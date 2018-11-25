@@ -37,7 +37,9 @@ int main()
     }
 
     Intercepter::StaticFile static_file(web->GetName());
-    static_file.SetCacheMaxAge(600).AddEntry("css/").AddEntry("js/");
+    static_file.SetCacheMaxAge(600).AddEntry("css/").AddEntry("js/").AddEntry("img/")
+    .AddEntry("favicon.ico", "img/favicon.ico");
+
     web->AddIntercepter(static_file);
 
     Intercepter::SessionOnRedis session_redis(web->GetName());
