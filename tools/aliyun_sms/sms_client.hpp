@@ -91,7 +91,7 @@ private:
     std::string _request_buf;
     OnResponse _handler;
 
-    static std::size_t const _read_buf_size_ = 12;// 512;
+    static std::size_t const _read_buf_size_ = 512;
     char _read_buf[_read_buf_size_];
     std::string _response_buf;
     std::string _header;

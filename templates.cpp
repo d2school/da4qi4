@@ -156,7 +156,7 @@ bool Templates::Preload(log::LoggerPtr app_logger)
     {
         std::size_t count = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
         _loaded_time = std::time(nullptr);
-        app_logger->info("{} template(s) loaded.", count);
+        app_logger->info("All ({}) template(s) loaded.", count);
 
         return true;
     }
@@ -242,14 +242,11 @@ bool Templates::ReloadIfUpdate()
 
     if (reload())
     {
-        _app_logger->info("All templates reloaded.");
         return true;
     }
-    else
-    {
-        _app_logger->error("Templates reload fail.");
-        return false;
-    }
+
+    _app_logger->error("Templates reload fail.");
+    return false;
 }
 
 } //namespace da4qi4

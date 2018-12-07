@@ -312,7 +312,7 @@ public:
 
 private:
     void set_or_default_body(std::string body, bool provide_default_if_body_is_empty = true);
-
+    void add_server_header();
 private:
     int _status_code = HTTP_STATUS_OK;
 

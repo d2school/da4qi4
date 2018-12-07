@@ -587,7 +587,7 @@ void Connection::prepare_response_headers_for_chunked_write()
         _response.SetVersion(1, 1);
     }
 
-    if (_response.IsClose())
+    if (!_response.IsClose())
     {
         _response.MarkKeepAlive();
     }
@@ -634,7 +634,7 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 
         if (start_wait_clock > 0 && (now - start_wait_clock) / CLOCKS_PER_SEC > 5)
         {
-            log::Server()->error("Too long to wait next chunked data on response.");
+            log::Server()->error("Wait next chunked response data timeout.");
             return;
         }
 
@@ -662,6 +662,8 @@ void Connection::do_write_chunked_body_finished(boost::system::error_code const&
     if (ec)
     {
         log::Server()->error("Write chunked body fail. {}", ec.message());
+        log::Server()->debug("Chunk buffer, size: {}, content: \r\n {}", _current_chunked_body_buffer.size()
+                             , _current_chunked_body_buffer);
         return;
     }
 

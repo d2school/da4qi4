@@ -13,7 +13,7 @@ int main()
 {
     std::string www_root = "../d2_daqi/";
 
-    if (!log::InitServerLogger(www_root + "logs/"))
+    if (!log::InitServerLogger(www_root + "logs/", log::Level::debug))
     {
         std::cerr << "Create server logger fail." << std::endl;
         return -1;

@@ -666,7 +666,9 @@ std::string DecIntToHexStr(std::size_t num)
         remainder = quotient % 16;
         quotient = quotient / 16;
 
-        char c = (remainder < 10) ? ('0' + remainder) : ('A' + remainder - 10);
+        char c = (remainder < 10) ? static_cast<char>('0' + remainder)
+                 : static_cast<char>('A' + remainder - 10);
+
         remainders.push_back(c);
     }
     while (quotient > 0);

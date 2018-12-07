@@ -104,7 +104,7 @@ char const* HttpStatusSummaryGetter(int code)
 void ChunkedBodies::PushBack(std::string const& body, bool is_last)
 {
     std::string data;
-    data.reserve(body.size() + 10);
+    data.reserve(body.size() + 5);
 
     if (is_last)
     {
@@ -152,7 +152,14 @@ void ChunkedBodies::Clear()
 
 Response::Response()
 {
-    _headers["Server"] = "da4qi4/1.10";
+    add_server_header();
+}
+
+void Response::add_server_header()
+{
+    std::stringstream ss;
+    ss << the_daqi_name << '/' << the_daqi_version;
+    _headers["Server"] = ss.str();
 }
 
 void Response::Reset()
@@ -164,6 +171,8 @@ void Response::Reset()
     _version_major  = _version_minor = 1;
     _cookies.clear();
     _chunked_bodies.Clear();
+
+    add_server_header();
 }
 
 void Response::AppendHeader(std::string const& field, std::string const& value)
