@@ -37,7 +37,7 @@
 
 */
 
-#include "utilities/base64.hpp"
+#include "daqi/utilities/base64.hpp"
 
 #include <utility>
 

@@ -1,12 +1,12 @@
-#include "response.hpp"
+#include "daqi/response.hpp"
 
 #include <cstring>
 #include <map>
 #include <sstream>
 
-#include "utilities/string_utilities.hpp"
-#include "utilities/container_utilities.hpp"
-#include "utilities/html_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
+#include "daqi/utilities/container_utilities.hpp"
+#include "daqi/utilities/html_utilities.hpp"
 
 namespace da4qi4
 {

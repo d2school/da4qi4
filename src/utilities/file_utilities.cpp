@@ -1,9 +1,9 @@
-#include "utilities/file_utilities.hpp"
+#include "daqi/utilities/file_utilities.hpp"
 
 #include <fstream>
 
-#include "def/debug_def.hpp"
-#include "def/boost_def.hpp"
+#include "daqi/def/debug_def.hpp"
+#include "daqi/def/boost_def.hpp"
 
 namespace da4qi4
 {

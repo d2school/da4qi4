@@ -1,13 +1,13 @@
-#include  "server.hpp"
+#include  "daqi/server.hpp"
 
 #include <functional>
 #include <boost/date_time/posix_time/ptime.hpp>
 
-#include "def/log_def.hpp"
-#include "def/boost_def.hpp"
-#include "utilities/asio_utilities.hpp"
+#include "daqi/def/log_def.hpp"
+#include "daqi/def/boost_def.hpp"
+#include "daqi/utilities/asio_utilities.hpp"
 
-#include "connection.hpp"
+#include "daqi/connection.hpp"
 
 namespace da4qi4
 {

@@ -1,14 +1,14 @@
-#include "connection.hpp"
+#include "daqi/connection.hpp"
 
 #include <ctime>
 #include <ostream>
 
-#include "utilities/string_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
 
-#include "def/log_def.hpp"
-#include "def/boost_def.hpp"
-#include "def/asio_def.hpp"
-#include "application.hpp"
+#include "daqi/def/log_def.hpp"
+#include "daqi/def/boost_def.hpp"
+#include "daqi/def/asio_def.hpp"
+#include "daqi/application.hpp"
 
 namespace da4qi4
 {

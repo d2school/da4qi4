@@ -1,7 +1,7 @@
-#include "cookie.hpp"
+#include "daqi/cookie.hpp"
 
 #include "nlohmann/json.hpp"
-#include "utilities/string_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
 
 namespace da4qi4
 {

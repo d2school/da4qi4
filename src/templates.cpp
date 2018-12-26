@@ -1,10 +1,10 @@
-#include "templates.hpp"
+#include "daqi/templates.hpp"
 
 #include "inja/inja.hpp"
 
-#include "def/log_def.hpp"
-#include "def/boost_def.hpp"
-#include "utilities/string_utilities.hpp"
+#include "daqi/def/log_def.hpp"
+#include "daqi/def/boost_def.hpp"
+#include "daqi/utilities/string_utilities.hpp"
 
 namespace da4qi4
 {

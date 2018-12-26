@@ -1,4 +1,4 @@
-#include "utilities/string_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
 
 #include <ctime>
 

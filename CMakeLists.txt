@@ -9,34 +9,47 @@ endif()
 
 project(da4qi4)
 
+#set(_DAQI_TARGET_TYPE_ "DEMO_SERVER")
+#set(_DAQI_TARGET_TYPE_ "STATIC_LIB")
+#set(_DAQI_TARGET_TYPE_ "SHARED_LIB")
+
 find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
-find_library(LIBMYSQLPP mysqlpp /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 
-link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} mysqlclient pthread crypto)
+link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} pthread)
 
 include_directories(.)
+include_directories(include/)
+include_directories(nlohmann_json/include/)
 
-include_directories(./nlohmann_json/include/)
 set(JSON_MultipleHeaders ON  CACHE INTERNAL "")
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(nlohmann_json)
 
-aux_source_directory(./def SRC_FILES)
-aux_source_directory(./http-parser SRC_FILES)
-aux_source_directory(./intercepters SRC_FILES)
-aux_source_directory(./multipart-parser SRC_FILES)
-aux_source_directory(./redis-client SRC_FILES)
-aux_source_directory(./utilities SRC_FILES)
-aux_source_directory(./tools/aliyun_sms SRC_FILES)
+aux_source_directory(./src/redis-client DAQI_SRC_FILES)
+aux_source_directory(./src/utilities DAQI_SRC_FILES)
+aux_source_directory(./src/def DAQI_SRC_FILES)
+aux_source_directory(./src/intercepters DAQI_SRC_FILES)
+aux_source_directory(./src DAQI_SRC_FILES)
 
-aux_source_directory(. SRC_FILES)
-
-add_definitions(-Dcimg_display=0)
+aux_source_directory(./http-parser DAQI_SRC_FILES)
+aux_source_directory(./multipart-parser DAQI_SRC_FILES)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
 
 link_libraries(nlohmann_json)
+
+if(_DAQI_TARGET_TYPE_ STREQUAL "DEMO_SERVER")
+    message(STATUS "WILL BUILD DAQI AS DEMO_SERVER")    
+    add_definitions(-D_BUILD_DAQI_DEMO_SERVER_=1)
+    add_executable(${PROJECT_NAME} ${DAQI_SRC_FILES})  
+elseif(_DAQI_TARGET_TYPE_ STREQUAL "STATIC_LIB")    
+    message(STATUS "WILL BUILD DAQI AS STATIC_LIB")    
+    add_library(${PROJECT_NAME} ${DAQI_SRC_FILES})  
+elseif(_DAQI_TARGET_TYPE_ STREQUAL "SHARED_LIB")    
+    message(STATUS "WILL BUILD DAQI AS SHARED_LIB")    
+    add_library(${PROJECT_NAME} SHARED ${DAQI_SRC_FILES})      
+endif()
 
 function(echo_all_cmake_variable_values)
   get_cmake_property(vs VARIABLES)
@@ -47,5 +60,3 @@ function(echo_all_cmake_variable_values)
 endfunction()
 
 #echo_all_cmake_variable_values()
-
-add_executable(${PROJECT_NAME} ${SRC_FILES})

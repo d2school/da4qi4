@@ -1,10 +1,10 @@
-#include "context.hpp"
+#include "daqi/context.hpp"
 
 #include <iterator>
 
-#include "def/log_def.hpp"
-#include "connection.hpp"
-#include "application.hpp"
+#include "daqi/def/log_def.hpp"
+#include "daqi/connection.hpp"
+#include "daqi/application.hpp"
 
 namespace da4qi4
 {

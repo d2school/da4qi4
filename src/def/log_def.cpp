@@ -1,11 +1,11 @@
-#include "def/log_def.hpp"
+#include "daqi/def/log_def.hpp"
 
 #include <iostream>
 
 #include "spdlog/sinks/null_sink.h"
 
-#include "def/def.hpp"
-#include "application.hpp"
+#include "daqi/def/def.hpp"
+#include "daqi/application.hpp"
 
 namespace da4qi4
 {

@@ -1,10 +1,10 @@
-#include "intercepters/static_file.hpp"
+#include "daqi/intercepters/static_file.hpp"
 
 #include <fstream>
 
-#include "application.hpp"
-#include "utilities/string_utilities.hpp"
-#include "utilities/html_utilities.hpp"
+#include "daqi/application.hpp"
+#include "daqi/utilities/string_utilities.hpp"
+#include "daqi/utilities/html_utilities.hpp"
 
 namespace da4qi4
 {

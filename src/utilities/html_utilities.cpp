@@ -1,6 +1,6 @@
-#include "utilities/html_utilities.hpp"
+#include "daqi/utilities/html_utilities.hpp"
 
-#include "utilities/string_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
 
 namespace da4qi4
 {

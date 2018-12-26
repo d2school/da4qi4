@@ -1,4 +1,4 @@
-#include "request.hpp"
+#include "daqi/request.hpp"
 
 #include <iomanip>
 #include <sstream>
@@ -8,13 +8,13 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-#include "def/log_def.hpp"
+#include "daqi/def/log_def.hpp"
 
-#include "utilities/string_utilities.hpp"
-#include "utilities/file_utilities.hpp"
-#include "utilities/html_utilities.hpp"
+#include "daqi/utilities/string_utilities.hpp"
+#include "daqi/utilities/file_utilities.hpp"
+#include "daqi/utilities/html_utilities.hpp"
 
-#include "application.hpp"
+#include "daqi/application.hpp"
 
 namespace da4qi4
 {
