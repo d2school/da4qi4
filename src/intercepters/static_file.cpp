@@ -1,4 +1,4 @@
-#include "static_file.hpp"
+#include "intercepters/static_file.hpp"
 
 #include <fstream>
 
@@ -185,10 +185,10 @@ void StaticFile::on_response(Context& ctx) const
         return;
     }
 
-    size_t const max_byte_read_one_time = 1024 * 2;
+    size_t const max_byte_read_one_time = 1024 * 10;
     char rdbuf[max_byte_read_one_time];
 
-    size_t const max_byte_one_chunked_body = 1024 * 128;
+    size_t const max_byte_one_chunked_body = 1024 * 100;
     std::string a_chunk_body;
     a_chunk_body.reserve(max_byte_one_chunked_body);
 

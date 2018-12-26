@@ -5,9 +5,9 @@
 #include "intercepters/static_file.hpp"
 #include "intercepters/session_redis.hpp"
 
-#include "tools/aliyun_sms/sms_client.hpp"
-
 using namespace da4qi4;
+
+#ifdef _BUILD_DAQI_DEMO_SERVER_
 
 int main()
 {
@@ -52,6 +52,17 @@ int main()
         ctx->Pass();
     });
 
+    web->AddHandler(_GET_, "/login", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+    web->AddHandler(_GET_, "/regist", [](Context ctx)
+    {
+        ctx->RenderWithoutData();
+        ctx->Pass();
+    });
+
     if (!svc->Mount(web))
     {
         std::cerr << "Mount application " << web->GetName() << " fail." << std::endl;
@@ -78,3 +89,5 @@ int main()
 
     return 0;
 }
+
+#endif

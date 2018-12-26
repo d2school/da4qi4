@@ -1,6 +1,6 @@
 #include "utilities/captcha_utilities.hpp"
 
-#include "cimg/CImg.h"
+//#include "cimg/CImg.h"
 
 #include "def/debug_def.hpp"
 
@@ -9,6 +9,7 @@ namespace da4qi4
 namespace Utilities
 {
 
+/*
 using namespace cimg_library;
 
 #ifdef min
@@ -156,6 +157,7 @@ void make_captcha_image(std::string const& captcha_text
 {
     make_captcha_image(captcha_text.c_str(), captcha_text.size(), filename.c_str());
 }
+*/
 
 } //namespace Utilities
 } //namespace da4qi4

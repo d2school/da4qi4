@@ -1,14 +1,14 @@
-#include "redis_client.hpp"
+#include "redis-client/redis_client.hpp"
 
 #include <iostream>
 #include <functional>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "../def/log_def.hpp"
+#include "def/log_def.hpp"
 
-#include "redis_command.hpp"
-#include "redis_parser.hpp"
+#include "redis-client/redis_command.hpp"
+#include "redis-client/redis_parser.hpp"
 
 
 namespace da4qi4

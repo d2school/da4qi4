@@ -657,13 +657,12 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
 }
 
 void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec
-                                                , size_t /*bytes_transferred*/)
+                                                , size_t bytes_transferred)
 {
     if (ec)
     {
-        log::Server()->error("Write chunked body fail. {}", ec.message());
-        log::Server()->debug("Chunk buffer, size: {}, content: \r\n {}", _current_chunked_body_buffer.size()
-                             , _current_chunked_body_buffer);
+        log::Server()->warn("Write chunked body fail. body size {}, transferred {}. {}"
+                            , _current_chunked_body_buffer.size(), bytes_transferred, ec.message());
         return;
     }
 
