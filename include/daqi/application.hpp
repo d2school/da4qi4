@@ -35,6 +35,9 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
+class Application;
+using ApplicationPtr = std::shared_ptr<Application>;
+
 class Application
 {
 private:
@@ -49,23 +52,23 @@ private:
                 , fs::path const& root_temporary
                );
 public:
-    static std::shared_ptr<Application> Default()
+    static ApplicationPtr Default()
     {
-        return std::shared_ptr<Application>(new Application());
+        return ApplicationPtr(new Application());
     }
 
-    static std::shared_ptr<Application> Customize(std::string const& name
-                                                  , std::string const& root_url
-                                                  , fs::path const& root_log
-                                                  , fs::path const& root_static = ""
-                                                  , fs::path const& root_template = ""
-                                                  , fs::path const& root_upload = ""
-                                                  , fs::path const& root_temporary = "")
+    static ApplicationPtr Customize(std::string const& name
+                                    , std::string const& root_url
+                                    , fs::path const& root_log
+                                    , fs::path const& root_static = ""
+                                    , fs::path const& root_template = ""
+                                    , fs::path const& root_upload = ""
+                                    , fs::path const& root_temporary = "")
     {
-        return std::shared_ptr<Application>(new Application(name,
-                                                            root_url, root_log, root_static,
-                                                            root_template, root_upload,
-                                                            root_temporary));
+        return ApplicationPtr(new Application(name,
+                                              root_url, root_log, root_static,
+                                              root_template, root_upload,
+                                              root_temporary));
     }
 
     ~Application();

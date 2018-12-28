@@ -28,7 +28,8 @@ public:
 
     TemplatePtr const Get(std::string const& name);
 
-    bool ReloadIfUpdate();
+    bool ReloadIfFindUpdate();
+    bool ReloadIfFindNew();
 
 private:
     bool reload();
@@ -38,6 +39,18 @@ private:
     bool try_load_template(std::string const& key
                            , std::string const& template_filename
                            , std::string const& full_template_filename);
+
+    enum class TemplateUpdateAction
+    {
+        none, appended, modified, removed
+    };
+
+    TemplateUpdateAction check_exists_template();
+    TemplateUpdateAction check_new_template(std::string const& template_ext
+                                            , std::string const& key_ext);
+
+    void hint_template_updated_found(TemplateUpdateAction action);
+    void hint_template_reload_fail();
 
     struct Item
     {

@@ -167,7 +167,10 @@ void ApplicationMgr::CheckTemplatesUpdate()
 {
     for (auto a : _map)
     {
-        a.second->GetTemplates().ReloadIfUpdate();
+        if (!a.second->GetTemplates().ReloadIfFindUpdate())
+        {
+            a.second->GetTemplates().ReloadIfFindNew();
+        }
     }
 }
 
@@ -549,14 +552,15 @@ void Application::Handle(Context ctx)
     do_handle(ctx);
 }
 
+
 void Application::do_handle(Context& ctx)
 {
     Handler& h = find_handler(ctx);
 
     if (!h)
     {
-        ctx->RenderNofound();
-        ctx->Stop();
+        ctx->RenderWithoutData();
+        ctx->Pass();
         return;
     }
 

@@ -292,21 +292,24 @@ void ContextIMP::Render(Json const& data)
         return;
     }
 
-    size_t len = template_name.size();
+    bool template_name_is_path_form = !template_name.empty() && (*(--template_name.end()) == '/');
 
-    if (len > 1 && template_name[len - 1] == '/')
+    if (!template_name_is_path_form)
     {
-        template_name += "index";
-        templ = App().GetTemplates().Get(template_name);
-
-        if (!templ)
-        {
-            RenderNofound();
-            return;
-        }
-
-        render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
+        RenderNofound();
+        return;
     }
+
+    template_name += "index";
+    templ = App().GetTemplates().Get(template_name);
+
+    if (!templ)
+    {
+        RenderNofound();
+        return;
+    }
+
+    render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
 }
 
 void ContextIMP::end()

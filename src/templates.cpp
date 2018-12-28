@@ -78,6 +78,19 @@ bool Templates::try_load_template(std::string const& key
     }
 }
 
+bool is_deprecated(fs::path const& path)
+{
+    return (path.string().find("_deprecated/") != std::string::npos
+            || path.string().find("_deprecated\\") != std::string::npos
+            || path.string().find(".deprecated.") != std::string::npos);
+}
+
+bool is_include_dir(fs::path const& path)
+{
+    return (path.native().find("/i/") != std::string::npos
+            || path.native().find("\\i\\") != std::string::npos);
+}
+
 std::size_t Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
 {
     fs::path root(_root);
@@ -100,15 +113,12 @@ std::size_t Templates::load_templates(std::string const& template_ext, std::stri
 
             if (Utilities::EndsWith(path.filename().native(), template_ext))
             {
-                if (path.string().find("_deprecated/") != std::string::npos
-                    || path.string().find("_deprecated\\") != std::string::npos
-                    || path.string().find(".deprecated.") != std::string::npos)
+                if (is_deprecated(path))
                 {
                     continue;
                 }
 
-                if (path.native().find("/i/") != std::string::npos
-                    || path.native().find("\\i\\") != std::string::npos)
+                if (is_include_dir(path))
                 {
                     _includes.push_back(path.string());
                     continue;
@@ -190,14 +200,73 @@ TemplatePtr const  Templates::Get(std::string const& name)
     return it->second.templ;
 }
 
-bool Templates::ReloadIfUpdate()
+void Templates::hint_template_updated_found(TemplateUpdateAction action)
 {
+    switch (action)
+    {
+        case TemplateUpdateAction::appended:
+            _app_logger->info("Detects template appended.");
+            break;
+
+        case TemplateUpdateAction::modified:
+            _app_logger->info("Detects template modified.");
+            break;
+
+        case TemplateUpdateAction::removed:
+            _app_logger->info("Detects template removed.");
+            break;
+
+        default:
+            break;
+    }
+}
+
+void Templates::hint_template_reload_fail()
+{
+    _app_logger->error("Templates reload fail.");
+}
+
+bool Templates::ReloadIfFindUpdate()
+{
+    auto r = check_exists_template();
+
+    if (r == TemplateUpdateAction::none)
+    {
+        return false;
+    }
+
+
+    hint_template_updated_found(r);
+
+    if (reload())
+    {
+        return true;
+    }
+
+    hint_template_reload_fail();
+    return false;
+}
+
+Templates::TemplateUpdateAction Templates::check_exists_template()
+{
+    TemplateUpdateAction action = TemplateUpdateAction::none;
+
     std::string modified_file;
 
     for (auto item : _templates)
     {
         auto fp = fs::path(item.second.filename);
+
         errorcode ec;
+        bool exists_still = fs::exists(fs::status(fp, ec));
+
+        if (ec || !exists_still)
+        {
+            modified_file = item.second.filename;
+            action = TemplateUpdateAction::removed;
+            break;
+        }
+
         std::time_t t = fs::last_write_time(fp, ec);
 
         if (ec)
@@ -208,6 +277,7 @@ bool Templates::ReloadIfUpdate()
         else if (t > _loaded_time)
         {
             modified_file = item.second.filename;
+            action = TemplateUpdateAction::modified;
             break;
         }
     }
@@ -228,25 +298,93 @@ bool Templates::ReloadIfUpdate()
             else if (t > _loaded_time)
             {
                 modified_file = filename;
+                action = TemplateUpdateAction::modified;
                 break;
             }
         }
     }
 
-    if (modified_file.empty())
+    return action;
+}
+
+bool Templates::ReloadIfFindNew()
+{
+    auto r = check_new_template(daqi_HTML_template_ext, Utilities::theEmptyString);
+
+    if (r == TemplateUpdateAction::none)
     {
         return false;
     }
 
-    _app_logger->info("Templates update detected.");
+    hint_template_updated_found(r);
 
     if (reload())
     {
         return true;
     }
 
-    _app_logger->error("Templates reload fail.");
+    hint_template_reload_fail();
     return false;
 }
+
+Templates::TemplateUpdateAction Templates::check_new_template(std::string const& template_ext,
+                                                              std::string const& key_ext)
+{
+    fs::path root(_root);
+
+    if (!fs::is_directory((root)) || !fs::exists(root))
+    {
+        return TemplateUpdateAction::none;
+    }
+
+    fs::recursive_directory_iterator iter(root);
+    fs::recursive_directory_iterator end_iter;
+
+    for (; iter != end_iter; ++iter)
+    {
+        if (fs::is_regular_file(*iter))
+        {
+            fs::path const& path = *iter;
+
+            if (Utilities::EndsWith(path.filename().native(), template_ext))
+            {
+                if (is_deprecated(path))
+                {
+                    continue;
+                }
+
+                if (is_include_dir(path))
+                {
+                    std::lock_guard<std::mutex> _guard_(_m);
+                    auto fd = std::find(_includes.cbegin(), _includes.cend(), path.string());
+
+                    if (fd == _includes.cend())
+                    {
+                        return TemplateUpdateAction::appended;
+                    }
+                }
+
+                std::string::size_type len = path.size();
+                std::string::size_type root_len = root.size();
+                std::string mpath = path.native().substr(root_len, len - root_len - template_ext.size());
+
+                if (!mpath.empty())
+                {
+                    std::string key = _app_prefix + mpath + key_ext;
+
+                    std::lock_guard<std::mutex> _guard_(_m);
+
+                    if (_templates.find(key) == _templates.cend())
+                    {
+                        return TemplateUpdateAction::appended;
+                    }
+                }
+            }
+        }
+    }
+
+    return TemplateUpdateAction::none;
+}
+
 
 } //namespace da4qi4
