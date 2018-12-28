@@ -5,7 +5,6 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-#include "daqi/def/debug_def.hpp"
 #include "daqi/utilities/asio_utilities.hpp"
 #include "daqi/utilities/string_utilities.hpp"
 
@@ -15,8 +14,6 @@ namespace da4qi4
 {
 namespace Intercepter
 {
-
-std::string const SessionOnRedis::data_name = "session-redis";
 
 std::string make_session_id(std::string const& prefix)
 {
@@ -42,18 +39,17 @@ void SessionOnRedis::on_request(Context& ctx) const
 
     if (session_id.empty())
     {
-        ctx->SaveData(data_name, create_new_session());
+        ctx->SaveData(ContextIMP::SessionDataName(), create_new_session());
         ctx->Pass();
         return;
     }
 
     if (auto redis = ctx->Redis())
     {
-        redis->Command("GET", {session_id}, [ctx, this](RedisValue value)
+        redis->Command("GET", {session_id}, [session_id, ctx, this](RedisValue value)
         {
             if (value.IsError())
             {
-                std::cerr << value.ToString() << std::endl;
                 ctx->RenderInternalServerError();
                 ctx->Stop();
                 return;
@@ -73,18 +69,18 @@ void SessionOnRedis::on_request(Context& ctx) const
                     data =  create_new_session();
                 }
 
-                ctx->SaveData(data_name, std::move(data));
+                ctx->SaveData(ContextIMP::SessionDataName(), std::move(data));
                 ctx->Pass();
             }
             catch (Json::parse_error const& e)
             {
-                std::cerr << e.what() << std::endl; //HINT : can get more detail info from e.
+                ctx->Logger()->error("Parse data for session {} exception. {}", session_id, e.what());
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }
             catch (std::exception const& e)
             {
-                std::cerr << e.what() << std::endl;
+                ctx->Logger()->error("Parse data for session {} exception. {}", session_id, e.what());
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }
@@ -94,7 +90,7 @@ void SessionOnRedis::on_request(Context& ctx) const
 
 void SessionOnRedis::on_response(Context& ctx) const
 {
-    Json node = ctx->LoadData(data_name);
+    Json node = ctx->LoadData(ContextIMP::SessionDataName());
 
     if (node.empty())
     {

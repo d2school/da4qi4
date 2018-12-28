@@ -5,6 +5,7 @@
 #include "daqi/def/log_def.hpp"
 #include "daqi/def/boost_def.hpp"
 #include "daqi/utilities/string_utilities.hpp"
+#include "daqi/utilities/file_utilities.hpp"
 
 namespace da4qi4
 {
@@ -22,28 +23,28 @@ void init_template_env(inja::Environment& env)
     {
         return Utilities::theEmptyString;
     };
-    auto placeholder_exist = [](inja::Parsed::Arguments, inja::json)
+    auto placeholder_exists = [](inja::Parsed::Arguments, inja::json)
     {
         return false;
     };
 
     env.add_callback("_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_PARAMETER_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_PARAMETER_EXISTS_", 1, placeholder_exists);
 
     env.add_callback("_HEADER_", 1, placeholder_find);
-    env.add_callback("_IS_HEADER_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_HEADER_EXISTS_", 1, placeholder_exists);
 
     env.add_callback("_URL_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_URL_PARAMETER_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_URL_PARAMETER_EXISTS_", 1, placeholder_exists);
 
     env.add_callback("_PATH_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1, placeholder_exists);
 
     env.add_callback("_FORM_DATA_", 1, placeholder_find);
-    env.add_callback("_IS_FORM_DATA_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_FORM_DATA_EXISTS_", 1, placeholder_exists);
 
     env.add_callback("_COOKIE_", 1, placeholder_find);
-    env.add_callback("_IS_COOKIE_EXISTS_", 1, placeholder_exist);
+    env.add_callback("_IS_COOKIE_EXISTS_", 1, placeholder_exists);
 }
 
 bool Templates::try_load_template(std::string const& key
@@ -257,16 +258,14 @@ Templates::TemplateUpdateAction Templates::check_exists_template()
     {
         auto fp = fs::path(item.second.filename);
 
-        errorcode ec;
-        bool exists_still = fs::exists(fs::status(fp, ec));
-
-        if (ec || !exists_still)
+        if (!Utilities::IsFileExists(fp))
         {
             modified_file = item.second.filename;
             action = TemplateUpdateAction::removed;
             break;
         }
 
+        errorcode ec;
         std::time_t t = fs::last_write_time(fp, ec);
 
         if (ec)

@@ -26,20 +26,10 @@ struct StaticFile
     {
     }
 
-    StaticFile(std::string const& application_name)
-        : _application_name(application_name)
-        , _cache_max_age(300)
-        , _url_resolve_type(PathResolve::is_relative)
-        , _dir_resolve_type(PathResolve::is_relative)
-    {
-    }
-
-    StaticFile(std::string const& application_name
-               , int cache_max_age
+    StaticFile(int cache_max_age
                , PathResolve url_resolve_type = PathResolve::is_relative
                , PathResolve dir_resolve_type = PathResolve::is_relative)
-        : _application_name(application_name)
-        , _cache_max_age(cache_max_age)
+        : _cache_max_age(cache_max_age)
         , _url_resolve_type(url_resolve_type)
         , _dir_resolve_type(dir_resolve_type)
     {
@@ -90,12 +80,6 @@ struct StaticFile
         return _default_filenames;
     }
 
-    StaticFile& SetApplicationName(std::string const& name)
-    {
-        _application_name = name;
-        return *this;
-    }
-
     void operator()(Context ctx, On on) const;
 
 private:
@@ -103,8 +87,6 @@ private:
     void on_response(Context& ctx) const;
 
 private:
-    std::string _application_name;
-
     int _cache_max_age;
     PathResolve _url_resolve_type, _dir_resolve_type;
     std::map<std::string, std::string, Utilities::CompareDESC> _root_entries;

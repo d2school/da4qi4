@@ -20,7 +20,6 @@ StaticFile& StaticFile::AddEntry(std::string const& url_root
     return *this;
 }
 
-
 StaticFile& StaticFile::AddDefaultFileName(std::string const& index_filename)
 {
     for (auto fn : _default_filenames)
@@ -178,7 +177,7 @@ void StaticFile::on_response(Context& ctx) const
 
     if (!ifs)
     {
-        std::cerr << "Open " << dst_file.native() << "file fail!" << std::endl;
+        ctx->Logger()->error("Open {} file fail.", dst_file.native());
 
         ctx->RenderInternalServerError();
         ctx->Pass();

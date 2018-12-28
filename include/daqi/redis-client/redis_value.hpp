@@ -8,27 +8,28 @@
 
 #include <boost/variant.hpp>
 
-namespace da4qi4 
+namespace da4qi4
 {
 
-class RedisValue {
+class RedisValue
+{
 public:
     struct ErrorTag {};
 
     RedisValue();
-    RedisValue(RedisValue &&other);
+    RedisValue(RedisValue&& other);
     RedisValue(int64_t i);
-    RedisValue(const char *s);
-    RedisValue(const std::string &s);
+    RedisValue(const char* s);
+    RedisValue(const std::string& s);
     RedisValue(std::vector<char> buf);
     RedisValue(std::vector<char> buf, struct ErrorTag);
     RedisValue(std::string const& custom_error, struct ErrorTag);
     RedisValue(std::vector<RedisValue> array);
 
 
-    RedisValue(const RedisValue &) = default;
-    RedisValue& operator = (const RedisValue &) = default;
-    RedisValue& operator = (RedisValue &&) = default;
+    RedisValue(const RedisValue&) = default;
+    RedisValue& operator = (const RedisValue&) = default;
+    RedisValue& operator = (RedisValue&&) = default;
 
     // Return the value as a std::string if
     // type is a byte string; otherwise returns an empty std::string.
@@ -41,6 +42,11 @@ public:
     // Return the value as a std::vector<RedisValue> if
     // type is an int; otherwise returns 0.
     int64_t ToInt() const;
+
+    int ToInt32() const
+    {
+        return static_cast<int>(ToInt());
+    }
 
     // Return the value as an array if type is an array;
     // otherwise returns an empty array.
@@ -68,31 +74,31 @@ public:
 
     // Methods for increasing perfomance
     // Throws: boost::bad_get if the type does not match
-    std::vector<char> &GetByteArray();
-    const std::vector<char> &GetByteArray() const;
-    std::vector<RedisValue> &GetArray();
-    const std::vector<RedisValue> &GetArray() const;
+    std::vector<char>& GetByteArray();
+    const std::vector<char>& GetByteArray() const;
+    std::vector<RedisValue>& GetArray();
+    const std::vector<RedisValue>& GetArray() const;
 
-    bool operator == (const RedisValue &rhs) const;
-    bool operator != (const RedisValue &rhs) const;
+    bool operator == (const RedisValue& rhs) const;
+    bool operator != (const RedisValue& rhs) const;
 
 protected:
     template<typename T>
-     T cast_to() const;
+    T cast_to() const;
 
     template<typename T>
     bool type_eq() const;
 
 private:
-    struct NullTag 
+    struct NullTag
     {
-        inline bool operator == (const NullTag &) const 
+        inline bool operator == (const NullTag&) const
         {
             return true;
         }
     };
 
-    boost::variant<NullTag, int64_t, std::vector<char>, std::vector<RedisValue> > _value;
+    boost::variant<NullTag, int64_t, std::vector<char>, std::vector<RedisValue>> _value;
     bool _error;
 };
 
@@ -100,7 +106,7 @@ private:
 template<typename T>
 T RedisValue::cast_to() const
 {
-    return (_value.type() == typeid(T))? boost::get<T>(_value) : T();
+    return (_value.type() == typeid(T)) ? boost::get<T>(_value) : T();
 }
 
 template<typename T>

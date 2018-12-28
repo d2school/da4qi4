@@ -9,6 +9,9 @@
 namespace da4qi4
 {
 
+std::string ContextIMP::session_data_name = "_session_data_";
+std::string ContextIMP::page_data_name = "_page_data_";
+
 RedisClientPtr init_redis_client(ConnectionPtr cnt)
 {
     size_t index = cnt->GetIOContextIndex();
@@ -235,7 +238,13 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
     }
 }
 
-void ContextIMP::Render(http_status status, Json const& data)
+void ContextIMP::Render()
+{
+    Json& page_data = PageData();
+    (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
+}
+
+void ContextIMP::RenderWithData(http_status status, Json const& data)
 {
     std::string template_name = std::to_string(static_cast<int>(status));
 
@@ -249,7 +258,7 @@ void ContextIMP::Render(http_status status, Json const& data)
     }
 }
 
-void ContextIMP::Render(std::string const& template_name, Json const& data)
+void ContextIMP::RenderWithData(std::string const& template_name, Json const& data)
 {
     auto templ = App().GetTemplates().Get(template_name);
 
@@ -263,7 +272,7 @@ void ContextIMP::Render(std::string const& template_name, Json const& data)
     render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
 }
 
-void ContextIMP::Render(Json const& data)
+void ContextIMP::RenderWithData(Json const& data)
 {
     std::string const& path = Req().GetUrl().path;
 

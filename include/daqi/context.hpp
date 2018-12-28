@@ -48,7 +48,12 @@ public:
     Application& App();
     Application const& App() const;
 
-    Json LoadData(std::string const& name) const
+    Json const& Data(std::string const& name) const
+    {
+        return const_cast<ContextIMP*>(this)->Data(name);
+    }
+
+    Json& Data(std::string const& name)
     {
         auto it = _data.find(name);
 
@@ -58,6 +63,11 @@ public:
         }
 
         return *it;
+    }
+
+    Json LoadData(std::string const& name) const
+    {
+        return Data(name);
     }
 
     void SaveData(std::string const& name, Json const& data)
@@ -76,65 +86,122 @@ public:
         }
     }
 
+    Json& PageData()
+    {
+        return Data(page_data_name);
+    }
+
+    Json const& PageData() const
+    {
+        return Data(page_data_name);
+    }
+
+    Json LoadPageData() const
+    {
+        return PageData();
+    }
+
+    void SavePageData(Json const& data)
+    {
+        PageData() = data;
+    }
+
+    static std::string const& PageDataName()
+    {
+        return page_data_name;
+    }
+
+    Json& SessionData()
+    {
+        return Data(session_data_name);
+    }
+
+    Json const& SessionData() const
+    {
+        return Data(session_data_name);
+    }
+
+    Json LoadSessionData() const
+    {
+        return SessionData();
+    }
+
+    void SaveSessionData(Json const& data)
+    {
+        SessionData() = data;
+    }
+
+    static std::string const& SessionDataName()
+    {
+        return session_data_name;
+    }
+
     IOC& IOContext();
     size_t IOContextIndex() const;
 
+    log::LoggerPtr Logger()
+    {
+        return logger();
+    }
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names
                                    , std::vector<std::string> const& values);
+
 public:
-    void Render(http_status status, Json const& data);
-    void Render(std::string const& template_name, Json const& data);
-    void Render(Json const& data);
+    void Render();
+
+    void RenderWithData(http_status status, Json const& data);
+    void RenderWithData(std::string const& template_name, Json const& data);
+    void RenderWithData(Json const& data);
 
 public:
     void RenderWithoutData(http_status status)
     {
-        Render(status, theEmptyJson);
+        RenderWithData(status, theEmptyJson);
     }
     void RenderWithoutData(std::string const& template_name)
     {
-        Render(template_name, theEmptyJson);
+        RenderWithData(template_name, theEmptyJson);
     }
     void RenderWithoutData()
     {
-        Render(theEmptyJson);
+        RenderWithData(theEmptyJson);
     }
 
 public:
     void RenderNofound(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_NOT_FOUND, data);
+        RenderWithData(HTTP_STATUS_NOT_FOUND, data);
     }
 
     void RenderBadRequest(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_BAD_REQUEST, data);
+        RenderWithData(HTTP_STATUS_BAD_REQUEST, data);
     }
 
     void RenderUnauthorized(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_UNAUTHORIZED, data);
+        RenderWithData(HTTP_STATUS_UNAUTHORIZED, data);
     }
 
     void RenderForbidden(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_FORBIDDEN, data);
+        RenderWithData(HTTP_STATUS_FORBIDDEN, data);
     }
 
     void RenderNotImplemented(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_NOT_IMPLEMENTED, data);
+        RenderWithData(HTTP_STATUS_NOT_IMPLEMENTED, data);
     }
 
     void RenderServiceUnavailable(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
+        RenderWithData(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
     }
 
     void RenderInternalServerError(Json const& data = theEmptyJson)
     {
-        Render(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+        RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
     }
 
 public:
@@ -264,6 +331,10 @@ private:
     Intercepter::ChainIterator _intercepter_beg, _intercepter_end;
 
     RedisClientPtr _redis;
+
+private:
+    static std::string session_data_name;
+    static std::string page_data_name;
 };
 
 

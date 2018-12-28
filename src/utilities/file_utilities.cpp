@@ -49,5 +49,18 @@ bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path)
     return true;
 }
 
+bool IsFileExists(fs::path const& fullpath)
+{
+    errorcode ec;
+    bool exists_still = fs::exists(fs::status(fullpath, ec));
+    return (!ec && exists_still);
+}
+
+bool IsFileExists(std::string const& fullpath)
+{
+    auto fp = fs::path(fullpath);
+    return IsFileExists(fp);
+}
+
 } //namesapce Utilities
 }//namespace da4qi4

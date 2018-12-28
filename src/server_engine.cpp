@@ -27,12 +27,20 @@ IOContextPool::IOContextPool(std::size_t pool_size)
     }
 }
 
+void init_srand_seed(int thread_index)
+{
+    unsigned int rand_seed = static_cast<unsigned int>(std::time(nullptr) + thread_index * 10389);
+    std::srand(rand_seed);
+}
+
 void IOContextPool::Run()
 {
     for (std::size_t i = 0; i < _io_contexts.size(); ++i)
     {
         std::shared_ptr<std::thread> thread(new std::thread([i, this]()
         {
+            init_srand_seed(static_cast<int>(i));
+
             while (!_stopping)
             {
                 try

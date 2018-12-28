@@ -17,8 +17,6 @@
 namespace da4qi4
 {
 
-using RedisClientPtr = std::shared_ptr<RedisClient>;
-
 class IOContextPool;
 class RedisClientPool
 {

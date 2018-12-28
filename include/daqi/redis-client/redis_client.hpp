@@ -96,10 +96,9 @@ private:
 private:
     enum ConnectStatus {not_connect, is_connectting, is_connected};
     ConnectStatus _connect_status = not_connect;
-
-private:
-
 };
+
+using RedisClientPtr = std::shared_ptr<RedisClient>;
 
 } // namespace da4qi4
 
