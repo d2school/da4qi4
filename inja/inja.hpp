@@ -1,1481 +1,2018 @@
-/*
-Inja - A Template Engine for Modern C++
-version 1.1.0
-https://github.com/pantor/inja
-
-Licensed under the MIT License <https://opensource.org/licenses/MIT>.
-Copyright (c) 2017-2018 Pantor <https://github.com/pantor>.
-
-Permission is hereby  granted, free of charge, to any  person obtaining a copy
-of this software and associated  documentation files (the "Software"), to deal
-in the Software  without restriction, including without  limitation the rights
-to  use, copy,  modify, merge,  publish, distribute,  sublicense, and/or  sell
-copies  of  the Software,  and  to  permit persons  to  whom  the Software  is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE  IS PROVIDED "AS  IS", WITHOUT WARRANTY  OF ANY KIND,  EXPRESS OR
-IMPLIED,  INCLUDING BUT  NOT  LIMITED TO  THE  WARRANTIES OF  MERCHANTABILITY,
-FITNESS FOR  A PARTICULAR PURPOSE AND  NONINFRINGEMENT. IN NO EVENT  SHALL THE
-AUTHORS  OR COPYRIGHT  HOLDERS  BE  LIABLE FOR  ANY  CLAIM,  DAMAGES OR  OTHER
-LIABILITY, WHETHER IN AN ACTION OF  CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef PANTOR_INJA_HPP
 #define PANTOR_INJA_HPP
 
-#define PANTOR_INJA_VERSION_MAJOR 1
-#define PANTOR_INJA_VERSION_MINOR 1
-#define PANTOR_INJA_VERSION_PATCH 0
-
-
-#include <algorithm>
-#include <fstream>
+#include <functional>
 #include <iostream>
-#include <locale>
 #include <map>
-#include <nlohmann/json.hpp>
-#include <regex>
-#include <string>
+#include <memory>
 #include <sstream>
-#include <type_traits>
+#include <string>
+#include <string_view>
 #include <vector>
 
-#include <boost/filesystem.hpp>
+#include <nlohmann/json.hpp>
+
+// #include "environment.hpp"
+#ifndef PANTOR_INJA_ENVIRONMENT_HPP
+#define PANTOR_INJA_ENVIRONMENT_HPP
+
+#include <memory>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <string_view>
+
+#include <nlohmann/json.hpp>
+
+// #include "config.hpp"
+#ifndef PANTOR_INJA_CONFIG_HPP
+#define PANTOR_INJA_CONFIG_HPP
+
+#include <functional>
+#include <string>
+#include <string_view>
 
 
-namespace inja
-{
+namespace inja {
 
-using json = nlohmann::json;
+enum class ElementNotation {
+  Dot,
+  Pointer
+};
 
+struct LexerConfig {
+  std::string statement_open {"{%"};
+  std::string statement_close {"%}"};
+  std::string line_statement {"##"};
+  std::string expression_open {"{{"};
+  std::string expression_close {"}}"};
+  std::string comment_open {"{#"};
+  std::string comment_close {"#}"};
+  std::string open_chars {"#{"};
 
-/*!
-@brief throw an error with a given message
-*/
-inline void inja_throw(const std::string& type, const std::string& message)
-{
-    throw std::runtime_error("[inja.exception." + type + "] " + message);
+  void update_open_chars() {
+    open_chars = "\n";
+    if (open_chars.find(statement_open[0]) == std::string::npos) {
+      open_chars += statement_open[0];
+    }
+    if (open_chars.find(expression_open[0]) == std::string::npos) {
+      open_chars += expression_open[0];
+    }
+    if (open_chars.find(comment_open[0]) == std::string::npos) {
+      open_chars += comment_open[0];
+    }
+  }
+};
+
+struct ParserConfig {
+  ElementNotation notation {ElementNotation::Dot};
+};
+
 }
 
+#endif // PANTOR_INJA_CONFIG_HPP
 
-/*!
-@brief inja regex class, saves string pattern in addition to std::regex
-*/
-class Regex: public std::regex
-{
-    std::string pattern_;
+// #include "function_storage.hpp"
+#ifndef PANTOR_INJA_FUNCTION_STORAGE_HPP
+#define PANTOR_INJA_FUNCTION_STORAGE_HPP
 
-public:
-    Regex(): std::regex() {}
-    explicit Regex(const std::string& pattern): std::regex(pattern, std::regex_constants::ECMAScript), pattern_(pattern) { }
+#include <string_view>
 
-    std::string pattern() const
-    {
-        return pattern_;
-    }
+// #include "bytecode.hpp"
+#ifndef PANTOR_INJA_BYTECODE_HPP
+#define PANTOR_INJA_BYTECODE_HPP
+
+#include <string_view>
+#include <utility>
+
+#include <nlohmann/json.hpp>
+
+
+namespace inja {
+
+using namespace nlohmann;
+
+
+struct Bytecode {
+  enum class Op : uint8_t {
+    Nop,
+    // print StringRef (always immediate)
+    PrintText,
+    // print value
+    PrintValue,
+    // push value onto stack (always immediate)
+    Push,
+
+    // builtin functions
+    // result is pushed to stack
+    // args specify number of arguments
+    // all functions can take their "last" argument either immediate
+    // or popped off stack (e.g. if immediate, it's like the immediate was
+    // just pushed to the stack)
+    Not,
+    And,
+    Or,
+    In,
+    Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Different,
+    DivisibleBy,
+    Even,
+    First,
+    Float,
+    Int,
+    Last,
+    Length,
+    Lower,
+    Max,
+    Min,
+    Odd,
+    Range,
+    Result,
+    Round,
+    Sort,
+    Upper,
+    Exists,
+    ExistsInObject,
+    IsBoolean,
+    IsNumber,
+    IsInteger,
+    IsFloat,
+    IsObject,
+    IsArray,
+    IsString,
+    Default,
+
+    // include another template
+    // value is the template name
+    Include,
+
+    // callback function
+    // str is the function name (this means it cannot be a lookup)
+    // args specify number of arguments
+    // as with builtin functions, "last" argument can be immediate
+    Callback,
+
+    // unconditional jump
+    // args is the index of the bytecode to jump to.
+    Jump,
+
+    // conditional jump
+    // value popped off stack is checked for truthyness
+    // if false, args is the index of the bytecode to jump to.
+    // if true, no action is taken (falls through)
+    ConditionalJump,
+
+    // start loop
+    // value popped off stack is what is iterated over
+    // args is index of bytecode after end loop (jumped to if iterable is
+    // empty)
+    // immediate value is key name (for maps)
+    // str is value name
+    StartLoop,
+
+    // end a loop
+    // args is index of the first bytecode in the loop body
+    EndLoop,
+  };
+
+  enum Flag {
+    // location of value for value-taking ops (mask)
+    ValueMask = 0x03,
+    // pop value off stack
+    ValuePop = 0x00,
+    // value is immediate rather than on stack
+    ValueImmediate = 0x01,
+    // lookup immediate str (dot notation)
+    ValueLookupDot = 0x02,
+    // lookup immediate str (json pointer notation)
+    ValueLookupPointer = 0x03,
+  };
+
+  Op op {Op::Nop};
+  uint32_t args: 30;
+  uint32_t flags: 2;
+
+  json value;
+  std::string_view str;
+
+  Bytecode(): args(0), flags(0) {}
+  explicit Bytecode(Op op, unsigned int args = 0): op(op), args(args), flags(0) {}
+  explicit Bytecode(Op op, std::string_view str, unsigned int flags): op(op), args(0), flags(flags), str(str) {}
+  explicit Bytecode(Op op, json&& value, unsigned int flags): op(op), args(0), flags(flags), value(std::move(value)) {}
 };
 
+}  // namespace inja
 
-class Match: public std::match_results<std::string::const_iterator>
-{
-    size_t offset_ = 0;
-    unsigned int group_offset_ = 0;
-    Regex regex_;
+#endif  // PANTOR_INJA_BYTECODE_HPP
 
-public:
-    Match(): std::match_results<std::string::const_iterator>() { }
-    explicit Match(size_t offset): std::match_results<std::string::const_iterator>(), offset_(offset) { }
-    explicit Match(size_t offset, const Regex& regex): std::match_results<std::string::const_iterator>(), offset_(offset),
-        regex_(regex) { }
 
-    void set_group_offset(unsigned int group_offset)
-    {
-        group_offset_ = group_offset;
-    }
-    void set_regex(Regex regex)
-    {
-        regex_ = regex;
-    }
 
-    size_t position() const
-    {
-        return offset_ + std::match_results<std::string::const_iterator>::position();
+namespace inja {
+
+using namespace nlohmann;
+
+using Arguments = std::vector<const json*>;
+using CallbackFunction = std::function<json(Arguments& args)>;
+
+class FunctionStorage {
+ public:
+  void add_builtin(std::string_view name, unsigned int num_args, Bytecode::Op op) {
+    auto& data = get_or_new(name, num_args);
+    data.op = op;
+  }
+
+  void add_callback(std::string_view name, unsigned int num_args, const CallbackFunction& function) {
+    auto& data = get_or_new(name, num_args);
+    data.function = function;
+  }
+
+  Bytecode::Op find_builtin(std::string_view name, unsigned int num_args) const {
+    if (auto ptr = get(name, num_args)) {
+      return ptr->op;
     }
-    size_t end_position() const
-    {
-        return position() + length();
+    return Bytecode::Op::Nop;
+  }
+
+  CallbackFunction find_callback(std::string_view name, unsigned int num_args) const {
+    if (auto ptr = get(name, num_args)) {
+      return ptr->function;
     }
-    bool found() const
-    {
-        return not empty();
+    return nullptr;
+  }
+
+ private:
+  struct FunctionData {
+    unsigned int num_args {0};
+    Bytecode::Op op {Bytecode::Op::Nop}; // for builtins
+    CallbackFunction function; // for callbacks
+  };
+
+  FunctionData& get_or_new(std::string_view name, unsigned int num_args) {
+    auto &vec = m_map[static_cast<std::string>(name)];
+    for (auto &i: vec) {
+      if (i.num_args == num_args) return i;
     }
-    const std::string str() const
-    {
-        return str(0);
+    vec.emplace_back();
+    vec.back().num_args = num_args;
+    return vec.back();
+  }
+
+  const FunctionData* get(std::string_view name, unsigned int num_args) const {
+    auto it = m_map.find(static_cast<std::string>(name));
+    if (it == m_map.end()) return nullptr;
+    for (auto &&i: it->second) {
+      if (i.num_args == num_args) return &i;
     }
-    const std::string str(int i) const
-    {
-        return std::match_results<std::string::const_iterator>::str(i + group_offset_);
-    }
-    Regex regex() const
-    {
-        return regex_;
-    }
+    return nullptr;
+  }
+
+  std::map<std::string, std::vector<FunctionData>> m_map;
 };
 
-
-template<typename T>
-class MatchType: public Match
-{
-    T type_;
-
-public:
-    MatchType(): Match() { }
-    explicit MatchType(const Match& obj): Match(obj) { }
-    MatchType(Match&& obj): Match(std::move(obj)) { }
-
-    void set_type(T type)
-    {
-        type_ = type;
-    }
-
-    T type() const
-    {
-        return type_;
-    }
-};
-
-
-class MatchClosed
-{
-public:
-    Match open_match, close_match;
-
-    MatchClosed() { }
-    MatchClosed(Match& open_match, Match& close_match): open_match(open_match), close_match(close_match) { }
-
-    size_t position() const
-    {
-        return open_match.position();
-    }
-    size_t end_position() const
-    {
-        return close_match.end_position();
-    }
-    size_t length() const
-    {
-        return close_match.end_position() - open_match.position();
-    }
-    bool found() const
-    {
-        return open_match.found() and close_match.found();
-    }
-    std::string prefix() const
-    {
-        return open_match.prefix().str();
-    }
-    std::string suffix() const
-    {
-        return close_match.suffix().str();
-    }
-    std::string outer() const
-    {
-        return open_match.str() + static_cast<std::string>(open_match.suffix()).substr(0,
-                                                                                       close_match.end_position() - open_match.end_position());
-    }
-    std::string inner() const
-    {
-        return static_cast<std::string>(open_match.suffix()).substr(0, close_match.position() - open_match.end_position());
-    }
-};
-
-
-inline Match search(const std::string& input, const Regex& regex, size_t position)
-{
-    if (position >= input.length())
-    {
-        return Match();
-    }
-
-    Match match{position, regex};
-    std::regex_search(input.cbegin() + position, input.cend(), match, regex);
-    return match;
 }
 
+#endif // PANTOR_INJA_FUNCTION_STORAGE_HPP
 
-template<typename T>
-inline MatchType<T> search(const std::string& input, const std::map<T, Regex>& regexes, size_t position)
-{
-    // Map to vectors
-    std::vector<T> class_vector;
-    std::vector<Regex> regexes_vector;
+// #include "parser.hpp"
+#ifndef PANTOR_INJA_PARSER_HPP
+#define PANTOR_INJA_PARSER_HPP
 
-    for (const auto& element : regexes)
-    {
-        class_vector.push_back(element.first);
-        regexes_vector.push_back(element.second);
+#include <limits>
+
+// #include "bytecode.hpp"
+
+// #include "config.hpp"
+
+// #include "function_storage.hpp"
+
+// #include "lexer.hpp"
+#ifndef PANTOR_INJA_LEXER_HPP
+#define PANTOR_INJA_LEXER_HPP
+
+#include <cctype>
+#include <locale>
+
+// #include "config.hpp"
+
+// #include "token.hpp"
+#ifndef PANTOR_INJA_TOKEN_HPP
+#define PANTOR_INJA_TOKEN_HPP
+
+#include <string_view>
+
+
+namespace inja {
+
+struct Token {
+  enum class Kind {
+    Text,
+    ExpressionOpen,      // {{
+    ExpressionClose,     // }}
+    LineStatementOpen,   // ##
+    LineStatementClose,  // \n
+    StatementOpen,       // {%
+    StatementClose,      // %}
+    CommentOpen,         // {#
+    CommentClose,        // #}
+    Id,                  // this, this.foo
+    Number,              // 1, 2, -1, 5.2, -5.3
+    String,              // "this"
+    Comma,               // ,
+    Colon,               // :
+    LeftParen,           // (
+    RightParen,          // )
+    LeftBracket,         // [
+    RightBracket,        // ]
+    LeftBrace,           // {
+    RightBrace,          // }
+    Equal,               // ==
+    GreaterThan,         // >
+    GreaterEqual,        // >=
+    LessThan,            // <
+    LessEqual,           // <=
+    NotEqual,            // !=
+    Unknown,
+    Eof
+  } kind {Kind::Unknown};
+
+  std::string_view text;
+
+  constexpr Token() = default;
+  constexpr Token(Kind kind, std::string_view text): kind(kind), text(text) {}
+
+  std::string describe() const {
+    switch (kind) {
+      case Kind::Text:
+        return "<text>";
+      case Kind::LineStatementClose:
+        return "<eol>";
+      case Kind::Eof:
+        return "<eof>";
+      default:
+        return static_cast<std::string>(text);
     }
+  }
+};
 
-    // Regex join
-    std::stringstream ss;
-
-    for (size_t i = 0; i < regexes_vector.size(); ++i)
-    {
-        if (i != 0)
-        {
-            ss << ")|(";
-        }
-
-        ss << regexes_vector[i].pattern();
-    }
-
-    Regex regex{"(" + ss.str() + ")"};
-
-    MatchType<T> search_match = search(input, regex, position);
-
-    if (not search_match.found())
-    {
-        return MatchType<T>();
-    }
-
-    // Vector of id vs groups
-    std::vector<unsigned int> regex_mark_counts = {};
-
-    for (unsigned int i = 0; i < regexes_vector.size(); i++)
-    {
-        for (unsigned int j = 0; j < regexes_vector[i].mark_count() + 1; j++)
-        {
-            regex_mark_counts.push_back(i);
-        }
-    }
-
-    for (unsigned int i = 1; i < search_match.size(); i++)
-    {
-        if (search_match.length(i) > 0)
-        {
-            search_match.set_group_offset(i);
-            search_match.set_type(class_vector[regex_mark_counts[i]]);
-            search_match.set_regex(regexes_vector[regex_mark_counts[i]]);
-            return search_match;
-        }
-    }
-
-    inja_throw("regex_search_error", "error while searching in input: " + input);
-    return search_match;
 }
 
-inline MatchClosed search_closed_on_level(const std::string& input, const Regex& regex_statement,
-                                          const Regex& regex_level_up, const Regex& regex_level_down, const Regex& regex_search, Match open_match)
-{
+#endif // PANTOR_INJA_TOKEN_HPP
 
-    int level = 0;
-    size_t current_position = open_match.end_position();
-    Match match_delimiter = search(input, regex_statement, current_position);
+// #include "utils.hpp"
+#ifndef PANTOR_INJA_UTILS_HPP
+#define PANTOR_INJA_UTILS_HPP
 
-    while (match_delimiter.found())
-    {
-        current_position = match_delimiter.end_position();
+#include <stdexcept>
+#include <string_view>
 
-        const std::string inner = match_delimiter.str(1);
 
-        if (std::regex_match(inner.cbegin(), inner.cend(), regex_search) and level == 0)
-        {
+namespace inja {
+
+inline void inja_throw(const std::string& type, const std::string& message) {
+  throw std::runtime_error("[inja.exception." + type + "] " + message);
+}
+
+namespace string_view {
+  inline std::string_view slice(std::string_view view, size_t start, size_t end) {
+    start = std::min(start, view.size());
+    end = std::min(std::max(start, end), view.size());
+    return view.substr(start, end - start); // StringRef(Data + Start, End - Start);
+  }
+
+  inline std::pair<std::string_view, std::string_view> split(std::string_view view, char Separator) {
+    size_t idx = view.find(Separator);
+    if (idx == std::string_view::npos) {
+      return std::make_pair(view, std::string_view());
+    }
+    return std::make_pair(slice(view, 0, idx), slice(view, idx + 1, std::string_view::npos));
+  }
+
+  inline bool starts_with(std::string_view view, std::string_view prefix) {
+    return (view.size() >= prefix.size() && view.compare(0, prefix.size(), prefix) == 0);
+  }
+}  // namespace string
+
+}  // namespace inja
+
+#endif  // PANTOR_INJA_UTILS_HPP
+
+
+
+namespace inja {
+
+class Lexer {
+  enum class State {
+    Text,
+    ExpressionStart,
+    ExpressionBody,
+    LineStart,
+    LineBody,
+    StatementStart,
+    StatementBody,
+    CommentStart,
+    CommentBody
+  } m_state;
+
+  const LexerConfig& m_config;
+  std::string_view m_in;
+  size_t m_tok_start;
+  size_t m_pos;
+
+ public:
+  explicit Lexer(const LexerConfig& config) : m_config(config) {}
+
+  void start(std::string_view in) {
+    m_in = in;
+    m_tok_start = 0;
+    m_pos = 0;
+    m_state = State::Text;
+  }
+
+  Token scan() {
+    m_tok_start = m_pos;
+
+  again:
+    if (m_tok_start >= m_in.size()) return make_token(Token::Kind::Eof);
+
+    switch (m_state) {
+      default:
+      case State::Text: {
+        // fast-scan to first open character
+        size_t open_start = m_in.substr(m_pos).find_first_of(m_config.open_chars);
+        if (open_start == std::string_view::npos) {
+          // didn't find open, return remaining text as text token
+          m_pos = m_in.size();
+          return make_token(Token::Kind::Text);
+        }
+        m_pos += open_start;
+
+        // try to match one of the opening sequences, and get the close
+        std::string_view open_str = m_in.substr(m_pos);
+        if (string_view::starts_with(open_str, m_config.expression_open)) {
+          m_state = State::ExpressionStart;
+        } else if (string_view::starts_with(open_str, m_config.statement_open)) {
+          m_state = State::StatementStart;
+        } else if (string_view::starts_with(open_str, m_config.comment_open)) {
+          m_state = State::CommentStart;
+        } else if ((m_pos == 0 || m_in[m_pos - 1] == '\n') &&
+                   string_view::starts_with(open_str, m_config.line_statement)) {
+          m_state = State::LineStart;
+        } else {
+          m_pos += 1; // wasn't actually an opening sequence
+          goto again;
+        }
+        if (m_pos == m_tok_start) goto again;  // don't generate empty token
+        return make_token(Token::Kind::Text);
+      }
+      case State::ExpressionStart: {
+        m_state = State::ExpressionBody;
+        m_pos += m_config.expression_open.size();
+        return make_token(Token::Kind::ExpressionOpen);
+      }
+      case State::LineStart: {
+        m_state = State::LineBody;
+        m_pos += m_config.line_statement.size();
+        return make_token(Token::Kind::LineStatementOpen);
+      }
+      case State::StatementStart: {
+        m_state = State::StatementBody;
+        m_pos += m_config.statement_open.size();
+        return make_token(Token::Kind::StatementOpen);
+      }
+      case State::CommentStart: {
+        m_state = State::CommentBody;
+        m_pos += m_config.comment_open.size();
+        return make_token(Token::Kind::CommentOpen);
+      }
+      case State::ExpressionBody:
+        return scan_body(m_config.expression_close, Token::Kind::ExpressionClose);
+      case State::LineBody:
+        return scan_body("\n", Token::Kind::LineStatementClose);
+      case State::StatementBody:
+        return scan_body(m_config.statement_close, Token::Kind::StatementClose);
+      case State::CommentBody: {
+        // fast-scan to comment close
+        size_t end = m_in.substr(m_pos).find(m_config.comment_close);
+        if (end == std::string_view::npos) {
+          m_pos = m_in.size();
+          return make_token(Token::Kind::Eof);
+        }
+        // return the entire comment in the close token
+        m_state = State::Text;
+        m_pos += end + m_config.comment_close.size();
+        return make_token(Token::Kind::CommentClose);
+      }
+    }
+  }
+
+  const LexerConfig& get_config() const { return m_config; }
+
+ private:
+  Token scan_body(std::string_view close, Token::Kind closeKind) {
+  again:
+    // skip whitespace (except for \n as it might be a close)
+    if (m_tok_start >= m_in.size()) return make_token(Token::Kind::Eof);
+    char ch = m_in[m_tok_start];
+    if (ch == ' ' || ch == '\t' || ch == '\r') {
+      m_tok_start += 1;
+      goto again;
+    }
+
+    // check for close
+    if (string_view::starts_with(m_in.substr(m_tok_start), close)) {
+      m_state = State::Text;
+      m_pos = m_tok_start + close.size();
+      return make_token(closeKind);
+    }
+
+    // skip \n
+    if (ch == '\n') {
+      m_tok_start += 1;
+      goto again;
+    }
+
+    m_pos = m_tok_start + 1;
+    if (std::isalpha(ch)) return scan_id();
+    switch (ch) {
+      case ',':
+        return make_token(Token::Kind::Comma);
+      case ':':
+        return make_token(Token::Kind::Colon);
+      case '(':
+        return make_token(Token::Kind::LeftParen);
+      case ')':
+        return make_token(Token::Kind::RightParen);
+      case '[':
+        return make_token(Token::Kind::LeftBracket);
+      case ']':
+        return make_token(Token::Kind::RightBracket);
+      case '{':
+        return make_token(Token::Kind::LeftBrace);
+      case '}':
+        return make_token(Token::Kind::RightBrace);
+      case '>':
+        if (m_pos < m_in.size() && m_in[m_pos] == '=') {
+          m_pos += 1;
+          return make_token(Token::Kind::GreaterEqual);
+        }
+        return make_token(Token::Kind::GreaterThan);
+      case '<':
+        if (m_pos < m_in.size() && m_in[m_pos] == '=') {
+          m_pos += 1;
+          return make_token(Token::Kind::LessEqual);
+        }
+        return make_token(Token::Kind::LessThan);
+      case '=':
+        if (m_pos < m_in.size() && m_in[m_pos] == '=') {
+          m_pos += 1;
+          return make_token(Token::Kind::Equal);
+        }
+        return make_token(Token::Kind::Unknown);
+      case '!':
+        if (m_pos < m_in.size() && m_in[m_pos] == '=') {
+          m_pos += 1;
+          return make_token(Token::Kind::NotEqual);
+        }
+        return make_token(Token::Kind::Unknown);
+      case '\"':
+        return scan_string();
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+      case '-':
+        return scan_number();
+      case '_':
+        return scan_id();
+      default:
+        return make_token(Token::Kind::Unknown);
+    }
+  }
+
+  Token scan_id() {
+    for (;;) {
+      if (m_pos >= m_in.size()) break;
+      char ch = m_in[m_pos];
+      if (!std::isalnum(ch) && ch != '.' && ch != '/' && ch != '_' && ch != '-') break;
+      m_pos += 1;
+    }
+    return make_token(Token::Kind::Id);
+  }
+
+  Token scan_number() {
+    for (;;) {
+      if (m_pos >= m_in.size()) break;
+      char ch = m_in[m_pos];
+      // be very permissive in lexer (we'll catch errors when conversion happens)
+      if (!std::isdigit(ch) && ch != '.' && ch != 'e' && ch != 'E' && ch != '+' && ch != '-')
+        break;
+      m_pos += 1;
+    }
+    return make_token(Token::Kind::Number);
+  }
+
+  Token scan_string() {
+    bool escape {false};
+    for (;;) {
+      if (m_pos >= m_in.size()) break;
+      char ch = m_in[m_pos++];
+      if (ch == '\\')
+        escape = true;
+      else if (!escape && ch == m_in[m_tok_start])
+        break;
+      else
+        escape = false;
+    }
+    return make_token(Token::Kind::String);
+  }
+
+  Token make_token(Token::Kind kind) const {
+    return Token(kind, string_view::slice(m_in, m_tok_start, m_pos));
+  }
+};
+
+}
+
+#endif // PANTOR_INJA_LEXER_HPP
+
+// #include "template.hpp"
+#ifndef PANTOR_INJA_TEMPLATE_HPP
+#define PANTOR_INJA_TEMPLATE_HPP
+
+#include <string>
+#include <vector>
+
+// #include "bytecode.hpp"
+
+
+
+namespace inja {
+
+class Template {
+  friend class Parser;
+  friend class Renderer;
+
+  std::vector<Bytecode> bytecodes;
+  std::string content;
+
+ public:
+  Template() {}
+  Template(const Template& oth): bytecodes(oth.bytecodes), content(oth.content) {}
+  Template(Template&& oth): bytecodes(std::move(oth.bytecodes)), content(std::move(oth.content)) {}
+
+  Template& operator=(const Template& oth) {
+    bytecodes = oth.bytecodes;
+    content = oth.content;
+    return *this;
+  }
+
+  Template& operator=(Template&& oth) {
+    bytecodes = std::move(oth.bytecodes);
+    content = std::move(oth.content);
+    return *this;
+  }
+};
+
+using TemplateStorage = std::map<std::string, Template>;
+
+}
+
+#endif // PANTOR_INJA_TEMPLATE_HPP
+
+// #include "token.hpp"
+
+// #include "utils.hpp"
+
+
+#include <nlohmann/json.hpp>
+
+
+namespace inja {
+
+class ParserStatic {
+  ParserStatic() {
+    functions.add_builtin("default", 2, Bytecode::Op::Default);
+    functions.add_builtin("divisibleBy", 2, Bytecode::Op::DivisibleBy);
+    functions.add_builtin("even", 1, Bytecode::Op::Even);
+    functions.add_builtin("first", 1, Bytecode::Op::First);
+    functions.add_builtin("float", 1, Bytecode::Op::Float);
+    functions.add_builtin("int", 1, Bytecode::Op::Int);
+    functions.add_builtin("last", 1, Bytecode::Op::Last);
+    functions.add_builtin("length", 1, Bytecode::Op::Length);
+    functions.add_builtin("lower", 1, Bytecode::Op::Lower);
+    functions.add_builtin("max", 1, Bytecode::Op::Max);
+    functions.add_builtin("min", 1, Bytecode::Op::Min);
+    functions.add_builtin("odd", 1, Bytecode::Op::Odd);
+    functions.add_builtin("range", 1, Bytecode::Op::Range);
+    functions.add_builtin("round", 2, Bytecode::Op::Round);
+    functions.add_builtin("sort", 1, Bytecode::Op::Sort);
+    functions.add_builtin("upper", 1, Bytecode::Op::Upper);
+    functions.add_builtin("exists", 1, Bytecode::Op::Exists);
+    functions.add_builtin("existsIn", 2, Bytecode::Op::ExistsInObject);
+    functions.add_builtin("isBoolean", 1, Bytecode::Op::IsBoolean);
+    functions.add_builtin("isNumber", 1, Bytecode::Op::IsNumber);
+    functions.add_builtin("isInteger", 1, Bytecode::Op::IsInteger);
+    functions.add_builtin("isFloat", 1, Bytecode::Op::IsFloat);
+    functions.add_builtin("isObject", 1, Bytecode::Op::IsObject);
+    functions.add_builtin("isArray", 1, Bytecode::Op::IsArray);
+    functions.add_builtin("isString", 1, Bytecode::Op::IsString);
+  }
+
+ public:
+  ParserStatic(const ParserStatic&) = delete;
+  ParserStatic& operator=(const ParserStatic&) = delete;
+
+  static const ParserStatic& get_instance() {
+    static ParserStatic inst;
+    return inst;
+  }
+
+  FunctionStorage functions;
+};
+
+class Parser {
+ public:
+  explicit Parser(const ParserConfig& parser_config, const LexerConfig& lexer_config, TemplateStorage& included_templates): m_config(parser_config), m_lexer(lexer_config), m_included_templates(included_templates), m_static(ParserStatic::get_instance()) { }
+
+  bool parse_expression(Template& tmpl) {
+    if (!parse_expression_and(tmpl)) return false;
+    if (m_tok.kind != Token::Kind::Id || m_tok.text != "or") return true;
+    get_next_token();
+    if (!parse_expression_and(tmpl)) return false;
+    append_function(tmpl, Bytecode::Op::Or, 2);
+    return true;
+  }
+
+  bool parse_expression_and(Template& tmpl) {
+    if (!parse_expression_not(tmpl)) return false;
+    if (m_tok.kind != Token::Kind::Id || m_tok.text != "and") return true;
+    get_next_token();
+    if (!parse_expression_not(tmpl)) return false;
+    append_function(tmpl, Bytecode::Op::And, 2);
+    return true;
+  }
+
+  bool parse_expression_not(Template& tmpl) {
+    if (m_tok.kind == Token::Kind::Id && m_tok.text == "not") {
+      get_next_token();
+      if (!parse_expression_not(tmpl)) return false;
+      append_function(tmpl, Bytecode::Op::Not, 1);
+      return true;
+    } else {
+      return parse_expression_comparison(tmpl);
+    }
+  }
+
+  bool parse_expression_comparison(Template& tmpl) {
+    if (!parse_expression_datum(tmpl)) return false;
+    Bytecode::Op op;
+    switch (m_tok.kind) {
+      case Token::Kind::Id:
+        if (m_tok.text == "in")
+          op = Bytecode::Op::In;
+        else
+          return true;
+        break;
+      case Token::Kind::Equal:
+        op = Bytecode::Op::Equal;
+        break;
+      case Token::Kind::GreaterThan:
+        op = Bytecode::Op::Greater;
+        break;
+      case Token::Kind::LessThan:
+        op = Bytecode::Op::Less;
+        break;
+      case Token::Kind::LessEqual:
+        op = Bytecode::Op::LessEqual;
+        break;
+      case Token::Kind::GreaterEqual:
+        op = Bytecode::Op::GreaterEqual;
+        break;
+      case Token::Kind::NotEqual:
+        op = Bytecode::Op::Different;
+        break;
+      default:
+        return true;
+    }
+    get_next_token();
+    if (!parse_expression_datum(tmpl)) return false;
+    append_function(tmpl, op, 2);
+    return true;
+  }
+
+  bool parse_expression_datum(Template& tmpl) {
+    std::string_view json_first;
+    size_t bracket_level = 0;
+    size_t brace_level = 0;
+
+    for (;;) {
+      switch (m_tok.kind) {
+        case Token::Kind::LeftParen: {
+          get_next_token();
+          if (!parse_expression(tmpl)) return false;
+          if (m_tok.kind != Token::Kind::RightParen) {
+            inja_throw("parser_error", "unmatched '('");
+          }
+          get_next_token();
+          return true;
+        }
+        case Token::Kind::Id:
+          get_peek_token();
+          if (m_peek_tok.kind == Token::Kind::LeftParen) {
+            // function call, parse arguments
+            Token func_token = m_tok;
+            get_next_token();  // id
+            get_next_token();  // leftParen
+            unsigned int num_args = 0;
+            if (m_tok.kind == Token::Kind::RightParen) {
+              // no args
+              get_next_token();
+            } else {
+              for (;;) {
+                if (!parse_expression(tmpl)) {
+                  inja_throw("parser_error", "expected expression, got '" + m_tok.describe() + "'");
+                }
+                num_args += 1;
+                if (m_tok.kind == Token::Kind::RightParen) {
+                  get_next_token();
+                  break;
+                }
+                if (m_tok.kind != Token::Kind::Comma) {
+                  inja_throw("parser_error", "expected ')' or ',', got '" + m_tok.describe() + "'");
+                }
+                get_next_token();
+              }
+            }
+
+            auto op = m_static.functions.find_builtin(func_token.text, num_args);
+
+            if (op != Bytecode::Op::Nop) {
+              // swap arguments for default(); see comment in RenderTo()
+              if (op == Bytecode::Op::Default)
+                std::swap(tmpl.bytecodes.back(), *(tmpl.bytecodes.rbegin() + 1));
+              append_function(tmpl, op, num_args);
+              return true;
+            } else {
+              append_callback(tmpl, func_token.text, num_args);
+              return true;
+            }
+          } else if (m_tok.text == "true" || m_tok.text == "false" || m_tok.text == "null") {
+            // true, false, null are json literals
+            if (brace_level == 0 && bracket_level == 0) {
+              json_first = m_tok.text;
+              goto returnJson;
+            }
             break;
-        }
+          } else {
+            // normal literal (json read)
+            tmpl.bytecodes.emplace_back(
+                Bytecode::Op::Push, m_tok.text,
+                m_config.notation == ElementNotation::Pointer ? Bytecode::Flag::ValueLookupPointer : Bytecode::Flag::ValueLookupDot);
+            get_next_token();
+            return true;
+          }
+        // json passthrough
+        case Token::Kind::Number:
+        case Token::Kind::String:
+          if (brace_level == 0 && bracket_level == 0) {
+            json_first = m_tok.text;
+            goto returnJson;
+          }
+          break;
+        case Token::Kind::Comma:
+        case Token::Kind::Colon:
+          if (brace_level == 0 && bracket_level == 0) {
+            inja_throw("parser_error", "unexpected token '" + m_tok.describe() + "'");
+          }
+          break;
+        case Token::Kind::LeftBracket:
+          if (brace_level == 0 && bracket_level == 0) {
+            json_first = m_tok.text;
+          }
+          bracket_level += 1;
+          break;
+        case Token::Kind::LeftBrace:
+          if (brace_level == 0 && bracket_level == 0) {
+            json_first = m_tok.text;
+          }
+          brace_level += 1;
+          break;
+        case Token::Kind::RightBracket:
+          if (bracket_level == 0) {
+            inja_throw("parser_error", "unexpected ']'");
+          }
+          --bracket_level;
+          if (brace_level == 0 && bracket_level == 0) goto returnJson;
+          break;
+        case Token::Kind::RightBrace:
+          if (brace_level == 0) {
+            inja_throw("parser_error", "unexpected '}'");
+          }
+          --brace_level;
+          if (brace_level == 0 && bracket_level == 0) goto returnJson;
+          break;
+        default:
+          if (brace_level != 0) {
+            inja_throw("parser_error", "unmatched '{'");
+          }
+          if (bracket_level != 0) {
+            inja_throw("parser_error", "unmatched '['");
+          }
+          return false;
+      }
 
-        if (std::regex_match(inner.cbegin(), inner.cend(), regex_level_up))
-        {
-            level += 1;
-        }
-        else if (std::regex_match(inner.cbegin(), inner.cend(), regex_level_down))
-        {
-            level -= 1;
-        }
-
-        if (level < 0)
-        {
-            return MatchClosed();
-        }
-
-        match_delimiter = search(input, regex_statement, current_position);
+      get_next_token();
     }
 
-    return MatchClosed(open_match, match_delimiter);
+  returnJson:
+    // bridge across all intermediate tokens
+    std::string_view json_text(json_first.data(), m_tok.text.data() - json_first.data() + m_tok.text.size());
+    tmpl.bytecodes.emplace_back(Bytecode::Op::Push, json::parse(json_text), Bytecode::Flag::ValueImmediate);
+    get_next_token();
+    return true;
+  }
+
+  bool parse_statement(Template& tmpl, std::string_view path) {
+    if (m_tok.kind != Token::Kind::Id) return false;
+
+    if (m_tok.text == "if") {
+      get_next_token();
+
+      // evaluate expression
+      if (!parse_expression(tmpl)) return false;
+
+      // start a new if block on if stack
+      m_if_stack.emplace_back(tmpl.bytecodes.size());
+
+      // conditional jump; destination will be filled in by else or endif
+      tmpl.bytecodes.emplace_back(Bytecode::Op::ConditionalJump);
+    } else if (m_tok.text == "endif") {
+      if (m_if_stack.empty()) {
+        inja_throw("parser_error", "endif without matching if");
+      }
+      auto& if_data = m_if_stack.back();
+      get_next_token();
+
+      // previous conditional jump jumps here
+      if (if_data.prev_cond_jump != std::numeric_limits<unsigned int>::max()) {
+        tmpl.bytecodes[if_data.prev_cond_jump].args = tmpl.bytecodes.size();
+      }
+
+      // update all previous unconditional jumps to here
+      for (unsigned int i: if_data.uncond_jumps) {
+        tmpl.bytecodes[i].args = tmpl.bytecodes.size();
+      }
+
+      // pop if stack
+      m_if_stack.pop_back();
+    } else if (m_tok.text == "else") {
+      if (m_if_stack.empty())
+        inja_throw("parser_error", "else without matching if");
+      auto& if_data = m_if_stack.back();
+      get_next_token();
+
+      // end previous block with unconditional jump to endif; destination will be
+      // filled in by endif
+      if_data.uncond_jumps.push_back(tmpl.bytecodes.size());
+      tmpl.bytecodes.emplace_back(Bytecode::Op::Jump);
+
+      // previous conditional jump jumps here
+      tmpl.bytecodes[if_data.prev_cond_jump].args = tmpl.bytecodes.size();
+      if_data.prev_cond_jump = std::numeric_limits<unsigned int>::max();
+
+      // chained else if
+      if (m_tok.kind == Token::Kind::Id && m_tok.text == "if") {
+        get_next_token();
+
+        // evaluate expression
+        if (!parse_expression(tmpl)) return false;
+
+        // update "previous jump"
+        if_data.prev_cond_jump = tmpl.bytecodes.size();
+
+        // conditional jump; destination will be filled in by else or endif
+        tmpl.bytecodes.emplace_back(Bytecode::Op::ConditionalJump);
+      }
+    } else if (m_tok.text == "for") {
+      get_next_token();
+
+      // options: for a in arr; for a, b in obj
+      if (m_tok.kind != Token::Kind::Id)
+        inja_throw("parser_error", "expected id, got '" + m_tok.describe() + "'");
+      Token value_token = m_tok;
+      get_next_token();
+
+      Token key_token;
+      if (m_tok.kind == Token::Kind::Comma) {
+        get_next_token();
+        if (m_tok.kind != Token::Kind::Id)
+          inja_throw("parser_error", "expected id, got '" + m_tok.describe() + "'");
+        key_token = std::move(value_token);
+        value_token = m_tok;
+        get_next_token();
+      }
+
+      if (m_tok.kind != Token::Kind::Id || m_tok.text != "in")
+        inja_throw("parser_error",
+                   "expected 'in', got '" + m_tok.describe() + "'");
+      get_next_token();
+
+      if (!parse_expression(tmpl)) return false;
+
+      m_loop_stack.push_back(tmpl.bytecodes.size());
+
+      tmpl.bytecodes.emplace_back(Bytecode::Op::StartLoop);
+      if (!key_token.text.empty()) {
+        tmpl.bytecodes.back().value = key_token.text;
+      }
+      tmpl.bytecodes.back().str = value_token.text;
+    } else if (m_tok.text == "endfor") {
+      get_next_token();
+      if (m_loop_stack.empty()) {
+        inja_throw("parser_error", "endfor without matching for");
+      }
+
+      // update loop with EndLoop index (for empty case)
+      tmpl.bytecodes[m_loop_stack.back()].args = tmpl.bytecodes.size();
+
+      tmpl.bytecodes.emplace_back(Bytecode::Op::EndLoop);
+      tmpl.bytecodes.back().args = m_loop_stack.back() + 1;  // loop body
+      m_loop_stack.pop_back();
+    } else if (m_tok.text == "include") {
+      get_next_token();
+
+      if (m_tok.kind != Token::Kind::String) {
+        inja_throw("parser_error", "expected string, got '" + m_tok.describe() + "'");
+      }
+
+      // build the relative path
+      json json_name = json::parse(m_tok.text);
+      std::string pathname = static_cast<std::string>(path);
+      pathname += json_name.get_ref<const std::string&>();
+      if (pathname.compare(0, 2, "./") == 0) {
+        pathname.erase(0, 2);
+      }
+      // sys::path::remove_dots(pathname, true, sys::path::Style::posix);
+
+      // parse it only if it's new
+      // TemplateStorage::iterator included;
+      // bool is_new {true};
+      // std::tie(included, is_new) = m_included_templates.emplace(pathname);
+      // if (is_new) included->second = parse_template(pathname);
+
+      Template include_template = parse_template(pathname);
+      m_included_templates.emplace(pathname, include_template);
+
+      // generate a reference bytecode
+      tmpl.bytecodes.emplace_back(Bytecode::Op::Include, json(pathname), Bytecode::Flag::ValueImmediate);
+
+      get_next_token();
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  void append_function(Template& tmpl, Bytecode::Op op, unsigned int num_args) {
+    // we can merge with back-to-back push
+    if (!tmpl.bytecodes.empty()) {
+      Bytecode& last = tmpl.bytecodes.back();
+      if (last.op == Bytecode::Op::Push) {
+        last.op = op;
+        last.args = num_args;
+        return;
+      }
+    }
+
+    // otherwise just add it to the end
+    tmpl.bytecodes.emplace_back(op, num_args);
+  }
+
+  void append_callback(Template& tmpl, std::string_view name, unsigned int num_args) {
+    // we can merge with back-to-back push value (not lookup)
+    if (!tmpl.bytecodes.empty()) {
+      Bytecode& last = tmpl.bytecodes.back();
+      if (last.op == Bytecode::Op::Push &&
+          (last.flags & Bytecode::Flag::ValueMask) == Bytecode::Flag::ValueImmediate) {
+        last.op = Bytecode::Op::Callback;
+        last.args = num_args;
+        last.str = name;
+        return;
+      }
+    }
+
+    // otherwise just add it to the end
+    tmpl.bytecodes.emplace_back(Bytecode::Op::Callback, num_args);
+    tmpl.bytecodes.back().str = name;
+  }
+
+  void parse_into(Template& tmpl, std::string_view path) {
+    m_lexer.start(tmpl.content);
+
+    for (;;) {
+      get_next_token();
+      switch (m_tok.kind) {
+        case Token::Kind::Eof:
+          if (!m_if_stack.empty()) inja_throw("parser_error", "unmatched if");
+          if (!m_loop_stack.empty()) inja_throw("parser_error", "unmatched for");
+          return;
+        case Token::Kind::Text:
+          tmpl.bytecodes.emplace_back(Bytecode::Op::PrintText, m_tok.text, 0u);
+          break;
+        case Token::Kind::StatementOpen:
+          get_next_token();
+          if (!parse_statement(tmpl, path)) {
+            inja_throw("parser_error", "expected statement, got '" + m_tok.describe() + "'");
+          }
+          if (m_tok.kind != Token::Kind::StatementClose) {
+            inja_throw("parser_error", "expected statement close, got '" + m_tok.describe() + "'");
+          }
+          break;
+        case Token::Kind::LineStatementOpen:
+          get_next_token();
+          parse_statement(tmpl, path);
+          if (m_tok.kind != Token::Kind::LineStatementClose &&
+              m_tok.kind != Token::Kind::Eof) {
+            inja_throw("parser_error", "expected line statement close, got '" + m_tok.describe() + "'");
+          }
+          break;
+        case Token::Kind::ExpressionOpen:
+          get_next_token();
+          if (!parse_expression(tmpl)) {
+            inja_throw("parser_error", "expected expression, got '" + m_tok.describe() + "'");
+          }
+          append_function(tmpl, Bytecode::Op::PrintValue, 1);
+          if (m_tok.kind != Token::Kind::ExpressionClose) {
+            inja_throw("parser_error", "expected expression close, got '" + m_tok.describe() + "'");
+          }
+          break;
+        case Token::Kind::CommentOpen:
+          get_next_token();
+          if (m_tok.kind != Token::Kind::CommentClose) {
+            inja_throw("parser_error", "expected comment close, got '" + m_tok.describe() + "'");
+          }
+          break;
+        default:
+          inja_throw("parser_error", "unexpected token '" + m_tok.describe() + "'");
+          break;
+      }
+    }
+  }
+
+  Template parse(std::string_view input, std::string_view path) {
+    Template result;
+    result.content = input;
+    parse_into(result, path);
+    return result;
+  }
+
+  Template parse(std::string_view input) {
+    return parse(input, "./");
+  }
+
+  Template parse_template(std::string_view filename) {
+    Template result;
+    result.content = load_file(filename);
+
+    std::string_view path = filename.substr(0, filename.find_last_of("/\\") + 1);
+      // StringRef path = sys::path::parent_path(filename);
+    Parser(m_config, m_lexer.get_config(), m_included_templates).parse_into(result, path);
+    return result;
+  }
+
+  std::string load_file(std::string_view filename) {
+		std::ifstream file(static_cast<std::string>(filename));
+		std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		return text;
+	}
+
+ private:
+  const ParserConfig& m_config;
+  Lexer m_lexer;
+  Token m_tok;
+  Token m_peek_tok;
+  bool m_have_peek_tok {false};
+  TemplateStorage& m_included_templates;
+  const ParserStatic& m_static;
+
+  struct IfData {
+    unsigned int prev_cond_jump;
+    std::vector<unsigned int> uncond_jumps;
+
+    explicit IfData(unsigned int condJump): prev_cond_jump(condJump) {}
+  };
+
+  std::vector<IfData> m_if_stack;
+  std::vector<unsigned int> m_loop_stack;
+
+  void get_next_token() {
+    if (m_have_peek_tok) {
+      m_tok = m_peek_tok;
+      m_have_peek_tok = false;
+    } else {
+      m_tok = m_lexer.scan();
+    }
+  }
+
+  void get_peek_token() {
+    if (!m_have_peek_tok) {
+      m_peek_tok = m_lexer.scan();
+      m_have_peek_tok = true;
+    }
+  }
+};
+
+}  // namespace inja
+
+#endif  // PANTOR_INJA_PARSER_HPP
+
+// #include "polyfill.hpp"
+#ifndef PANTOR_INJA_POLYFILL_HPP
+#define PANTOR_INJA_POLYFILL_HPP
+
+
+#if __cplusplus < 201402L
+
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
+
+namespace stdinja {
+  template<class T> struct _Unique_if {
+    typedef std::unique_ptr<T> _Single_object;
+  };
+
+  template<class T> struct _Unique_if<T[]> {
+    typedef std::unique_ptr<T[]> _Unknown_bound;
+  };
+
+  template<class T, size_t N> struct _Unique_if<T[N]> {
+    typedef void _Known_bound;
+  };
+
+  template<class T, class... Args>
+  typename _Unique_if<T>::_Single_object
+  make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+  }
+
+  template<class T>
+  typename _Unique_if<T>::_Unknown_bound
+  make_unique(size_t n) {
+    typedef typename std::remove_extent<T>::type U;
+    return std::unique_ptr<T>(new U[n]());
+  }
+
+  template<class T, class... Args>
+  typename _Unique_if<T>::_Known_bound
+  make_unique(Args&&...) = delete;
 }
 
-inline MatchClosed search_closed(const std::string& input, const Regex& regex_statement, const Regex& regex_open,
-                                 const Regex& regex_close, Match& open_match)
-{
-    return search_closed_on_level(input, regex_statement, regex_open, regex_close, regex_close, open_match);
+#else
+
+namespace stdinja = std;
+
+#endif // memory */
+
+
+#endif // PANTOR_INJA_POLYFILL_HPP
+
+// #include "renderer.hpp"
+#ifndef PANTOR_INJA_RENDERER_HPP
+#define PANTOR_INJA_RENDERER_HPP
+
+#include <algorithm>
+#include <numeric>
+
+#include <nlohmann/json.hpp>
+
+// #include "bytecode.hpp"
+
+// #include "template.hpp"
+
+// #include "utils.hpp"
+
+
+
+namespace inja {
+
+inline std::string_view convert_dot_to_json_pointer(std::string_view dot, std::string& out) {
+  out.clear();
+  do {
+    std::string_view part;
+    std::tie(part, dot) = string_view::split(dot, '.');
+    out.push_back('/');
+    out.append(part.begin(), part.end());
+  } while (!dot.empty());
+  return std::string_view(out.data(), out.size());
 }
 
-template<typename T, typename S>
-inline MatchType<T> match(const std::string& input, const std::map<T, Regex, S>& regexes)
-{
-    MatchType<T> match;
+class Renderer {
+  std::vector<const json*>& get_args(const Bytecode& bc) {
+    m_tmp_args.clear();
 
-    for (const auto& e : regexes)
-    {
-        if (std::regex_match(input.cbegin(), input.cend(), match, e.second))
-        {
-            match.set_type(e.first);
-            match.set_regex(e.second);
-            return match;
-        }
+    bool hasImm = ((bc.flags & Bytecode::Flag::ValueMask) != Bytecode::Flag::ValuePop);
+
+    // get args from stack
+    unsigned int pop_args = bc.args;
+    if (hasImm) --pop_args;
+
+    for (auto i = std::prev(m_stack.end(), pop_args); i != m_stack.end(); i++) {
+      m_tmp_args.push_back(&(*i));
     }
 
-    return match;
-}
+    // get immediate arg
+    if (hasImm) {
+      m_tmp_args.push_back(get_imm(bc));
+    }
+
+    return m_tmp_args;
+  }
+
+  void pop_args(const Bytecode& bc) {
+    unsigned int popArgs = bc.args;
+    if ((bc.flags & Bytecode::Flag::ValueMask) != Bytecode::Flag::ValuePop)
+      --popArgs;
+    for (unsigned int i = 0; i < popArgs; ++i) m_stack.pop_back();
+  }
+
+  const json* get_imm(const Bytecode& bc) {
+    std::string ptr_buffer;
+    std::string_view ptr;
+    switch (bc.flags & Bytecode::Flag::ValueMask) {
+      case Bytecode::Flag::ValuePop:
+        return nullptr;
+      case Bytecode::Flag::ValueImmediate:
+        return &bc.value;
+      case Bytecode::Flag::ValueLookupDot:
+        ptr = convert_dot_to_json_pointer(bc.str, ptr_buffer);
+        break;
+      case Bytecode::Flag::ValueLookupPointer:
+        ptr_buffer += '/';
+        ptr_buffer += bc.str;
+        ptr = ptr_buffer;
+        break;
+    }
+    try {
+      return &m_data->at(json::json_pointer(ptr.data()));
+    } catch (std::exception&) {
+      // try to evaluate as a no-argument callback
+      if (auto callback = m_callbacks.find_callback(bc.str, 0)) {
+        std::vector<const json*> arguments {};
+        m_tmp_val = callback(arguments);
+        return &m_tmp_val;
+      }
+      inja_throw("render_error", "variable '" + static_cast<std::string>(bc.str) + "' not found");
+      return nullptr;
+    }
+  }
+
+  bool truthy(const json& var) const {
+    if (var.empty()) {
+      return false;
+    } else if (var.is_number()) {
+      return (var != 0);
+    } else if (var.is_string()) {
+      return !var.empty();
+    }
+
+    try {
+      return var.get<bool>();
+    } catch (json::type_error& e) {
+      inja_throw("json_error", e.what());
+      throw;
+    }
+  }
+
+  void update_loop_data()  {
+    LoopLevel& level = m_loop_stack.back();
+
+    if (m_loop_stack.size() > 1) {
+      for (int i = m_loop_stack.size() - 2; i >= 0; i--) {
+        auto& level_it = m_loop_stack.at(i);
+
+        level.data[static_cast<std::string>(level_it.value_name)] = level_it.values.at(level_it.index);
+      }
+    }
+
+    if (level.key_name.empty()) {
+      level.data[static_cast<std::string>(level.value_name)] = level.values.at(level.index); // *level.it;
+      auto& loopData = level.data["loop"];
+      loopData["index"] = level.index;
+      loopData["index1"] = level.index + 1;
+      loopData["is_first"] = (level.index == 0);
+      loopData["is_last"] = (level.index == level.size - 1);
+    } else {
+      level.data[static_cast<std::string>(level.key_name)] = level.map_it->first;
+      level.data[static_cast<std::string>(level.value_name)] = *level.map_it->second;
+    }
+  }
+
+  const TemplateStorage& m_included_templates;
+  const FunctionStorage& m_callbacks;
+
+  std::vector<json> m_stack;
+
+  struct LoopLevel {
+    std::string_view key_name;       // variable name for keys
+    std::string_view value_name;     // variable name for values
+    json data;                      // data with loop info added
+
+    json values;                    // values to iterate over
+
+    // loop over list
+    json::iterator it;              // iterator over values
+    size_t index;                   // current list index
+    size_t size;                    // length of list
+
+    // loop over map
+    using KeyValue = std::pair<std::string_view, json*>;
+    using MapValues = std::vector<KeyValue>;
+    MapValues map_values;            // values to iterate over
+    MapValues::iterator map_it;      // iterator over values
+  };
+
+  std::vector<LoopLevel> m_loop_stack;
+  const json* m_data;
+
+  std::vector<const json*> m_tmp_args;
+  json m_tmp_val;
 
 
-enum class ElementNotation
-{
-    Dot,
-    Pointer
+ public:
+  Renderer(const TemplateStorage& included_templates, const FunctionStorage& callbacks): m_included_templates(included_templates), m_callbacks(callbacks) {
+    m_stack.reserve(16);
+    m_tmp_args.reserve(4);
+  }
+
+  void render_to(std::stringstream& os, const Template& tmpl, const json& data) {
+    m_data = &data;
+
+    for (size_t i = 0; i < tmpl.bytecodes.size(); ++i) {
+      const auto& bc = tmpl.bytecodes[i];
+
+      switch (bc.op) {
+        case Bytecode::Op::Nop:
+          break;
+        case Bytecode::Op::PrintText:
+          os << bc.str;
+          break;
+        case Bytecode::Op::PrintValue: {
+          const json& val = *get_args(bc)[0];
+          if (val.is_string())
+            os << val.get_ref<const std::string&>();
+          else
+            os << val.dump();
+            // val.dump(os);
+          pop_args(bc);
+          break;
+        }
+        case Bytecode::Op::Push:
+          m_stack.emplace_back(*get_imm(bc));
+          break;
+        case Bytecode::Op::Upper: {
+          auto result = get_args(bc)[0]->get<std::string>();
+          std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Lower: {
+          auto result = get_args(bc)[0]->get<std::string>();
+          std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Range: {
+          int number = get_args(bc)[0]->get<int>();
+          std::vector<int> result(number);
+          std::iota(std::begin(result), std::end(result), 0);
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Length: {
+          auto result = get_args(bc)[0]->size();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Sort: {
+          auto result = get_args(bc)[0]->get<std::vector<json>>();
+          std::sort(result.begin(), result.end());
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::First: {
+          auto result = get_args(bc)[0]->front();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Last: {
+          auto result = get_args(bc)[0]->back();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Round: {
+          auto args = get_args(bc);
+          double number = args[0]->get<double>();
+          int precision = args[1]->get<int>();
+          pop_args(bc);
+          m_stack.emplace_back(std::round(number * std::pow(10.0, precision)) / std::pow(10.0, precision));
+          break;
+        }
+        case Bytecode::Op::DivisibleBy: {
+          auto args = get_args(bc);
+          int number = args[0]->get<int>();
+          int divisor = args[1]->get<int>();
+          pop_args(bc);
+          m_stack.emplace_back((divisor != 0) && (number % divisor == 0));
+          break;
+        }
+        case Bytecode::Op::Odd: {
+          int number = get_args(bc)[0]->get<int>();
+          pop_args(bc);
+          m_stack.emplace_back(number % 2 != 0);
+          break;
+        }
+        case Bytecode::Op::Even: {
+          int number = get_args(bc)[0]->get<int>();
+          pop_args(bc);
+          m_stack.emplace_back(number % 2 == 0);
+          break;
+        }
+        case Bytecode::Op::Max: {
+          auto args = get_args(bc);
+          auto result = *std::max_element(args[0]->begin(), args[0]->end());
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Min: {
+          auto args = get_args(bc);
+          auto result = *std::min_element(args[0]->begin(), args[0]->end());
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Not: {
+          bool result = !truthy(*get_args(bc)[0]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::And: {
+          auto args = get_args(bc);
+          bool result = truthy(*args[0]) && truthy(*args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Or: {
+          auto args = get_args(bc);
+          bool result = truthy(*args[0]) || truthy(*args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::In: {
+          auto args = get_args(bc);
+          bool result = std::find(args[1]->begin(), args[1]->end(), *args[0]) !=
+                        args[1]->end();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Equal: {
+          auto args = get_args(bc);
+          bool result = (*args[0] == *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Greater: {
+          auto args = get_args(bc);
+          bool result = (*args[0] > *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Less: {
+          auto args = get_args(bc);
+          bool result = (*args[0] < *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::GreaterEqual: {
+          auto args = get_args(bc);
+          bool result = (*args[0] >= *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::LessEqual: {
+          auto args = get_args(bc);
+          bool result = (*args[0] <= *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Different: {
+          auto args = get_args(bc);
+          bool result = (*args[0] != *args[1]);
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Float: {
+          double result =
+              std::stod(get_args(bc)[0]->get_ref<const std::string&>());
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Int: {
+          int result = std::stoi(get_args(bc)[0]->get_ref<const std::string&>());
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Exists: {
+          auto&& name = get_args(bc)[0]->get_ref<const std::string&>();
+          bool result = (data.find(name) != data.end());
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::ExistsInObject: {
+          auto args = get_args(bc);
+          auto&& name = args[1]->get_ref<const std::string&>();
+          bool result = (args[0]->find(name) != args[0]->end());
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsBoolean: {
+          bool result = get_args(bc)[0]->is_boolean();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsNumber: {
+          bool result = get_args(bc)[0]->is_number();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsInteger: {
+          bool result = get_args(bc)[0]->is_number_integer();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsFloat: {
+          bool result = get_args(bc)[0]->is_number_float();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsObject: {
+          bool result = get_args(bc)[0]->is_object();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsArray: {
+          bool result = get_args(bc)[0]->is_array();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::IsString: {
+          bool result = get_args(bc)[0]->is_string();
+          pop_args(bc);
+          m_stack.emplace_back(result);
+          break;
+        }
+        case Bytecode::Op::Default: {
+          // default needs to be a bit "magic"; we can't evaluate the first
+          // argument during the push operation, so we swap the arguments during
+          // the parse phase so the second argument is pushed on the stack and
+          // the first argument is in the immediate
+          try {
+            const json* imm = get_imm(bc);
+            // if no exception was raised, replace the stack value with it
+            m_stack.back() = *imm;
+          } catch (std::exception&) {
+            // couldn't read immediate, just leave the stack as is
+          }
+          break;
+        }
+        case Bytecode::Op::Include:
+          Renderer(m_included_templates, m_callbacks).render_to(os, m_included_templates.find(get_imm(bc)->get_ref<const std::string&>())->second, data);
+          break;
+        case Bytecode::Op::Callback: {
+          auto callback = m_callbacks.find_callback(bc.str, bc.args);
+          if (!callback) {
+            inja_throw("render_error", "function '" + static_cast<std::string>(bc.str) + "' (" + std::to_string(static_cast<unsigned int>(bc.args)) + ") not found");
+          }
+          json result = callback(get_args(bc));
+          pop_args(bc);
+          m_stack.emplace_back(std::move(result));
+          break;
+        }
+        case Bytecode::Op::Jump:
+          i = bc.args - 1;  // -1 due to ++i in loop
+          break;
+        case Bytecode::Op::ConditionalJump: {
+          if (!truthy(m_stack.back())) {
+            i = bc.args - 1;  // -1 due to ++i in loop
+          }
+          m_stack.pop_back();
+          break;
+        }
+        case Bytecode::Op::StartLoop: {
+          // jump past loop body if empty
+          if (m_stack.back().empty()) {
+            m_stack.pop_back();
+            i = bc.args;  // ++i in loop will take it past EndLoop
+            break;
+          }
+
+          m_loop_stack.emplace_back();
+          LoopLevel& level = m_loop_stack.back();
+          level.value_name = bc.str;
+          level.values = std::move(m_stack.back());
+          level.data = data;
+          m_stack.pop_back();
+
+          if (bc.value.is_string()) {
+            // map iterator
+            if (!level.values.is_object()) {
+              m_loop_stack.pop_back();
+              inja_throw("render_error", "for key, value requires object");
+            }
+            level.key_name = bc.value.get_ref<const std::string&>();
+
+            // sort by key
+            for (auto it = level.values.begin(), end = level.values.end(); it != end; ++it) {
+              level.map_values.emplace_back(it.key(), &it.value());
+            }
+            std::sort(level.map_values.begin(), level.map_values.end(), [](const LoopLevel::KeyValue& a, const LoopLevel::KeyValue& b) { return a.first < b.first; });
+            level.map_it = level.map_values.begin();
+          } else {
+            if (!level.values.is_array()) {
+              m_loop_stack.pop_back();
+              inja_throw("render_error", "type must be array");
+            }
+
+            // list iterator
+            level.it = level.values.begin();
+            level.index = 0;
+            level.size = level.values.size();
+          }
+
+          // provide parent access in nested loop
+          auto parent_loop_it = level.data.find("loop");
+          if (parent_loop_it != level.data.end()) {
+            json loop_copy = *parent_loop_it;
+            (*parent_loop_it)["parent"] = std::move(loop_copy);
+          }
+
+          // set "current" data to loop data
+          m_data = &level.data;
+          update_loop_data();
+          break;
+        }
+        case Bytecode::Op::EndLoop: {
+          if (m_loop_stack.empty()) {
+            inja_throw("render_error", "unexpected state in renderer");
+          }
+          LoopLevel& level = m_loop_stack.back();
+
+          bool done;
+          if (level.key_name.empty()) {
+            level.it += 1;
+            level.index += 1;
+            // done = (level.it == level.values.end());
+            done = (level.index == level.values.size());
+          } else {
+            level.map_it += 1;
+            done = (level.map_it == level.map_values.end());
+          }
+
+          if (done) {
+            m_loop_stack.pop_back();
+            // set "current" data to outer loop data or main data as appropriate
+            if (!m_loop_stack.empty()) {
+              m_data = &m_loop_stack.back().data;
+            } else {
+              m_data = &data;
+            }
+            break;
+          }
+
+          update_loop_data();
+
+          // jump back to start of loop
+          i = bc.args - 1;  // -1 due to ++i in loop
+          break;
+        }
+        default: {
+          inja_throw("render_error", "unknown op in renderer: " + std::to_string(static_cast<unsigned int>(bc.op)));
+        }
+      }
+    }
+  }
 };
 
-struct Parsed
-{
-    enum class Type
-    {
-        Comment,
-        Condition,
-        ConditionBranch,
-        Expression,
-        Loop,
-        Main,
-        String
-    };
+}  // namespace inja
 
-    enum class Delimiter
-    {
-        Comment,
-        Expression,
-        LineStatement,
-        Statement
-    };
+#endif  // PANTOR_INJA_RENDERER_HPP
 
-    enum class Statement
-    {
-        Condition,
-        Include,
-        Loop
-    };
+// #include "template.hpp"
 
-    enum class Function
-    {
-        Not,
-        And,
-        Or,
-        In,
-        Equal,
-        Greater,
-        GreaterEqual,
-        Less,
-        LessEqual,
-        Different,
-        Callback,
-        DivisibleBy,
-        Even,
-        First,
-        Float,
-        Int,
-        Last,
-        Length,
-        Lower,
-        Max,
-        Min,
-        Odd,
-        Range,
-        Result,
-        Round,
-        Sort,
-        Upper,
-        ReadJson,
-        Exists,
-        ExistsInObject,
-        Default
-    };
 
-    enum class Condition
-    {
-        If,
-        ElseIf,
-        Else
-    };
 
-    enum class Loop
-    {
-        ForListIn,
-        ForMapIn
-    };
+namespace inja {
 
-    struct Element
-    {
-        Type type;
-        std::string inner;
-        std::vector<std::shared_ptr<Element>> children;
+using namespace nlohmann;
 
-        explicit Element(): Element(Type::Main, "") { }
-        explicit Element(const Type type): Element(type, "") { }
-        explicit Element(const Type type, const std::string& inner): type(type), inner(inner), children({}) { }
-    };
+class Environment {
+  class Impl {
+   public:
+    std::string input_path;
+    std::string output_path;
 
-    struct ElementString: public Element
-    {
-        const std::string text;
+    LexerConfig lexer_config;
+    ParserConfig parser_config;
 
-        explicit ElementString(const std::string& text): Element(Type::String), text(text) { }
-    };
+    FunctionStorage callbacks;
+    TemplateStorage included_templates;
+  };
 
-    struct ElementComment: public Element
-    {
-        const std::string text;
+  std::unique_ptr<Impl> m_impl;
 
-        explicit ElementComment(const std::string& text): Element(Type::Comment), text(text) { }
-    };
+ public:
+  Environment(): Environment("./") { }
 
-    struct ElementExpression: public Element
-    {
-        Function function;
-        std::vector<ElementExpression> args;
-        std::string command;
-        json result;
+  explicit Environment(const std::string& global_path): m_impl(stdinja::make_unique<Impl>()) {
+    m_impl->input_path = global_path;
+    m_impl->output_path = global_path;
+  }
 
-        explicit ElementExpression(): ElementExpression(Function::ReadJson) { }
-        explicit ElementExpression(const Function function_): Element(Type::Expression), function(function_), args({}),
-        command("") { }
-    };
+  explicit Environment(const std::string& input_path, const std::string& output_path): m_impl(stdinja::make_unique<Impl>()) {
+    m_impl->input_path = input_path;
+    m_impl->output_path = output_path;
+  }
 
-    struct ElementLoop: public Element
-    {
-        Loop loop;
-        const std::string key;
-        const std::string value;
-        const ElementExpression list;
+  /// Sets the opener and closer for template statements
+  void set_statement(const std::string& open, const std::string& close) {
+    m_impl->lexer_config.statement_open = open;
+    m_impl->lexer_config.statement_close = close;
+    m_impl->lexer_config.update_open_chars();
+  }
 
-        explicit ElementLoop(const Loop loop_, const std::string& value, const ElementExpression& list,
-                             const std::string& inner): Element(Type::Loop, inner), loop(loop_), value(value), list(list) { }
-        explicit ElementLoop(const Loop loop_, const std::string& key, const std::string& value, const ElementExpression& list,
-                             const std::string& inner): Element(Type::Loop, inner), loop(loop_), key(key), value(value), list(list) { }
-    };
+  /// Sets the opener for template line statements
+  void set_line_statement(const std::string& open) {
+    m_impl->lexer_config.line_statement = open;
+    m_impl->lexer_config.update_open_chars();
+  }
 
-    struct ElementConditionContainer: public Element
-    {
-        explicit ElementConditionContainer(): Element(Type::Condition) { }
-    };
+  /// Sets the opener and closer for template expressions
+  void set_expression(const std::string& open, const std::string& close) {
+    m_impl->lexer_config.expression_open = open;
+    m_impl->lexer_config.expression_close = close;
+    m_impl->lexer_config.update_open_chars();
+  }
 
-    struct ElementConditionBranch: public Element
-    {
-        const Condition condition_type;
-        const ElementExpression condition;
+  /// Sets the opener and closer for template comments
+  void set_comment(const std::string& open, const std::string& close) {
+    m_impl->lexer_config.comment_open = open;
+    m_impl->lexer_config.comment_close = close;
+    m_impl->lexer_config.update_open_chars();
+  }
 
-        explicit ElementConditionBranch(const std::string& inner,
-                                        const Condition condition_type): Element(Type::ConditionBranch, inner), condition_type(condition_type) { }
-        explicit ElementConditionBranch(const std::string& inner, const Condition condition_type,
-                                        const ElementExpression& condition): Element(Type::ConditionBranch, inner), condition_type(condition_type),
-            condition(condition) { }
-    };
+  /// Sets the element notation syntax
+  void set_element_notation(ElementNotation notation) {
+    m_impl->parser_config.notation = notation;
+  }
 
-    using Arguments = std::vector<ElementExpression>;
-    using CallbackSignature = std::pair<std::string, size_t>;
+
+  Template parse(std::string_view input) {
+    Parser parser(m_impl->parser_config, m_impl->lexer_config, m_impl->included_templates);
+    return parser.parse(input);
+  }
+
+  Template parse_template(const std::string& filename) {
+    Parser parser(m_impl->parser_config, m_impl->lexer_config, m_impl->included_templates);
+		return parser.parse_template(m_impl->input_path + static_cast<std::string>(filename));
+	}
+
+  std::string render(std::string_view input, const json& data) {
+    return render(parse(input), data);
+  }
+
+  std::string render(const Template& tmpl, const json& data) {
+    std::stringstream os;
+    render_to(os, tmpl, data);
+    return os.str();
+  }
+
+  std::string render_file(const std::string& filename, const json& data) {
+		return render(parse_template(filename), data);
+	}
+
+  std::string render_file_with_json_file(const std::string& filename, const std::string& filename_data) {
+		const json data = load_json(filename_data);
+		return render_file(filename, data);
+	}
+
+  void write(const std::string& filename, const json& data, const std::string& filename_out) {
+		std::ofstream file(m_impl->output_path + filename_out);
+		file << render_file(filename, data);
+		file.close();
+	}
+
+  void write(const Template& temp, const json& data, const std::string& filename_out) {
+		std::ofstream file(m_impl->output_path + filename_out);
+		file << render(temp, data);
+		file.close();
+	}
+
+	void write_with_json_file(const std::string& filename, const std::string& filename_data, const std::string& filename_out) {
+		const json data = load_json(filename_data);
+		write(filename, data, filename_out);
+	}
+
+	void write_with_json_file(const Template& temp, const std::string& filename_data, const std::string& filename_out) {
+		const json data = load_json(filename_data);
+		write(temp, data, filename_out);
+	}
+
+  std::stringstream& render_to(std::stringstream& os, const Template& tmpl, const json& data) {
+    Renderer(m_impl->included_templates, m_impl->callbacks).render_to(os, tmpl, data);
+    return os;
+  }
+
+  std::string load_file(const std::string& filename) {
+    Parser parser(m_impl->parser_config, m_impl->lexer_config, m_impl->included_templates);
+		return parser.load_file(m_impl->input_path + filename);
+	}
+
+  json load_json(const std::string& filename) {
+		std::ifstream file(m_impl->input_path + filename);
+		json j;
+		file >> j;
+		return j;
+	}
+
+  void add_callback(const std::string& name, unsigned int numArgs, const CallbackFunction& callback) {
+    m_impl->callbacks.add_callback(name, numArgs, callback);
+  }
+
+  /** Includes a template with a given name into the environment.
+   * Then, a template can be rendered in another template using the
+   * include "<name>" syntax.
+   */
+  void include_template(const std::string& name, const Template& tmpl) {
+    m_impl->included_templates[name] = tmpl;
+  }
 };
-
-
-class Template
-{
-    Parsed::Element _parsed_template;
-
-public:
-    const Parsed::Element parsed_template()
-    {
-        return _parsed_template;
-    }
-
-    const Parsed::Element parsed_template() const
-    {
-        return _parsed_template;
-    }
-
-    explicit Template(): _parsed_template(Parsed::Element()) { }
-    explicit Template(const Parsed::Element& parsed_template): _parsed_template(parsed_template) { }
-};
-
-
-class Renderer
-{
-public:
-    std::map<Parsed::CallbackSignature, std::function<json(const Parsed::Arguments&, const json&)>> map_callbacks;
-
-    template<bool>
-    bool eval_expression(const Parsed::ElementExpression& element, const json& data)
-    {
-        const json var = eval_function(element, data);
-
-        if (var.empty())
-        {
-            return false;
-        }
-        else if (var.is_number())
-        {
-            return (var != 0);
-        }
-        else if (var.is_string())
-        {
-            return not var.empty();
-        }
-
-        try
-        {
-            return var.get<bool>();
-        }
-        catch (json::type_error& e)
-        {
-            inja_throw("json_error", e.what());
-            throw;
-        }
-    }
-
-    template<typename T = json>
-    T eval_expression(const Parsed::ElementExpression& element, const json& data)
-    {
-        const json var = eval_function(element, data);
-
-        if (var.empty())
-        {
-            return T();
-        }
-
-        try
-        {
-            return var.get<T>();
-        }
-        catch (json::type_error& e)
-        {
-            inja_throw("json_error", e.what());
-            throw;
-        }
-    }
-
-    json eval_function(const Parsed::ElementExpression& element, const json& data)
-    {
-        switch (element.function)
-        {
-            case Parsed::Function::Upper:
-            {
-                std::string str = eval_expression<std::string>(element.args[0], data);
-                std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-                return str;
-            }
-
-            case Parsed::Function::Lower:
-            {
-                std::string str = eval_expression<std::string>(element.args[0], data);
-                std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-                return str;
-            }
-
-            case Parsed::Function::Range:
-            {
-                const int number = eval_expression<int>(element.args[0], data);
-                std::vector<int> result(number);
-                std::iota(std::begin(result), std::end(result), 0);
-                return result;
-            }
-
-            case Parsed::Function::Length:
-            {
-                const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                return list.size();
-            }
-
-            case Parsed::Function::Sort:
-            {
-                std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                std::sort(list.begin(), list.end());
-                return list;
-            }
-
-            case Parsed::Function::First:
-            {
-                const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                return list.front();
-            }
-
-            case Parsed::Function::Last:
-            {
-                const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                return list.back();
-            }
-
-            case Parsed::Function::Round:
-            {
-                const double number = eval_expression<double>(element.args[0], data);
-                const int precision = eval_expression<int>(element.args[1], data);
-                return std::round(number * std::pow(10.0, precision)) / std::pow(10.0, precision);
-            }
-
-            case Parsed::Function::DivisibleBy:
-            {
-                const int number = eval_expression<int>(element.args[0], data);
-                const int divisor = eval_expression<int>(element.args[1], data);
-                return (divisor != 0) && (number % divisor == 0);
-            }
-
-            case Parsed::Function::Odd:
-            {
-                const int number = eval_expression<int>(element.args[0], data);
-                return (number % 2 != 0);
-            }
-
-            case Parsed::Function::Even:
-            {
-                const int number = eval_expression<int>(element.args[0], data);
-                return (number % 2 == 0);
-            }
-
-            case Parsed::Function::Max:
-            {
-                const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                return *std::max_element(list.begin(), list.end());
-            }
-
-            case Parsed::Function::Min:
-            {
-                const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
-                return *std::min_element(list.begin(), list.end());
-            }
-
-            case Parsed::Function::Not:
-            {
-                return not eval_expression<bool>(element.args[0], data);
-            }
-
-            case Parsed::Function::And:
-            {
-                return (eval_expression<bool>(element.args[0], data) and eval_expression<bool>(element.args[1], data));
-            }
-
-            case Parsed::Function::Or:
-            {
-                return (eval_expression<bool>(element.args[0], data) or eval_expression<bool>(element.args[1], data));
-            }
-
-            case Parsed::Function::In:
-            {
-                const json value = eval_expression(element.args[0], data);
-                const json list = eval_expression(element.args[1], data);
-                return (std::find(list.begin(), list.end(), value) != list.end());
-            }
-
-            case Parsed::Function::Equal:
-            {
-                return eval_expression(element.args[0], data) == eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::Greater:
-            {
-                return eval_expression(element.args[0], data) > eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::Less:
-            {
-                return eval_expression(element.args[0], data) < eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::GreaterEqual:
-            {
-                return eval_expression(element.args[0], data) >= eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::LessEqual:
-            {
-                return eval_expression(element.args[0], data) <= eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::Different:
-            {
-                return eval_expression(element.args[0], data) != eval_expression(element.args[1], data);
-            }
-
-            case Parsed::Function::Float:
-            {
-                return std::stod(eval_expression<std::string>(element.args[0], data));
-            }
-
-            case Parsed::Function::Int:
-            {
-                return std::stoi(eval_expression<std::string>(element.args[0], data));
-            }
-
-            case Parsed::Function::ReadJson:
-            {
-                try
-                {
-                    return data.at(json::json_pointer(element.command));
-                }
-                catch (std::exception&)
-                {
-                    inja_throw("render_error", "variable '" + element.command + "' not found");
-                }
-            }
-
-            case Parsed::Function::Result:
-            {
-                return element.result;
-            }
-
-            case Parsed::Function::Default:
-            {
-                try
-                {
-                    return eval_expression(element.args[0], data);
-                }
-                catch (std::exception&)
-                {
-                    return eval_expression(element.args[1], data);
-                }
-            }
-
-            case Parsed::Function::Callback:
-            {
-                Parsed::CallbackSignature signature = std::make_pair(element.command, element.args.size());
-                return map_callbacks.at(signature)(element.args, data);
-            }
-
-            case Parsed::Function::Exists:
-            {
-                const std::string name = eval_expression<std::string>(element.args[0], data);
-                return data.find(name) != data.end();
-            }
-
-            case Parsed::Function::ExistsInObject:
-            {
-                const std::string name = eval_expression<std::string>(element.args[1], data);
-                const json d = eval_expression(element.args[0], data);
-                return d.find(name) != d.end();
-            }
-        }
-
-        inja_throw("render_error", "unknown function in renderer: " + element.command);
-        return json();
-    }
-
-    std::string render(Template temp, const json& data)
-    {
-        std::string result = "";
-
-        for (const auto& element : temp.parsed_template().children)
-        {
-            switch (element->type)
-            {
-                case Parsed::Type::String:
-                {
-                    auto element_string = std::static_pointer_cast<Parsed::ElementString>(element);
-                    result.append(element_string->text);
-                    break;
-                }
-
-                case Parsed::Type::Expression:
-                {
-                    auto element_expression = std::static_pointer_cast<Parsed::ElementExpression>(element);
-                    const json variable = eval_expression(*element_expression, data);
-
-                    if (variable.is_string())
-                    {
-                        result.append(variable.get<std::string>());
-                    }
-                    else
-                    {
-                        std::stringstream ss;
-                        ss << variable;
-                        result.append(ss.str());
-                    }
-
-                    break;
-                }
-
-                case Parsed::Type::Loop:
-                {
-                    auto element_loop = std::static_pointer_cast<Parsed::ElementLoop>(element);
-
-                    switch (element_loop->loop)
-                    {
-                        case Parsed::Loop::ForListIn:
-                        {
-                            const std::vector<json> list = eval_expression<std::vector<json>>(element_loop->list, data);
-
-                            for (unsigned int i = 0; i < list.size(); i++)
-                            {
-                                json data_loop = data;
-
-                                /* For nested loops, use parent/index */
-                                if (data_loop.count("loop") == 1)
-                                {
-                                    data_loop["loop"]["parent"] = data_loop["loop"];
-                                }
-
-                                data_loop[element_loop->value] = list[i];
-                                data_loop["loop"]["index"] = i;
-                                data_loop["loop"]["index1"] = i + 1;
-                                data_loop["loop"]["is_first"] = (i == 0);
-                                data_loop["loop"]["is_last"] = (i == list.size() - 1);
-                                result.append(render(Template(*element_loop), data_loop));
-                            }
-
-                            break;
-                        }
-
-                        case Parsed::Loop::ForMapIn:
-                        {
-                            const std::map<std::string, json> map = eval_expression<std::map<std::string, json>>(element_loop->list, data);
-
-                            for (const auto& item : map)
-                            {
-                                json data_loop = data;
-                                data_loop[element_loop->key] = item.first;
-                                data_loop[element_loop->value] = item.second;
-                                result.append(render(Template(*element_loop), data_loop));
-                            }
-
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                case Parsed::Type::Condition:
-                {
-                    auto element_condition = std::static_pointer_cast<Parsed::ElementConditionContainer>(element);
-
-                    for (const auto& branch : element_condition->children)
-                    {
-                        auto element_branch = std::static_pointer_cast<Parsed::ElementConditionBranch>(branch);
-
-                        if (element_branch->condition_type == Parsed::Condition::Else
-                            || eval_expression<bool>(element_branch->condition, data))
-                        {
-                            result.append(render(Template(*element_branch), data));
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                default:
-                {
-                    break;
-                }
-            }
-        }
-
-        return result;
-    }
-};
-
-
-class Parser
-{
-    std::string root;
-public:
-    ElementNotation element_notation = ElementNotation::Pointer;
-
-    std::map<Parsed::CallbackSignature, Regex, std::greater<Parsed::CallbackSignature>> regex_map_callbacks;
-
-    std::map<const std::string, Template> included_templates;
-
-    /*!
-    @brief create a corresponding regex for a function name with a number of arguments separated by ,
-    */
-    static Regex function_regex(const std::string& name, int number_arguments)
-    {
-        std::string pattern = name;
-        pattern.append("(?:\\(");
-
-        for (int i = 0; i < number_arguments; i++)
-        {
-            if (i != 0)
-            {
-                pattern.append(",");
-            }
-
-            pattern.append("(.*)");
-        }
-
-        pattern.append("\\))");
-
-        if (number_arguments == 0)   // Without arguments, allow to use the callback without parenthesis
-        {
-            pattern.append("?");
-        }
-
-        return Regex{"\\s*" + pattern + "\\s*"};
-    }
-
-    /*!
-    @brief dot notation to json pointer notation
-    */
-    static std::string dot_to_json_pointer_notation(const std::string& dot)
-    {
-        std::string result = dot;
-
-        while (result.find(".") != std::string::npos)
-        {
-            result.replace(result.find("."), 1, "/");
-        }
-
-        result.insert(0, "/");
-        return result;
-    }
-
-    std::map<Parsed::Delimiter, Regex> regex_map_delimiters =
-    {
-        {Parsed::Delimiter::Statement, Regex{"\\{\\%\\s*(.+?)\\s*\\%\\}"}},
-        {Parsed::Delimiter::LineStatement, Regex{"(?:^|\\n)## *(.+?) *(?:\\n|$)"}},
-        {Parsed::Delimiter::Expression, Regex{"\\{\\{\\s*(.+?)\\s*\\}\\}"}},
-        {Parsed::Delimiter::Comment, Regex{"\\{#\\s*(.*?)\\s*#\\}"}}
-    };
-
-    const std::map<Parsed::Statement, Regex> regex_map_statement_openers =
-    {
-        {Parsed::Statement::Loop, Regex{"for (.+)"}},
-        {Parsed::Statement::Condition, Regex{"if (.+)"}},
-        {Parsed::Statement::Include, Regex{"include \"(.+)\""}}
-    };
-
-    const std::map<Parsed::Statement, Regex> regex_map_statement_closers =
-    {
-        {Parsed::Statement::Loop, Regex{"endfor"}},
-        {Parsed::Statement::Condition, Regex{"endif"}}
-    };
-
-    const std::map<Parsed::Loop, Regex> regex_map_loop =
-    {
-        //{Parsed::Loop::ForListIn, Regex{"for (\\w+) in (.+)"}},
-        //{Parsed::Loop::ForMapIn, Regex{"for (\\w+), (\\w+) in (.+)"}},
-        {Parsed::Loop::ForListIn, Regex{"for +(\\w+) +in +(.+)"}},
-        {Parsed::Loop::ForMapIn, Regex{"for +(\\w+) *, *(\\w+) +in +(.+)"}},
-    };
-
-    const std::map<Parsed::Condition, Regex> regex_map_condition =
-    {
-        {Parsed::Condition::If, Regex{"if (.+)"}},
-        {Parsed::Condition::ElseIf, Regex{"else if (.+)"}},
-        {Parsed::Condition::Else, Regex{"else"}}
-    };
-
-    const std::map<Parsed::Function, Regex> regex_map_functions =
-    {
-        {Parsed::Function::Not, Regex{"not (.+)"}},
-        {Parsed::Function::And, Regex{"(.+) and (.+)"}},
-        {Parsed::Function::Or, Regex{"(.+) or (.+)"}},
-        {Parsed::Function::In, Regex{"(.+) in (.+)"}},
-        {Parsed::Function::Equal, Regex{"(.+) == (.+)"}},
-        {Parsed::Function::Greater, Regex{"(.+) > (.+)"}},
-        {Parsed::Function::Less, Regex{"(.+) < (.+)"}},
-        {Parsed::Function::GreaterEqual, Regex{"(.+) >= (.+)"}},
-        {Parsed::Function::LessEqual, Regex{"(.+) <= (.+)"}},
-        {Parsed::Function::Different, Regex{"(.+) != (.+)"}},
-        {Parsed::Function::Default, function_regex("default", 2)},
-        {Parsed::Function::DivisibleBy, function_regex("divisibleBy", 2)},
-        {Parsed::Function::Even, function_regex("even", 1)},
-        {Parsed::Function::First, function_regex("first", 1)},
-        {Parsed::Function::Float, function_regex("float", 1)},
-        {Parsed::Function::Int, function_regex("int", 1)},
-        {Parsed::Function::Last, function_regex("last", 1)},
-        {Parsed::Function::Length, function_regex("length", 1)},
-        {Parsed::Function::Lower, function_regex("lower", 1)},
-        {Parsed::Function::Max, function_regex("max", 1)},
-        {Parsed::Function::Min, function_regex("min", 1)},
-        {Parsed::Function::Odd, function_regex("odd", 1)},
-        {Parsed::Function::Range, function_regex("range", 1)},
-        {Parsed::Function::Round, function_regex("round", 2)},
-        {Parsed::Function::Sort, function_regex("sort", 1)},
-        {Parsed::Function::Upper, function_regex("upper", 1)},
-        {Parsed::Function::Exists, function_regex("exists", 1)},
-        {Parsed::Function::ExistsInObject, function_regex("existsIn", 2)},
-        {Parsed::Function::ReadJson, Regex{"\\s*([^\\(\\)]*\\S)\\s*"}}
-    };
-
-    Parser() : root("./") { }
-    Parser(std::string const& root)
-        : root(root)
-    {
-    }
-
-    Parsed::ElementExpression parse_expression(const std::string& input)
-    {
-        const MatchType<Parsed::CallbackSignature> match_callback = match(input, regex_map_callbacks);
-
-        if (!match_callback.type().first.empty())
-        {
-            std::vector<Parsed::ElementExpression> args = {};
-
-            for (unsigned int i = 1; i < match_callback.size(); i++)   // str(0) is whole group
-            {
-                args.push_back(parse_expression(match_callback.str(i)));
-            }
-
-            Parsed::ElementExpression result = Parsed::ElementExpression(Parsed::Function::Callback);
-            result.args = args;
-            result.command = match_callback.type().first;
-            return result;
-        }
-
-        const MatchType<Parsed::Function> match_function = match(input, regex_map_functions);
-
-        switch (match_function.type())
-        {
-            case Parsed::Function::ReadJson:
-            {
-                std::string command = match_function.str(1);
-
-                if (json::accept(command))     // JSON Result
-                {
-                    Parsed::ElementExpression result = Parsed::ElementExpression(Parsed::Function::Result);
-                    result.result = json::parse(command);
-                    return result;
-                }
-
-                Parsed::ElementExpression result = Parsed::ElementExpression(Parsed::Function::ReadJson);
-
-                switch (element_notation)
-                {
-                    case ElementNotation::Pointer:
-                    {
-                        if (command[0] != '/')
-                        {
-                            command.insert(0, "/");
-                        }
-
-                        result.command = command;
-                        break;
-                    }
-
-                    case ElementNotation::Dot:
-                    {
-                        result.command = dot_to_json_pointer_notation(command);
-                        break;
-                    }
-                }
-
-                return result;
-            }
-
-            default:
-            {
-                std::vector<Parsed::ElementExpression> args = {};
-
-                for (unsigned int i = 1; i < match_function.size(); i++)   // str(0) is whole group
-                {
-                    args.push_back(parse_expression(match_function.str(i)));
-                }
-
-                Parsed::ElementExpression result = Parsed::ElementExpression(match_function.type());
-                result.args = args;
-                return result;
-            }
-        }
-    }
-
-    std::vector<std::shared_ptr<Parsed::Element>> parse_level(const std::string& input, const std::string& path)
-    {
-        std::vector<std::shared_ptr<Parsed::Element>> result;
-
-        size_t current_position = 0;
-        MatchType<Parsed::Delimiter> match_delimiter = search(input, regex_map_delimiters, current_position);
-
-        while (match_delimiter.found())
-        {
-            current_position = match_delimiter.end_position();
-            const std::string string_prefix = match_delimiter.prefix();
-
-            if (not string_prefix.empty())
-            {
-                result.emplace_back(std::make_shared<Parsed::ElementString>(string_prefix));
-            }
-
-            const std::string delimiter_inner = match_delimiter.str(1);
-
-            switch (match_delimiter.type())
-            {
-                case Parsed::Delimiter::Statement:
-                case Parsed::Delimiter::LineStatement:
-                {
-
-                    const MatchType<Parsed::Statement> match_statement = match(delimiter_inner, regex_map_statement_openers);
-
-                    switch (match_statement.type())
-                    {
-                        case Parsed::Statement::Loop:
-                        {
-                            const MatchClosed loop_match = search_closed(input, match_delimiter.regex(),
-                                                                         regex_map_statement_openers.at(Parsed::Statement::Loop), regex_map_statement_closers.at(Parsed::Statement::Loop),
-                                                                         match_delimiter);
-
-                            current_position = loop_match.end_position();
-
-                            const std::string loop_inner = match_statement.str(0);
-                            const MatchType<Parsed::Loop> match_command = match(loop_inner, regex_map_loop);
-
-                            if (not match_command.found())
-                            {
-                                inja_throw("parser_error", "unknown loop statement: " + loop_inner);
-                            }
-
-                            switch (match_command.type())
-                            {
-                                case Parsed::Loop::ForListIn:
-                                {
-                                    const std::string value_name = match_command.str(1);
-                                    const std::string list_name = match_command.str(2);
-
-                                    result.emplace_back(std::make_shared<Parsed::ElementLoop>(match_command.type(), value_name, parse_expression(list_name),
-                                                                                              loop_match.inner()));
-                                    break;
-                                }
-
-                                case Parsed::Loop::ForMapIn:
-                                {
-                                    const std::string key_name = match_command.str(1);
-                                    const std::string value_name = match_command.str(2);
-                                    const std::string list_name = match_command.str(3);
-
-                                    result.emplace_back(std::make_shared<Parsed::ElementLoop>(match_command.type(), key_name, value_name,
-                                                                                              parse_expression(list_name), loop_match.inner()));
-                                    break;
-                                }
-                            }
-
-                            break;
-                        }
-
-                        case Parsed::Statement::Condition:
-                        {
-                            auto condition_container = std::make_shared<Parsed::ElementConditionContainer>();
-
-                            Match condition_match = match_delimiter;
-                            MatchClosed else_if_match = search_closed_on_level(input, match_delimiter.regex(),
-                                                                               regex_map_statement_openers.at(Parsed::Statement::Condition),
-                                                                               regex_map_statement_closers.at(Parsed::Statement::Condition), regex_map_condition.at(Parsed::Condition::ElseIf),
-                                                                               condition_match);
-
-                            while (else_if_match.found())
-                            {
-                                condition_match = else_if_match.close_match;
-
-                                const std::string else_if_match_inner = else_if_match.open_match.str(1);
-                                const MatchType<Parsed::Condition> match_command = match(else_if_match_inner, regex_map_condition);
-
-                                if (not match_command.found())
-                                {
-                                    inja_throw("parser_error", "unknown if statement: " + else_if_match.open_match.str());
-                                }
-
-                                condition_container->children.push_back(std::make_shared<Parsed::ElementConditionBranch>(else_if_match.inner(),
-                                                                        match_command.type(), parse_expression(match_command.str(1))));
-
-                                else_if_match = search_closed_on_level(input, match_delimiter.regex(),
-                                                                       regex_map_statement_openers.at(Parsed::Statement::Condition),
-                                                                       regex_map_statement_closers.at(Parsed::Statement::Condition), regex_map_condition.at(Parsed::Condition::ElseIf),
-                                                                       condition_match);
-                            }
-
-                            MatchClosed else_match = search_closed_on_level(input, match_delimiter.regex(),
-                                                                            regex_map_statement_openers.at(Parsed::Statement::Condition),
-                                                                            regex_map_statement_closers.at(Parsed::Statement::Condition), regex_map_condition.at(Parsed::Condition::Else),
-                                                                            condition_match);
-
-                            if (else_match.found())
-                            {
-                                condition_match = else_match.close_match;
-
-                                const std::string else_match_inner = else_match.open_match.str(1);
-                                const MatchType<Parsed::Condition> match_command = match(else_match_inner, regex_map_condition);
-
-                                if (not match_command.found())
-                                {
-                                    inja_throw("parser_error", "unknown if statement: " + else_match.open_match.str());
-                                }
-
-                                condition_container->children.push_back(std::make_shared<Parsed::ElementConditionBranch>(else_match.inner(),
-                                                                        match_command.type(), parse_expression(match_command.str(1))));
-                            }
-
-                            const MatchClosed last_if_match = search_closed(input, match_delimiter.regex(),
-                                                                            regex_map_statement_openers.at(Parsed::Statement::Condition),
-                                                                            regex_map_statement_closers.at(Parsed::Statement::Condition), condition_match);
-
-                            if (not last_if_match.found())
-                            {
-                                inja_throw("parser_error", "misordered if statement");
-                            }
-
-                            const std::string last_if_match_inner = last_if_match.open_match.str(1);
-                            const MatchType<Parsed::Condition> match_command = match(last_if_match_inner, regex_map_condition);
-
-                            if (not match_command.found())
-                            {
-                                inja_throw("parser_error", "unknown if statement: " + last_if_match.open_match.str());
-                            }
-
-                            if (match_command.type() == Parsed::Condition::Else)
-                            {
-                                condition_container->children.push_back(std::make_shared<Parsed::ElementConditionBranch>(last_if_match.inner(),
-                                                                        match_command.type()));
-                            }
-                            else
-                            {
-                                condition_container->children.push_back(std::make_shared<Parsed::ElementConditionBranch>(last_if_match.inner(),
-                                                                        match_command.type(), parse_expression(match_command.str(1))));
-                            }
-
-                            current_position = last_if_match.end_position();
-                            result.emplace_back(condition_container);
-                            break;
-                        }
-
-                        case Parsed::Statement::Include:
-                        {
-                            const std::string template_name = match_statement.str(1);
-                            Template included_template;
-
-                            if (included_templates.find(template_name) != included_templates.end())
-                            {
-                                included_template = included_templates[template_name];
-                            }
-                            else
-                            {
-                                included_template = parse_template(path + template_name);
-                            }
-
-                            auto children = included_template.parsed_template().children;
-                            result.insert(result.end(), children.begin(), children.end());
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                case Parsed::Delimiter::Expression:
-                {
-                    result.emplace_back(std::make_shared<Parsed::ElementExpression>(parse_expression(delimiter_inner)));
-                    break;
-                }
-
-                case Parsed::Delimiter::Comment:
-                {
-                    result.emplace_back(std::make_shared<Parsed::ElementComment>(delimiter_inner));
-                    break;
-                }
-            }
-
-            match_delimiter = search(input, regex_map_delimiters, current_position);
-        }
-
-        if (current_position < input.length())
-        {
-            result.emplace_back(std::make_shared<Parsed::ElementString>(input.substr(current_position)));
-        }
-
-        return result;
-    }
-
-    std::shared_ptr<Parsed::Element> parse_tree(std::shared_ptr<Parsed::Element> current_element, const std::string& path)
-    {
-        if (not current_element->inner.empty())
-        {
-            current_element->children = parse_level(current_element->inner, path);
-            current_element->inner.clear();
-        }
-
-        if (not current_element->children.empty())
-        {
-            for (auto& child : current_element->children)
-            {
-                child = parse_tree(child, path);
-            }
-        }
-
-        return current_element;
-    }
-
-    Template parse(const std::string& input)
-    {
-        auto parsed = parse_tree(std::make_shared<Parsed::Element>(Parsed::Element(Parsed::Type::Main, input)), root);
-        return Template(*parsed);
-    }
-
-    Template parse_template(const std::string& filename)
-    {
-        const std::string input = load_file(filename);
-        const std::string path = filename.substr(0, filename.find_last_of("/\\") + 1);
-        auto parsed = parse_tree(std::make_shared<Parsed::Element>(Parsed::Element(Parsed::Type::Main, input)), path);
-        return Template(*parsed);
-    }
-
-    std::string load_file(const std::string& filename)
-    {
-        std::ifstream file(filename);
-        std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        return text;
-    }
-};
-
-
-/*!
-@brief Environment class
-*/
-class Environment
-{
-    const std::string input_path;
-    const std::string output_path;
-
-    Parser parser = Parser();
-    Renderer renderer = Renderer();
-
-public:
-    Environment(): Environment("./") { }
-    explicit Environment(const std::string& global_path): input_path(global_path), output_path(global_path),
-        parser(input_path)
-    {
-    }
-    explicit Environment(const std::string& input_path, const std::string& output_path): input_path(input_path),
-        output_path(output_path), parser(input_path) { }
-
-    void set_statement(const std::string& open, const std::string& close)
-    {
-        parser.regex_map_delimiters[Parsed::Delimiter::Statement] = Regex{open + "\\s*(.+?)\\s*" + close};
-    }
-
-    void set_line_statement(const std::string& open)
-    {
-        parser.regex_map_delimiters[Parsed::Delimiter::LineStatement] = Regex{"(?:^|\\n)" + open + " *(.+?) *(?:\\n|$)"};
-    }
-
-    void set_expression(const std::string& open, const std::string& close)
-    {
-        parser.regex_map_delimiters[Parsed::Delimiter::Expression] = Regex{open + "\\s*(.+?)\\s*" + close};
-    }
-
-    void set_comment(const std::string& open, const std::string& close)
-    {
-        parser.regex_map_delimiters[Parsed::Delimiter::Comment] = Regex{open + "\\s*(.+?)\\s*" + close};
-    }
-
-    void set_element_notation(const ElementNotation element_notation_)
-    {
-        parser.element_notation = element_notation_;
-    }
-
-    Template parse(const std::string& input)
-    {
-        return parser.parse(input);
-    }
-
-    Template parse_template(const std::string& filename)
-    {
-        return parser.parse_template(input_path + filename);
-    }
-
-    std::string render(const std::string& input, const json& data)
-    {
-        return renderer.render(parse(input), data);
-    }
-
-    std::string render_template(const Template& temp, const json& data)
-    {
-        return renderer.render(temp, data);
-    }
-
-    std::string render_file(const std::string& filename, const json& data)
-    {
-        return renderer.render(parse_template(filename), data);
-    }
-
-    std::string render_file_with_json_file(const std::string& filename, const std::string& filename_data)
-    {
-        const json data = load_json(filename_data);
-        return render_file(filename, data);
-    }
-
-    void write(const std::string& filename, const json& data, const std::string& filename_out)
-    {
-        std::ofstream file(output_path + filename_out);
-        file << render_file(filename, data);
-        file.close();
-    }
-
-    void write(const Template& temp, const json& data, const std::string& filename_out)
-    {
-        std::ofstream file(output_path + filename_out);
-        file << render_template(temp, data);
-        file.close();
-    }
-
-    void write_with_json_file(const std::string& filename, const std::string& filename_data,
-                              const std::string& filename_out)
-    {
-        const json data = load_json(filename_data);
-        write(filename, data, filename_out);
-    }
-
-    void write_with_json_file(const Template& temp, const std::string& filename_data, const std::string& filename_out)
-    {
-        const json data = load_json(filename_data);
-        write(temp, data, filename_out);
-    }
-
-    std::string load_global_file(const std::string& filename)
-    {
-        return parser.load_file(input_path + filename);
-    }
-
-    json load_json(const std::string& filename)
-    {
-        std::ifstream file(input_path + filename);
-        json j;
-        file >> j;
-        return j;
-    }
-
-    void add_callback(std::string name, int number_arguments,
-                      const std::function<json(const Parsed::Arguments&, const json&)>& callback)
-    {
-        const Parsed::CallbackSignature signature = std::make_pair(name, number_arguments);
-        parser.regex_map_callbacks[signature] = Parser::function_regex(name, number_arguments);
-        renderer.map_callbacks[signature] = callback;
-    }
-
-    void include_template(std::string name, const Template& temp)
-    {
-        parser.included_templates[name] = temp;
-    }
-
-    template<typename T = json>
-    T get_argument(const Parsed::Arguments& args, int index, const json& data)
-    {
-        return renderer.eval_expression<T>(args[index], data);
-    }
-};
-
 
 /*!
 @brief render with default settings
 */
-inline std::string render(const std::string& input, const json& data)
-{
-    return Environment().render(input, data);
+inline std::string render(std::string_view input, const json& data) {
+  return Environment().render(input, data);
 }
 
-} // namespace inja
+}
 
-#endif // PANTOR_INJA_HPP
+#endif // PANTOR_INJA_ENVIRONMENT_HPP
+
+// #include "template.hpp"
+
+// #include "parser.hpp"
+
+// #include "renderer.hpp"
+
+
+
+#endif  // PANTOR_INJA_HPP

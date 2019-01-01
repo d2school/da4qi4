@@ -256,7 +256,7 @@ private:
     void render_on_template(std::string const& templ_name, Template const& templ, Json const& data, http_status status);
     std::string render_on_template(std::string const& templ_name, Template const& templ, Json const& data
                                    , bool& server_render_error
-                                   , std::string& error_detail);
+                                   , std::string& error_what);
 
     void regist_template_enginer_common_functions();
 

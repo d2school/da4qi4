@@ -68,6 +68,8 @@ private:
     std::string _root, _app_prefix;
 };
 
+void init_template_env(inja::Environment& env);
+
 } //namesapce da4qi4
 
 #endif // DAQI_TEMPLATE_LIBRARY_HPP
