@@ -552,7 +552,6 @@ void Application::Handle(Context ctx)
     do_handle(ctx);
 }
 
-
 void Application::do_handle(Context& ctx)
 {
     Handler& h = find_handler(ctx);

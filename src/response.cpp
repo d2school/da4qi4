@@ -335,6 +335,20 @@ void Response::ReplyOk(std::string body)
     set_or_default_body(std::move(body));
 }
 
+void Response::ReplyOk(Json const& result)
+{
+    try
+    {
+        std::string body = result.dump(2);
+        ReplyOkJSON(body);
+    }
+    catch (...)
+    {
+        ReplyInternalServerError();
+    }
+}
+
+
 void Response::ReplyNofound(std::string body)
 {
     _status_code = HTTP_STATUS_NOT_FOUND;

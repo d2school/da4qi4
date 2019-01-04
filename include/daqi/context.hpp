@@ -86,29 +86,29 @@ public:
         }
     }
 
-    Json& PageData()
+    Json& ModelData()
     {
-        return Data(page_data_name);
+        return Data(model_data_name);
     }
 
-    Json const& PageData() const
+    Json const& ModelData() const
     {
-        return Data(page_data_name);
+        return Data(model_data_name);
     }
 
-    Json LoadPageData() const
+    Json LoadModelData() const
     {
-        return PageData();
+        return ModelData();
     }
 
-    void SavePageData(Json const& data)
+    void SaveModelData(Json const& data)
     {
-        PageData() = data;
+        ModelData() = data;
     }
 
-    static std::string const& PageDataName()
+    static std::string const& ModelDataName()
     {
-        return page_data_name;
+        return model_data_name;
     }
 
     Json& SessionData()
@@ -334,7 +334,7 @@ private:
 
 private:
     static std::string session_data_name;
-    static std::string page_data_name;
+    static std::string model_data_name;
 };
 
 

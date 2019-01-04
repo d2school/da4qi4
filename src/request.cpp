@@ -241,8 +241,7 @@ UploadFile Request::GetFile(std::string const& field_name) const
     return uf;
 }
 
-bool Request::IsExistsCookie(std::string const& name)
-const
+bool Request::IsExistsCookie(std::string const& name) const
 {
     return Utilities::IsExistsHeader(_cookies, name);
 }

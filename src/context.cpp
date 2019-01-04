@@ -10,7 +10,7 @@ namespace da4qi4
 {
 
 std::string ContextIMP::session_data_name = "_session_data_";
-std::string ContextIMP::page_data_name = "_page_data_";
+std::string ContextIMP::model_data_name = "_model_data_";
 
 RedisClientPtr init_redis_client(ConnectionPtr cnt)
 {
@@ -276,7 +276,7 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
 
 void ContextIMP::Render()
 {
-    Json& page_data = PageData();
+    Json& page_data = ModelData();
     (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
 }
 
