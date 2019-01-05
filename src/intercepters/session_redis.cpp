@@ -68,9 +68,6 @@ void SessionOnRedis::on_request(Context& ctx) const
                 {
                     data =  create_new_session();
                 }
-
-                ctx->SaveData(ContextIMP::SessionDataName(), std::move(data));
-                ctx->Pass();
             }
             catch (Json::parse_error const& e)
             {
@@ -84,6 +81,9 @@ void SessionOnRedis::on_request(Context& ctx) const
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }
+
+            ctx->SaveData(ContextIMP::SessionDataName(), std::move(data));
+            ctx->Pass();
         });
     }
 }
