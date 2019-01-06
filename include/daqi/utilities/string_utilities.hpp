@@ -48,10 +48,22 @@ bool StartsWith(std::string const& m, std::string const& s);
 bool EndsWith(std::string const& m, std::string const& s);
 
 std::string ReplaceAll(std::string const& m, std::string const& bef, std::string const& aft);
-std::vector<std::string> Split(std::string const& m, char c);
-std::vector<std::string> SplitByLine(std::string const& m); // \n or \r\n
+
+enum class TrimOptions {keep_space, trim_all, trim_left, trim_right};
+std::vector<std::string> Split(std::string const& m, char c, TrimOptions opt = TrimOptions::keep_space);
+std::vector<std::string> SplitByLine(std::string const& m, TrimOptions opt = TrimOptions::keep_space);
+
 void Trim(std::string& m);
 std::string TrimCopy(std::string const& m);
+
+void TrimLeft(std::string& m);
+std::string TrimLeftCopy(std::string const& m);
+
+void TrimRight(std::string& m);
+std::string TrimRightCopy(std::string const& m);
+
+void TrimOnOptions(std::string& m, TrimOptions opt);
+std::string TrimOnOptionsCopy(std::string const& m, TrimOptions opt);
 
 std::string GetUUID(std::string const& prefix = theEmptyString);
 

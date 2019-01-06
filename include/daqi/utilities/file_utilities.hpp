@@ -15,6 +15,19 @@ bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path)
 bool IsFileExists(fs::path const& fullpath);
 bool IsFileExists(std::string const& fullpath);
 
+enum class FileOverwriteOptions
+{
+    ignore_success,
+    ignore_fail,
+    overwrite
+};
+
+std::pair<bool, std::string /*msg*/>
+CopyFile(fs::path const& src, fs::path const& dst, FileOverwriteOptions overwrite);
+
+std::pair<bool, std::string /*msg*/>
+MoveFile(fs::path const& src, fs::path const& dst, FileOverwriteOptions overwrite);
+
 } //namesapce Utilities
 } //namespace da4qi4
 

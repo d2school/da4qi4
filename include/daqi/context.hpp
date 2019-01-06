@@ -50,14 +50,9 @@ public:
 
     Json const& Data(std::string const& name) const
     {
-        return const_cast<ContextIMP*>(this)->Data(name);
-    }
+        Json::const_iterator it = _data.find(name);
 
-    Json& Data(std::string const& name)
-    {
-        auto it = _data.find(name);
-
-        if (it == _data.end())
+        if (it == _data.cend())
         {
             return theEmptyJson;
         }
@@ -65,14 +60,26 @@ public:
         return *it;
     }
 
-    Json LoadData(std::string const& name) const
+    Json& Data(std::string const& name)
+    {
+        auto it = _data.find(name);
+
+        if (it != _data.end())
+        {
+            return *it;
+        }
+
+        _data[name] = Json();
+        return _data[name];
+    }
+
+    Json const& LoadData(std::string const& name) const
     {
         return Data(name);
     }
 
     void SaveData(std::string const& name, Json const& data)
     {
-        assert(!name.empty());
         _data[name] = data;
     }
 
@@ -96,14 +103,14 @@ public:
         return Data(model_data_name);
     }
 
-    Json LoadModelData() const
+    Json const& LoadModelData() const
     {
-        return ModelData();
+        return LoadData(model_data_name);
     }
 
     void SaveModelData(Json const& data)
     {
-        ModelData() = data;
+        SaveData(model_data_name, data);
     }
 
     static std::string const& ModelDataName()
@@ -123,12 +130,12 @@ public:
 
     Json LoadSessionData() const
     {
-        return SessionData();
+        return LoadData(session_data_name);
     }
 
     void SaveSessionData(Json const& data)
     {
-        SessionData() = data;
+        SaveData(session_data_name, data);
     }
 
     static std::string const& SessionDataName()

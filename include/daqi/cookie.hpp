@@ -181,6 +181,11 @@ struct Cookie
         _value.clear();
     }
 
+    bool IsEmpty() const
+    {
+        return _name.empty() && _value.empty();
+    }
+
 private:
     enum
     {
@@ -207,7 +212,7 @@ private:
 };
 
 std::ostream& operator << (std::ostream& os, Cookie const& c);
-void to_json(Json& j,  Cookie const& c);
+void to_json(Json& j, Cookie const& c);
 void from_json(Json const& j, Cookie& c);
 
 

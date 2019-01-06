@@ -3,33 +3,29 @@
 namespace da4qi4
 {
 
-Json ToJson(Cookie const& cookie, Json const& data)
+namespace
 {
-    Json node;
-    node["cookie"] = cookie;
-    node["data"] = data;
-
-    return node;
+std::string session_cookie_name = "_cookie_";
 }
 
-bool FromJson(Json const& node, Cookie& cookie, Json& data)
+Json MakeNewSession(Cookie const& cookie)
 {
-    try
+    Json session {{session_cookie_name, cookie}};
+    return session;
+}
+
+Cookie GetSessionCookie(Json const& session)
+{
+    Cookie cookie;
+
+    Json::const_iterator it = session.find(session_cookie_name);
+
+    if (it != session.cend())
     {
-        cookie = node.at("cookie");
-        data = node.at("data");
-        return true;
-    }
-    catch (Json::parse_error const& e)
-    {
-        std::cerr << e.what() << std::endl; //HINT : can get more detail info from e.
-    }
-    catch (std::exception const& e)
-    {
-        std::cerr << e.what() << std::endl;
+        it->get_to(cookie);
     }
 
-    return false;
+    return cookie;
 }
 
 } //namespace da4qi4
