@@ -20,7 +20,7 @@ struct SessionOptions
     std::string domain;
     std::string path = "/";
     int max_age = 3600;
-    Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js;
+    Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_only;
     Cookie::Secure secure = Cookie::Secure::for_http_and_https;
     Cookie::SameSite samesite = Cookie::SameSite::none;
 };

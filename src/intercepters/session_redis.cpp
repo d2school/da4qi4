@@ -50,8 +50,6 @@ void SessionOnRedis::on_request(Context& ctx) const
 {
     std::string session_id = ctx->Req().GetCookie(this->_options.name);
 
-    ctx->Logger()->critical("cookie-pwd : {}", ctx->Req().GetCookie("d2school_password"));
-
     if (session_id.empty())
     {
         ctx->SaveSessionData(create_new_session());
