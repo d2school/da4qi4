@@ -62,5 +62,59 @@ bool IsFileExists(std::string const& fullpath)
     return IsFileExists(fp);
 }
 
+std::pair<bool, std::string /*msg*/>
+CopyFile(fs::path const& src, fs::path const& dst, FileOverwriteOptions overwrite)
+{
+    if (!IsFileExists(src))
+    {
+        return std::make_pair(false, "Source file is not exists.");
+    }
+
+    bool dst_exists = IsFileExists(dst);
+
+    if (dst_exists && overwrite != FileOverwriteOptions::overwrite)
+    {
+        return std::make_pair(overwrite == FileOverwriteOptions::ignore_success
+                              , "Destination was exists.");
+    }
+
+    errorcode ec;
+    fs::copy_file(src, dst, fs::copy_option::overwrite_if_exists, ec);
+
+    if (ec)
+    {
+        return std::make_pair(false, ec.message());
+    }
+
+    return std::make_pair(true, "");
+}
+
+std::pair<bool, std::string /*msg*/>
+MoveFile(fs::path const& src, fs::path const& dst, FileOverwriteOptions overwrite)
+{
+    if (!IsFileExists(src))
+    {
+        return std::make_pair(false, "Sourse is not exists.");
+    }
+
+    bool dst_exists = IsFileExists(dst);
+
+    if (dst_exists && overwrite != FileOverwriteOptions::overwrite)
+    {
+        return std::make_pair(overwrite == FileOverwriteOptions::ignore_success
+                              , "Destination is exists.");
+    }
+
+    errorcode ec;
+    fs::rename(src, dst, ec);
+
+    if (ec)
+    {
+        return std::make_pair(false, ec.message());
+    }
+
+    return std::make_pair(true, "");
+}
+
 } //namesapce Utilities
 }//namespace da4qi4

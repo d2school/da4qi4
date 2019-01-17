@@ -43,7 +43,6 @@ int main()
     web->AddIntercepter(static_file);
 
     Intercepter::SessionOnRedis session_redis;
-    session_redis.SetHttpOnly(Cookie::HttpOnly::for_http_only);
     web->AddIntercepter(session_redis);
 
     web->AddHandler(_GET_, "/", [](Context ctx)

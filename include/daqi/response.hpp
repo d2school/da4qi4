@@ -11,6 +11,8 @@
 
 #include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"
+#include "daqi/def/json_def.hpp"
+
 #include "daqi/cookie.hpp"
 
 namespace da4qi4
@@ -273,6 +275,17 @@ public:
     void ReplyStatus(int code, std::string body = EmptyBody());
 
     void ReplyOk(std::string body = EmptyBody());
+    void ReplyOk(Json const& result);
+
+    void ReplyOkJSON(std::string body = EmptyBody(),
+                     std::string const& content_type = "application/json",
+                     std::string const& content_encoding = "utf-8")
+    {
+        this->SetContentEncoding(content_encoding);
+        this->SetContentType(content_type);
+        ReplyOk(body);
+    }
+
     void ReplyContinue()
     {
         _status_code = HTTP_STATUS_CONTINUE;

@@ -17,34 +17,13 @@ std::string const daqi_HTML_template_ext = ".daqi.HTML";
 
 void init_template_env(inja::Environment& env)
 {
+    env.set_expression("{=", "=}");
+
+    env.set_comment("{#", "#}");
+    env.set_statement("{%", "%}");
+    env.set_line_statement("##");
+
     env.set_element_notation(inja::ElementNotation::Dot);
-
-    auto placeholder_find = [](inja::Parsed::Arguments, inja::json)
-    {
-        return Utilities::theEmptyString;
-    };
-    auto placeholder_exists = [](inja::Parsed::Arguments, inja::json)
-    {
-        return false;
-    };
-
-    env.add_callback("_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_PARAMETER_EXISTS_", 1, placeholder_exists);
-
-    env.add_callback("_HEADER_", 1, placeholder_find);
-    env.add_callback("_IS_HEADER_EXISTS_", 1, placeholder_exists);
-
-    env.add_callback("_URL_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_URL_PARAMETER_EXISTS_", 1, placeholder_exists);
-
-    env.add_callback("_PATH_PARAMETER_", 1, placeholder_find);
-    env.add_callback("_IS_PATH_PARAMETER_EXISTS_", 1, placeholder_exists);
-
-    env.add_callback("_FORM_DATA_", 1, placeholder_find);
-    env.add_callback("_IS_FORM_DATA_EXISTS_", 1, placeholder_exists);
-
-    env.add_callback("_COOKIE_", 1, placeholder_find);
-    env.add_callback("_IS_COOKIE_EXISTS_", 1, placeholder_exists);
 }
 
 bool Templates::try_load_template(std::string const& key
@@ -56,7 +35,7 @@ bool Templates::try_load_template(std::string const& key
         inja::Environment env(_root);
         init_template_env(env);
 
-        std::string tmpl_src = env.load_global_file(template_filename);
+        std::string tmpl_src = env.load_file(template_filename);
 
         if (tmpl_src.empty())
         {

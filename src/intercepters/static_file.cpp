@@ -167,7 +167,8 @@ void StaticFile::on_response(Context& ctx) const
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        ctx->Logger()->error("Locate static file {} exception. {}", dst_file_name, e.what());
+
         ctx->RenderInternalServerError();
         ctx->Pass();
         return;
@@ -177,7 +178,7 @@ void StaticFile::on_response(Context& ctx) const
 
     if (!ifs)
     {
-        ctx->Logger()->error("Open {} file fail.", dst_file.native());
+        ctx->Logger()->error("Open {} file fail.", dst_file_name);
 
         ctx->RenderInternalServerError();
         ctx->Pass();

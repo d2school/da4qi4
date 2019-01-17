@@ -597,11 +597,11 @@ std::string UrlDecode(const std::string& value)
 std::map<std::string, std::string> ParseQueryParameters(std::string const& query)
 {
     std::map<std::string, std::string> result;
-    std::vector<std::string> kvparts = Utilities::Split(query, '&');
+    std::vector<std::string> kvparts = Utilities::Split(query, '&', Utilities::TrimOptions::keep_space);
 
     for (auto kvpart : kvparts)
     {
-        std::vector<std::string> kv = Utilities::Split(kvpart, '=');
+        std::vector<std::string> kv = Utilities::Split(kvpart, '=', Utilities::TrimOptions::keep_space);
         size_t  c = kv.size();
         std::string k, v;
 
@@ -624,7 +624,7 @@ std::map<std::string, std::string> ParseQueryParameters(std::string const& query
 std::map<std::string, std::string> ParsePlainTextFormData(std::string const& body)
 {
     std::map<std::string, std::string> result;
-    std::vector<std::string> kvparts = Utilities::SplitByLine(body);
+    std::vector<std::string> kvparts = Utilities::SplitByLine(body, Utilities::TrimOptions::keep_space);
 
     for (std::string kvpart : kvparts)
     {
@@ -635,7 +635,7 @@ std::map<std::string, std::string> ParsePlainTextFormData(std::string const& bod
             continue;
         }
 
-        std::vector<std::string> kv = Utilities::Split(kvpart, '=');
+        std::vector<std::string> kv = Utilities::Split(kvpart, '=', Utilities::TrimOptions::keep_space);
 
         size_t  c = kv.size();
         std::string k, v;

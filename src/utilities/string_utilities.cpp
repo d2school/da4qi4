@@ -65,15 +65,57 @@ std::string ReplaceAll(std::string const& m, std::string const& bef, std::string
     return boost::algorithm::replace_all_copy(m, bef, aft);
 }
 
-std::vector<std::string> Split(std::string const& m, char c)
+void TrimOnOptions(std::string& m, TrimOptions opt)
+{
+    switch (opt)
+    {
+        case TrimOptions::trim_all :
+            Trim(m);
+            break;
+
+        case TrimOptions::trim_left:
+            TrimLeft(m);
+            break;
+
+        case TrimOptions::trim_right:
+            TrimRight(m);
+            break;
+
+        case TrimOptions::keep_space:
+            break;
+    }
+}
+
+std::string TrimOnOptionsCopy(std::string const& m, TrimOptions opt)
+{
+    if (opt == TrimOptions::keep_space)
+    {
+        return m;
+    }
+
+    std::string mcopy = m;
+    TrimOnOptions(mcopy, opt);
+    return mcopy;
+}
+
+std::vector<std::string> Split(std::string const& m, char c, TrimOptions opt)
 {
     std::vector<std::string> parts;
     char spe[] = {c, '\0'};
     boost::algorithm::split(parts, m, boost::is_any_of(spe));
+
+    if (opt != TrimOptions::keep_space)
+    {
+        for (auto& part : parts)
+        {
+            TrimOnOptions(part, opt);
+        }
+    }
+
     return parts;
 }
 
-std::vector<std::string> SplitByLine(std::string const& m)
+std::vector<std::string> SplitByLine(std::string const& m, TrimOptions opt)
 {
     std::stringstream ss(m);
     std::vector<std::string> parts;
@@ -82,6 +124,7 @@ std::vector<std::string> SplitByLine(std::string const& m)
     {
         std::string line;
         std::getline(ss, line);
+        TrimOnOptions(line, opt);
         parts.push_back(line);
     }
 
@@ -96,6 +139,26 @@ void Trim(std::string& m)
 std::string TrimCopy(std::string const& m)
 {
     return boost::trim_copy(m);
+}
+
+void TrimLeft(std::string& m)
+{
+    boost::trim_left(m);
+}
+
+std::string TrimLeftCopy(std::string const& m)
+{
+    return boost::trim_copy(m);
+}
+
+void TrimRight(std::string& m)
+{
+    boost::trim_right(m);
+}
+
+std::string TrimRightCopy(std::string const& m)
+{
+    return boost::trim_right_copy(m);
 }
 
 std::string GetUUID(const std::string& prefix)

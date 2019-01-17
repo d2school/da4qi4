@@ -1,5 +1,6 @@
 #include "daqi/intercepters/session_redis.hpp"
 
+#include <ctime>
 #include <string>
 
 #include <boost/uuid/uuid_generators.hpp>
@@ -15,14 +16,26 @@ namespace da4qi4
 namespace Intercepter
 {
 
-std::string make_session_id(std::string const& prefix)
+std::string make_session_id(std::string const& prefix, bool prefix_with_time)
 {
-    return Utilities::GetUUID(prefix);
+    if (!prefix_with_time)
+    {
+        return Utilities::GetUUID(prefix);
+    }
+
+    char buf[16];
+    auto now = std::time(nullptr);
+    std::tm tm_now = *std::localtime(&now);
+    std::strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &tm_now);
+    buf[15] = '\0';
+    std::string new_prefix = prefix + std::string(buf) + ":";
+
+    return Utilities::GetUUID(new_prefix);
 }
 
 Json SessionOnRedis::create_new_session() const
 {
-    std::string session_id = make_session_id(_options.prefix);
+    std::string session_id = make_session_id(_options.prefix, _options.prefix_with_time);
 
     Cookie cookie(_options.name, session_id, _options.domain, _options.path);
     cookie.SetMaxAge(_options.max_age);
@@ -30,7 +43,7 @@ Json SessionOnRedis::create_new_session() const
     cookie.SetSecure(_options.secure);
     cookie.SetSameSite(_options.samesite);
 
-    return ToJson(cookie, Json());
+    return MakeNewSession(cookie);
 }
 
 void SessionOnRedis::on_request(Context& ctx) const
@@ -39,7 +52,7 @@ void SessionOnRedis::on_request(Context& ctx) const
 
     if (session_id.empty())
     {
-        ctx->SaveData(ContextIMP::SessionDataName(), create_new_session());
+        ctx->SaveSessionData(create_new_session());
         ctx->Pass();
         return;
     }
@@ -50,58 +63,60 @@ void SessionOnRedis::on_request(Context& ctx) const
         {
             if (value.IsError())
             {
+                ctx->Logger()->error("Get session cache fail. {}. {}",
+                                     session_id, value.ToString());
+
                 ctx->RenderInternalServerError();
                 ctx->Stop();
                 return;
             }
 
-            Json data;
+            Json session;
 
             try
             {
                 if (!value.ToString().empty())
                 {
-                    data = Json::parse(value.ToString());
+                    session = Json::parse(value.ToString());
                 }
 
-                if (data.empty())
+                if (session.empty())
                 {
-                    data =  create_new_session();
+                    session = create_new_session();
                 }
-
-                ctx->SaveData(ContextIMP::SessionDataName(), std::move(data));
-                ctx->Pass();
             }
             catch (Json::parse_error const& e)
             {
-                ctx->Logger()->error("Parse data for session {} exception. {}", session_id, e.what());
+                ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }
             catch (std::exception const& e)
             {
-                ctx->Logger()->error("Parse data for session {} exception. {}", session_id, e.what());
+                ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }
+
+            ctx->SaveSessionData(std::move(session));
+            ctx->Pass();
         });
     }
 }
 
 void SessionOnRedis::on_response(Context& ctx) const
 {
-    Json node = ctx->LoadData(ContextIMP::SessionDataName());
+    Json const& session = ctx->LoadSessionData();
 
-    if (node.empty())
+    if (session.empty())
     {
         ctx->Pass();
         return;
     }
 
-    Json data;
-    Cookie cookie;
+    Cookie cookie = GetSessionCookie(session);
 
-    if (!FromJson(node, cookie, data))
+    if (cookie.IsEmpty())
     {
         ctx->Pass();
         return;
@@ -111,8 +126,8 @@ void SessionOnRedis::on_response(Context& ctx) const
 
     std::string session_timeout_s = std::to_string(cookie.GetMaxAge());
     std::string session_id = cookie.GetValue();
-    size_t const indent = 4;
-    std::string session_value = node.dump(indent);
+    size_t const indent = 2;
+    std::string session_value = session.dump(indent);
 
     if (auto redis = ctx->Redis())
     {
@@ -122,7 +137,8 @@ void SessionOnRedis::on_response(Context& ctx) const
         {
             if (value.IsError())
             {
-                std::cerr << value.ToString() << std::endl;
+                ctx->Logger()->critical("Cache session data fail. {}", value.ToString());
+
                 ctx->RenderInternalServerError();
                 ctx->Stop();
             }

@@ -50,14 +50,9 @@ public:
 
     Json const& Data(std::string const& name) const
     {
-        return const_cast<ContextIMP*>(this)->Data(name);
-    }
+        Json::const_iterator it = _data.find(name);
 
-    Json& Data(std::string const& name)
-    {
-        auto it = _data.find(name);
-
-        if (it == _data.end())
+        if (it == _data.cend())
         {
             return theEmptyJson;
         }
@@ -65,14 +60,26 @@ public:
         return *it;
     }
 
-    Json LoadData(std::string const& name) const
+    Json& Data(std::string const& name)
+    {
+        auto it = _data.find(name);
+
+        if (it != _data.end())
+        {
+            return *it;
+        }
+
+        _data[name] = Json();
+        return _data[name];
+    }
+
+    Json const& LoadData(std::string const& name) const
     {
         return Data(name);
     }
 
     void SaveData(std::string const& name, Json const& data)
     {
-        assert(!name.empty());
         _data[name] = data;
     }
 
@@ -86,29 +93,29 @@ public:
         }
     }
 
-    Json& PageData()
+    Json& ModelData()
     {
-        return Data(page_data_name);
+        return Data(model_data_name);
     }
 
-    Json const& PageData() const
+    Json const& ModelData() const
     {
-        return Data(page_data_name);
+        return Data(model_data_name);
     }
 
-    Json LoadPageData() const
+    Json const& LoadModelData() const
     {
-        return PageData();
+        return LoadData(model_data_name);
     }
 
-    void SavePageData(Json const& data)
+    void SaveModelData(Json const& data)
     {
-        PageData() = data;
+        SaveData(model_data_name, data);
     }
 
-    static std::string const& PageDataName()
+    static std::string const& ModelDataName()
     {
-        return page_data_name;
+        return model_data_name;
     }
 
     Json& SessionData()
@@ -123,12 +130,12 @@ public:
 
     Json LoadSessionData() const
     {
-        return SessionData();
+        return LoadData(session_data_name);
     }
 
     void SaveSessionData(Json const& data)
     {
-        SessionData() = data;
+        SaveData(session_data_name, data);
     }
 
     static std::string const& SessionDataName()
@@ -256,7 +263,7 @@ private:
     void render_on_template(std::string const& templ_name, Template const& templ, Json const& data, http_status status);
     std::string render_on_template(std::string const& templ_name, Template const& templ, Json const& data
                                    , bool& server_render_error
-                                   , std::string& error_detail);
+                                   , std::string& error_what);
 
     void regist_template_enginer_common_functions();
 
@@ -334,7 +341,7 @@ private:
 
 private:
     static std::string session_data_name;
-    static std::string page_data_name;
+    static std::string model_data_name;
 };
 
 

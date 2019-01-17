@@ -10,7 +10,7 @@ namespace da4qi4
 {
 
 std::string ContextIMP::session_data_name = "_session_data_";
-std::string ContextIMP::page_data_name = "_page_data_";
+std::string ContextIMP::model_data_name = "_model_data_";
 
 RedisClientPtr init_redis_client(ConnectionPtr cnt)
 {
@@ -28,7 +28,7 @@ ContextIMP::ContextIMP(ConnectionPtr cnt)
     , _env(cnt->HasApplication() ? cnt->GetApplication()->GetTemplateRoot().native() : "")
     , _redis(init_redis_client(cnt))
 {
-    _env.set_element_notation(inja::ElementNotation::Dot);
+    init_template_env(_env);
     regist_template_enginer_common_functions();
 }
 
@@ -52,14 +52,13 @@ void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function
                                                             std::string defaultValue)
 {
     _env.add_callback(function_name, 1
-                      , [this, func, function_name, defaultValue](inja::Parsed::Arguments args
-                                                                  , Json data) -> std::string
+                      , [this, func, function_name, defaultValue](inja::Arguments & args) -> std::string
     {
         try
         {
             if (args.size() == 1)
             {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
+                std::string name = args.at(0)->get<std::string>();
 
                 if (!name.empty())
                 {
@@ -84,14 +83,13 @@ void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_n
                                                           bool defaultValue)
 {
     _env.add_callback(function_name, 1
-                      , [this, func, function_name, defaultValue](inja::Parsed::Arguments args
-                                                                  , Json data) -> bool
+                      , [this, func, function_name, defaultValue](inja::Arguments & args) -> bool
     {
         try
         {
             if (args.size() == 1)
             {
-                std::string name = _env.get_argument<std::string>(args, 0, data);
+                std::string name = args.at(0)->get<std::string>();
 
                 if (!name.empty())
                 {
@@ -115,22 +113,22 @@ void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_n
 void ContextIMP::regist_template_enginer_common_functions()
 {
     RegistStringFunctionWithOneStringParameter("_PARAMETER_", &Self::parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_PARAMETER_EXISTS_", &Self::is_exists_parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_PARAMETER_", &Self::is_exists_parameter);
 
     RegistStringFunctionWithOneStringParameter("_HEADER_", &Self::header);
-    RegistBoolFunctionWithOneStringParameter("_IS_HEADER_EXISTS_", &Self::is_exists_header);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_HEADER_", &Self::is_exists_header);
 
     RegistStringFunctionWithOneStringParameter("_URL_PARAMETER_", &Self::url_parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_URL_PARAMETER_EXISTS_", &Self::is_exists_url_parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_URL_PARAMETER_", &Self::is_exists_url_parameter);
 
     RegistStringFunctionWithOneStringParameter("_PATH_PARAMETER_", &Self::path_parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_PATH_PARAMETER_EXISTS_", &Self::is_exists_path_parameter);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_PATH_PARAMETER_", &Self::is_exists_path_parameter);
 
     RegistStringFunctionWithOneStringParameter("_FORM_DATA_", &Self::form_data);
-    RegistBoolFunctionWithOneStringParameter("_IS_FORM_DATA_EXISTS_", &Self::is_exists_form_data);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_FORM_DATA_", &Self::is_exists_form_data);
 
     RegistStringFunctionWithOneStringParameter("_COOKIE_", &Self::cookie);
-    RegistBoolFunctionWithOneStringParameter("_IS_COOKIE_EXISTS_", &Self::is_exists_cookie);
+    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_COOKIE_", &Self::is_exists_cookie);
 }
 
 Request const& ContextIMP::Req() const
@@ -169,31 +167,69 @@ void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
 std::string ContextIMP::render_on_template(std::string const& templ_name, Template const& templ
                                            , Json const& data
                                            , bool& server_render_error
-                                           , std::string& error_detail)
+                                           , std::string& error_what)
 {
     server_render_error = false;
-    error_detail.clear();
+    error_what.clear();
 
     try
     {
-        return _env.render_template(templ, data);
+        return _env.render(templ, data);
+    }
+    catch (std::runtime_error const& e)
+    {
+        server_render_error = true;
+
+        /* format is :  "[inja.exception." + type + "] " + message */
+        std::string exception_type;
+        std::string exception_message = e.what();
+
+        static std::string const inja_exception_prefix = "[inja.exception.";
+        auto pos = exception_message.find(inja_exception_prefix);
+        std::string::size_type offset = 0;
+
+        bool formated = (pos == 0);
+
+        if (formated)
+        {
+            offset = inja_exception_prefix.size();
+            auto type_end = exception_message.find("] ", offset);
+
+            if (type_end == std::string::npos)
+            {
+                formated = false;
+            }
+            else
+            {
+                exception_type = exception_message.substr(offset, type_end - offset);
+                exception_message = exception_message.substr(type_end + 2);
+                error_what = exception_type + ", " + exception_message;
+            }
+        }
+
+        if (!formated)
+        {
+            exception_type = "unknown";
+            error_what = exception_message;
+        }
+
+        logger()->error("Render template \"{}\" exception. {}. {}"
+                        , templ_name, exception_type, exception_message);
     }
     catch (std::exception const& e)
     {
         server_render_error = true;
-        error_detail = e.what();
+        error_what = e.what();
 
-        static std::string const inja_exception_prefix = "[inja.exception.render_error] ";
-        auto pos = error_detail.find(inja_exception_prefix);
-        std::string::size_type offset = 0;
+        logger()->error("Render template \"{}\" exception. {}"
+                        , templ_name, e.what());
+    }
+    catch (...)
+    {
+        server_render_error = true;
+        error_what = "unknown render error.";
 
-        if (pos == 0)
-        {
-            offset = inja_exception_prefix.size();
-        }
-
-        logger()->error("Render template \"{}\" exception. {}. {}"
-                        , templ_name, error_detail.c_str() + offset, templ.parsed_template().inner);
+        logger()->error("Render template \"{}\" exception.", templ_name);
     }
 
     return Utilities::theEmptyString;
@@ -240,7 +276,7 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
 
 void ContextIMP::Render()
 {
-    Json& page_data = PageData();
+    Json& page_data = ModelData();
     (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
 }
 

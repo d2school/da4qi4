@@ -241,8 +241,7 @@ UploadFile Request::GetFile(std::string const& field_name) const
     return uf;
 }
 
-bool Request::IsExistsCookie(std::string const& name)
-const
+bool Request::IsExistsCookie(std::string const& name) const
 {
     return Utilities::IsExistsHeader(_cookies, name);
 }
@@ -569,11 +568,13 @@ void Request::TransferHeadersToCookies()
 
     if (!value.empty())
     {
-        std::vector<std::string> parts = Utilities::Split(value, ';');
+        std::vector<std::string> parts = Utilities::Split(value, ';',
+                                                          Utilities::TrimOptions::keep_space);
 
         for (auto part : parts)
         {
-            std::vector<std::string> kv = Utilities::Split(part, '=');
+            std::vector<std::string> kv = Utilities::Split(part, '=',
+                                                           Utilities::TrimOptions::trim_all);
 
             if (!kv.empty())
             {
@@ -584,7 +585,6 @@ void Request::TransferHeadersToCookies()
         }
     }
 }
-
 
 fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& dir)
 {

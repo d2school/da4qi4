@@ -552,7 +552,6 @@ void Application::Handle(Context ctx)
     do_handle(ctx);
 }
 
-
 void Application::do_handle(Context& ctx)
 {
     Handler& h = find_handler(ctx);
@@ -564,7 +563,14 @@ void Application::do_handle(Context& ctx)
         return;
     }
 
-    h(ctx);
+    try
+    {
+        h(ctx);
+    }
+    catch (std::exception const& e)
+    {
+        _logger->error("Handler {} exception. {}", ctx->Req().GetUrl().full, e.what());
+    }
 }
 
 } //namespace da4qi4

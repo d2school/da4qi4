@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
-    message(STATUS "use CCACHE program : ${CCACHE_PROGRAM}.")
-endif()
+#find_program(CCACHE_PROGRAM ccache)
+#if(CCACHE_PROGRAM)
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+#    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
+#    message(STATUS "use CCACHE program : ${CCACHE_PROGRAM}.")
+#endif()
 
 project(da4qi4)
 
@@ -35,7 +35,9 @@ aux_source_directory(./src DAQI_SRC_FILES)
 aux_source_directory(./http-parser DAQI_SRC_FILES)
 aux_source_directory(./multipart-parser DAQI_SRC_FILES)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
 
 link_libraries(nlohmann_json)
 
