@@ -164,6 +164,39 @@ void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
     _cnt->GetRequest().InitPathParameters(names, values);
 }
 
+std::string ContextIMP::GetSessionID() const
+{
+    Json const& session = this->SessionData();
+
+    if (session.is_discarded() || session.is_null() || !session.is_object())
+    {
+        return Utilities::theEmptyString;
+    }
+
+    Cookie cookie = da4qi4::GetSessionCookie(session);
+
+    if (cookie.IsEmpty())
+    {
+        return Utilities::theEmptyString;
+    }
+
+    return cookie.GetValue();
+}
+
+Cookie ContextIMP::GetSessionCookie() const
+{
+    Cookie cookie;
+
+    Json const& session = this->SessionData();
+
+    if (session.is_discarded() || session.is_null() || !session.is_object())
+    {
+        return cookie;
+    }
+
+    return da4qi4::GetSessionCookie(session);
+}
+
 std::string ContextIMP::render_on_template(std::string const& templ_name, Template const& templ
                                            , Json const& data
                                            , bool& server_render_error

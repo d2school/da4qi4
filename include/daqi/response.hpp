@@ -139,16 +139,17 @@ public:
         AppendHeader("Expires", Utilities::GMTFormatTime(time_point));
     }
 
-    void CatchControlNO()
-    {
-        AppendHeader("Cache-Control", "no-cache");
-    }
-
     void CacheControlMaxAge(int max_age_seconds = 0, CacheControl cc = CacheControl::Public)
     {
         std::string s = (cc == CacheControl::Public) ? "public" : "private";
         AppendHeader("Cache-Control", s + ", max-age=" + std::to_string(max_age_seconds));
     }
+
+    void NoCache()
+    {
+        AppendHeader("Cache-Control", "no-cache");
+    }
+
     void TurnOffCache()
     {
         AppendHeader("Cache-Control", "no-cache, no-store, must-revalidate");

@@ -113,11 +113,6 @@ public:
         SaveData(model_data_name, data);
     }
 
-    static std::string const& ModelDataName()
-    {
-        return model_data_name;
-    }
-
     Json& SessionData()
     {
         return Data(session_data_name);
@@ -136,6 +131,14 @@ public:
     void SaveSessionData(Json const& data)
     {
         SaveData(session_data_name, data);
+    }
+
+    std::string GetSessionID() const;
+    Cookie GetSessionCookie() const;
+
+    static std::string const& ModelDataName()
+    {
+        return model_data_name;
     }
 
     static std::string const& SessionDataName()
@@ -209,6 +212,12 @@ public:
     void RenderInternalServerError(Json const& data = theEmptyJson)
     {
         RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+    }
+
+public:
+    void Redirect(std::string const& dst_location)
+    {
+        this->Res().ReplyRedirect(dst_location);
     }
 
 public:
