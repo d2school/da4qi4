@@ -32,6 +32,7 @@ public:
 
     ~Connection();
 
+public:
     void StartRead();
     void StartWrite();
     void Stop();

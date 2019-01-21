@@ -474,7 +474,13 @@ void Connection::free_multipart_parser(mp_free_flag flag)
 
 void Connection::do_close()
 {
-    _socket.close();
+    errorcode ec;
+    _socket.close(ec);
+
+    if (ec)
+    {
+        log::Server()->warn("Socket close exception. {}", ec.message());
+    }
 }
 
 void Connection::do_read()
