@@ -29,6 +29,25 @@ void Socket::async_connect(Tcp::endpoint const& ep,
     _socket.async_connect(ep, on_connect);
 }
 
+void Socket::async_read_some(ReadBuffer& read_buffer,
+                             std::function<void (errorcode const&, std::size_t)> on_read)
+{
+    _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
+}
+
+void Socket::async_write(char* const write_buffer, std::size_t size,
+                         std::function<void (errorcode const&, std::size_t)> on_write)
+{
+    boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), on_write);
+}
+
+void Socket::close(errorcode& ec)
+{
+    _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
+    _socket.close(ec);
+}
+
+
 SocketWithSSL::~SocketWithSSL()
 {
 }
@@ -47,6 +66,24 @@ void SocketWithSSL::async_connect(Tcp::endpoint const& ep,
         _stream.set_verify_mode(boost::asio::ssl::verify_none);
         _stream.async_handshake(boost::asio::ssl::stream_base::client, on_connect);
     });
+}
+
+void SocketWithSSL::async_read_some(ReadBuffer& read_buffer,
+                                    std::function<void (errorcode const&, std::size_t)> on_read)
+{
+    _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
+}
+
+void SocketWithSSL::async_write(char* const write_buffer, std::size_t size,
+                                std::function<void (errorcode const&, std::size_t)> on_write)
+{
+    boost::asio::async_write(_stream, boost::asio::buffer(write_buffer, size), on_write);
+}
+
+void SocketWithSSL::close(errorcode& ec)
+{
+    _stream.shutdown(ec);
+    _stream.next_layer().close(ec);
 }
 
 Tcp::socket& SocketWithSSL::get_socket()
@@ -106,7 +143,7 @@ void Connection::do_close()
     }
 
     errorcode ec;
-    _socket_ptr->get_socket().close(ec);
+    _socket_ptr->close(ec);
 
     if (ec)
     {
@@ -132,7 +169,6 @@ void Connection::init_parser_setting()
     _parser_setting.on_headers_complete = &Connection::on_headers_complete;
     _parser_setting.on_header_field = &Connection::on_header_field;
     _parser_setting.on_header_value = &Connection::on_header_value;
-    //_parser_setting.on_url = &Connection::on_url;
     _parser_setting.on_status = &Connection::on_status;
     _parser_setting.on_body = &Connection::on_body;
 }
@@ -260,9 +296,9 @@ void Connection::do_write(NotifyFunction notify)
 
     std::string request_buffer = os.str();
     std::cout << request_buffer << std::endl;
-    boost::asio::async_write(_socket_ptr->get_socket()
-                             , boost::asio::buffer(request_buffer)
-                             , [this, notify](errorcode const & ec, size_t bytes_transferred)
+
+    _socket_ptr->async_write(request_buffer.data(), request_buffer.size(),
+                             [this, notify](errorcode const & ec, size_t /*bytes_transferred*/)
     {
         if (ec)
         {
@@ -276,9 +312,8 @@ void Connection::do_write(NotifyFunction notify)
 
 void Connection::do_read(NotifyFunction notify)
 {
-    _socket_ptr->get_socket().async_read_some(boost::asio::buffer(_read_buffer),
-                                              [this, notify](errorcode const & ec,
-                                                             std::size_t bytes_transferred)
+    _socket_ptr->async_read_some(_read_buffer, [this, notify](errorcode const & ec,
+                                                              std::size_t bytes_transferred)
     {
         if (ec)
         {
@@ -396,13 +431,6 @@ int Connection::on_status(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_status_buffer.append(at, length);
-    return 0;
-}
-
-int Connection::on_url(http_parser* parser, char const* at, size_t length)
-{
-    Connection* cnt = static_cast<Connection*>(parser->data);
-    cnt->_url_buffer.append(at, length);
     return 0;
 }
 

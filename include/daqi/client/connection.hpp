@@ -18,12 +18,21 @@ namespace Client
 
 namespace detail
 {
+
+using ReadBuffer = std::array<char, 1024 * 2>;
+
 struct SocketBase
 {
     virtual ~SocketBase() = 0;
 
-    virtual void async_connect(Tcp::endpoint const& ep,
-                               std::function<void (errorcode const& ec)> on_connect) = 0;
+    virtual void async_connect(Tcp::endpoint const&, std::function<void (errorcode const&)>) = 0;
+
+    virtual void async_read_some(ReadBuffer&, std::function<void (errorcode const&, std::size_t)>) = 0;
+
+    virtual void async_write(char* const, std::size_t, std::function<void (errorcode const&, std::size_t)>) = 0;
+
+    virtual void close(errorcode& ec) = 0;
+
     virtual Tcp::socket& get_socket() = 0;
 };
 
@@ -39,6 +48,12 @@ struct Socket : SocketBase
 
     void async_connect(Tcp::endpoint const& ep,
                        std::function<void (errorcode const& ec)> on_connect) override;
+    void async_read_some(ReadBuffer& read_buffer,
+                         std::function<void (errorcode const&, std::size_t)> on_read) override;
+    void async_write(char* const write_buffer, std::size_t size,
+                     std::function<void (errorcode const&, std::size_t)> on_write) override;
+
+    void close(errorcode& ec) override;
 
 private:
     Tcp::socket _socket;
@@ -55,7 +70,14 @@ struct SocketWithSSL : SocketBase
 
     void async_connect(Tcp::endpoint const& ep,
                        std::function<void (errorcode const& ec)> on_connect) override;
+    void async_read_some(ReadBuffer& read_buffer,
+                         std::function<void (errorcode const&, std::size_t)> on_read) override;
+    void async_write(char* const write_buffer, std::size_t size,
+                     std::function<void (errorcode const&, std::size_t)> on_write) override;
+
     Tcp::socket& get_socket() override;
+
+    void close(errorcode& ec) override;
 
 private:
     boost::asio::ssl::stream<Tcp::socket> _stream;
@@ -177,6 +199,16 @@ public:
         return this->_error_msg;
     }
 
+    unsigned int GetResponseStatusCode() const
+    {
+        return (_parser != nullptr) ? _parser->status_code : 0;
+    }
+
+    std::string const& GetResponseStatus() const
+    {
+        return _status_buffer;
+    }
+
 private:
     void do_resolver(NotifyFunction notify);
     void do_connect(NotifyFunction notify);
@@ -199,7 +231,6 @@ private:
     static int on_message_begin(http_parser* parser);
     static int on_message_complete(http_parser* parser);
 
-    static int on_url(http_parser* parser, char const* at, size_t length);
     static int on_status(http_parser* parser, char const* at, size_t length);
     static int on_body(http_parser* parser, char const* at, size_t length);
 
@@ -213,7 +244,7 @@ private:
     detail::SocketBase* _socket_ptr;
 
     size_t _ioc_index;
-    std::array<char, 1024 * 2> _read_buffer;
+    detail::ReadBuffer _read_buffer;
 
     bool _is_connected = false;
 private:
