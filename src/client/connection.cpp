@@ -294,7 +294,6 @@ void Connection::do_write(NotifyFunction notify)
     }
 
     std::string request_buffer = os.str();
-    std::cout << request_buffer << std::endl;
 
     _socket_ptr->async_write(request_buffer.data(), request_buffer.size(),
                              [this, notify](errorcode const & ec, size_t /*bytes_transferred*/)
@@ -321,9 +320,6 @@ void Connection::do_read(NotifyFunction notify)
             notify(ec);
             return;
         }
-
-        std::string tmp(_read_buffer.data(), bytes_transferred);
-        std::cerr << tmp << std::endl;
 
         auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data(), bytes_transferred);
 
