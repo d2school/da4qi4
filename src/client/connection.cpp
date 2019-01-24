@@ -47,7 +47,6 @@ void Socket::close(errorcode& ec)
     _socket.close(ec);
 }
 
-
 SocketWithSSL::~SocketWithSSL()
 {
 }
