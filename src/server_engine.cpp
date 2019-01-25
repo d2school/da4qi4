@@ -77,7 +77,6 @@ void IOContextPool::Run()
 
     for (auto thread_ptr : _threads)
     {
-
         thread_ptr->join();
     }
 }
