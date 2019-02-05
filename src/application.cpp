@@ -496,6 +496,45 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return true;
 }
 
+bool Application::AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_equals(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Application::AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_starts(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_regex(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 Handler& Application::find_handler(Context const& ctx)
 {
     HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));

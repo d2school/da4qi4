@@ -43,7 +43,10 @@ size_t ContextIMP::IOContextIndex() const
 
 log::LoggerPtr ContextIMP::logger()
 {
-    assert(_cnt && _cnt->GetApplication() && _cnt->GetApplication()->GetLogger());
+    assert(_cnt);
+    assert(_cnt->GetApplication());
+    assert(_cnt->GetApplication()->GetLogger());
+
     return _cnt->GetApplication()->GetLogger();
 }
 
@@ -307,13 +310,14 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
     }
 }
 
-void ContextIMP::Render()
+ContextIMP& ContextIMP::Render()
 {
     Json& page_data = ModelData();
     (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
+    return *this;
 }
 
-void ContextIMP::RenderWithData(http_status status, Json const& data)
+ContextIMP& ContextIMP::RenderWithData(http_status status, Json const& data)
 {
     std::string template_name = std::to_string(static_cast<int>(status));
 
@@ -325,9 +329,11 @@ void ContextIMP::RenderWithData(http_status status, Json const& data)
     {
         Res().ReplyStatus(status);
     }
+
+    return *this;
 }
 
-void ContextIMP::RenderWithData(std::string const& template_name, Json const& data)
+ContextIMP& ContextIMP::RenderWithData(std::string const& template_name, Json const& data)
 {
     auto templ = App().GetTemplates().Get(template_name);
 
@@ -335,20 +341,21 @@ void ContextIMP::RenderWithData(std::string const& template_name, Json const& da
     {
         logger()->error("No found template {0}.", template_name);
         RenderNofound();
-        return;
+        return *this;
     }
 
     render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
+    return *this;
 }
 
-void ContextIMP::RenderWithData(Json const& data)
+ContextIMP& ContextIMP::RenderWithData(Json const& data)
 {
     std::string const& path = Req().GetUrl().path;
 
     if (path.empty())
     {
         Res().ReplyBadRequest();
-        return;
+        return *this;
     }
 
     std::string template_name;
@@ -367,7 +374,7 @@ void ContextIMP::RenderWithData(Json const& data)
     if (templ)
     {
         render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
-        return;
+        return *this;
     }
 
     bool template_name_is_path_form = !template_name.empty() && (*(--template_name.end()) == '/');
@@ -375,7 +382,7 @@ void ContextIMP::RenderWithData(Json const& data)
     if (!template_name_is_path_form)
     {
         RenderNofound();
-        return;
+        return *this;
     }
 
     template_name += "index";
@@ -384,10 +391,11 @@ void ContextIMP::RenderWithData(Json const& data)
     if (!templ)
     {
         RenderNofound();
-        return;
+        return *this;
     }
 
     render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
+    return *this;
 }
 
 void ContextIMP::end()

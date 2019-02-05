@@ -158,66 +158,71 @@ public:
                                    , std::vector<std::string> const& values);
 
 public:
-    void Render();
+    ContextIMP& Render();
+    ContextIMP& Render(std::string const& template_name, Json const& data = theEmptyJson)
+    {
+        return RenderWithData(template_name, data);
+    }
 
-    void RenderWithData(http_status status, Json const& data);
-    void RenderWithData(std::string const& template_name, Json const& data);
-    void RenderWithData(Json const& data);
-
-public:
-    void RenderWithoutData(http_status status)
-    {
-        RenderWithData(status, theEmptyJson);
-    }
-    void RenderWithoutData(std::string const& template_name)
-    {
-        RenderWithData(template_name, theEmptyJson);
-    }
-    void RenderWithoutData()
-    {
-        RenderWithData(theEmptyJson);
-    }
+    ContextIMP& RenderWithData(http_status status, Json const& data);
+    ContextIMP& RenderWithData(std::string const& template_name, Json const& data);
+    ContextIMP& RenderWithData(Json const& data);
 
 public:
-    void RenderNofound(Json const& data = theEmptyJson)
+    ContextIMP& RenderWithoutData(http_status status)
     {
-        RenderWithData(HTTP_STATUS_NOT_FOUND, data);
+        return RenderWithData(status, theEmptyJson);
     }
-
-    void RenderBadRequest(Json const& data = theEmptyJson)
+    ContextIMP& RenderWithoutData(std::string const& template_name)
     {
-        RenderWithData(HTTP_STATUS_BAD_REQUEST, data);
+        return RenderWithData(template_name, theEmptyJson);
     }
-
-    void RenderUnauthorized(Json const& data = theEmptyJson)
+    ContextIMP& RenderWithoutData()
     {
-        RenderWithData(HTTP_STATUS_UNAUTHORIZED, data);
-    }
-
-    void RenderForbidden(Json const& data = theEmptyJson)
-    {
-        RenderWithData(HTTP_STATUS_FORBIDDEN, data);
-    }
-
-    void RenderNotImplemented(Json const& data = theEmptyJson)
-    {
-        RenderWithData(HTTP_STATUS_NOT_IMPLEMENTED, data);
-    }
-
-    void RenderServiceUnavailable(Json const& data = theEmptyJson)
-    {
-        RenderWithData(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
-    }
-
-    void RenderInternalServerError(Json const& data = theEmptyJson)
-    {
-        RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+        return RenderWithData(theEmptyJson);
     }
 
 public:
-    void Redirect(std::string const& dst_location)
+    ContextIMP& RenderNofound(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_NOT_FOUND, data);
+    }
+
+    ContextIMP& RenderBadRequest(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_BAD_REQUEST, data);
+    }
+
+    ContextIMP& RenderUnauthorized(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_UNAUTHORIZED, data);
+    }
+
+    ContextIMP& RenderForbidden(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_FORBIDDEN, data);
+    }
+
+    ContextIMP& RenderNotImplemented(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_NOT_IMPLEMENTED, data);
+    }
+
+    ContextIMP& RenderServiceUnavailable(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
+    }
+
+    ContextIMP& RenderInternalServerError(Json const& data = theEmptyJson)
+    {
+        return RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+    }
+
+public:
+    ContextIMP&  Redirect(std::string const& dst_location)
     {
         this->Res().ReplyRedirect(dst_location);
+        return *this;
     }
 
 public:

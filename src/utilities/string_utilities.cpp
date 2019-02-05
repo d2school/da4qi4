@@ -1,6 +1,7 @@
 #include "daqi/utilities/string_utilities.hpp"
 
 #include <ctime>
+#include <codecvt>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -52,11 +53,23 @@ bool iLess(std::string const& l, std::string const& r)
     return boost::algorithm::ilexicographical_compare(l, r);
 }
 
+char const* dt_fmt_gmt = "%a, %d %b %Y %H:%M:%S %Z";
+char const* dt_fmt_yyyy_mm_dd_hh_mm_ss = "%Y-%m-%d %H:%M:%S";
+char const* dt_fmt_yyyy_mm_dd = "%Y-%m-%d";
+char const* dt_fmt_yyyy_mm_dd_hh_mm_ss_CN = "%Y年%m月%d日 %H时%M分%S秒";
+char const* dt_fmt_yyyy_mm_dd_CN = "%Y年%m月%d日";
+
 std::string GMTFormatTime(std::time_t t)
 {
+    return FormatDateTime(t, dt_fmt_gmt);
+}
+
+std::string FormatDateTime(std::time_t t, char const* fmt)
+{
     struct tm gmt = *std::gmtime(&t);
-    char buff[30] = "\0";
-    strftime(buff, sizeof(buff), "%a, %d %b %Y %H:%M:%S %Z", &gmt);
+    char buff[48] = "\0";
+    strftime(buff, sizeof(buff), fmt, &gmt);
+
     return buff;
 }
 
@@ -170,6 +183,18 @@ std::string GetUUID(const std::string& prefix)
     ss << prefix << uid;
 
     return ss.str();
+}
+
+std::wstring FromUTF8(std::string const& utf8str)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
+    return wconv.from_bytes(utf8str);
+}
+
+std::string ToUTF8(std::wstring const& wstr)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
+    return wconv.to_bytes(wstr);
 }
 
 } //namespace Utilities

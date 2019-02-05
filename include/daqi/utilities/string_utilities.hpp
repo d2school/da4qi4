@@ -15,7 +15,14 @@ namespace Utilities
 
 extern std::string theEmptyString;
 
+extern char const* dt_fmt_gmt;
+extern char const* dt_fmt_yyyy_mm_dd_hh_mm_ss;
+extern char const* dt_fmt_yyyy_mm_dd;
+extern char const* dt_fmt_yyyy_mm_dd_hh_mm_ss_CN;
+extern char const* dt_fmt_yyyy_mm_dd_CN;
+
 std::string GMTFormatTime(std::time_t t);
+std::string FormatDateTime(std::time_t t, char const* fmt = dt_fmt_yyyy_mm_dd_hh_mm_ss);
 
 struct IgnoreCaseCompare
 {
@@ -66,6 +73,9 @@ void TrimOnOptions(std::string& m, TrimOptions opt);
 std::string TrimOnOptionsCopy(std::string const& m, TrimOptions opt);
 
 std::string GetUUID(std::string const& prefix = theEmptyString);
+
+std::wstring FromUTF8(std::string const& utf8str);
+std::string ToUTF8(std::wstring const& wstr);
 
 } //namespace Utilities
 } //namespace da4qi4

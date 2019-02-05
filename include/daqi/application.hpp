@@ -238,6 +238,10 @@ public:
     bool AddHandler(HandlerMethods ms, router_starts e, Handler h);
     bool AddHandler(HandlerMethods ms, router_regex e, Handler h);
 
+    bool AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+    bool AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+    bool AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+
 public:
     void AddIntercepter(Intercepter::Handler intercepter)
     {
