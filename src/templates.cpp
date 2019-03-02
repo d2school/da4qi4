@@ -28,7 +28,7 @@ void init_template_env(inja::Environment& env)
 
 bool Templates::try_load_template(std::string const& key
                                   , std::string const& template_filename
-                                  , std::string const& full_template_filename)
+                                  , std::string const& full_template_filename) noexcept
 {
     try
     {
@@ -39,7 +39,7 @@ bool Templates::try_load_template(std::string const& key
 
         if (tmpl_src.empty())
         {
-            _app_logger->error("Load template file {} fail.", full_template_filename);
+            _app_logger->error("Template read fail. \"{}\".", full_template_filename);
             return false;
         }
 
@@ -47,22 +47,27 @@ bool Templates::try_load_template(std::string const& key
         Item item {templ, full_template_filename};
         _templates.insert(std::make_pair(key, item));
 
-        _app_logger->info("Template {} loaded.", template_filename);
-
+        _app_logger->info("Template load success. \"{}\".", template_filename);
         return true;
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        _app_logger->error("Template load exception. {}. \"{}\".", e.what(), full_template_filename);
+        return false;
+    }
+    catch (...)
+    {
+        _app_logger->error("Template load exception. \"{}\".", full_template_filename);
         return false;
     }
 }
 
-bool is_deprecated(fs::path const& path)
+bool is_ignored(fs::path const& path)
 {
-    return (path.string().find("_deprecated/") != std::string::npos
-            || path.string().find("_deprecated\\") != std::string::npos
-            || path.string().find(".deprecated.") != std::string::npos);
+    return (!path.string().empty() &&
+            (path.string().find("/.") != std::string::npos
+             || path.string().find("/_") != std::string::npos
+             || path.string().find(".deprecated.") != std::string::npos));
 }
 
 bool is_include_dir(fs::path const& path)
@@ -71,16 +76,16 @@ bool is_include_dir(fs::path const& path)
             || path.native().find("\\i\\") != std::string::npos);
 }
 
-std::size_t Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
+std::pair<size_t, size_t> Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
 {
     fs::path root(_root);
 
     if (!fs::is_directory((root)) || !fs::exists(root))
     {
-        return 0;
+        return {0, 0};
     }
 
-    size_t count = 0;
+    size_t ok = 0, fail = 0;
 
     fs::recursive_directory_iterator iter(root);
     fs::recursive_directory_iterator end_iter;
@@ -93,7 +98,7 @@ std::size_t Templates::load_templates(std::string const& template_ext, std::stri
 
             if (Utilities::EndsWith(path.filename().native(), template_ext))
             {
-                if (is_deprecated(path))
+                if (is_ignored(path))
                 {
                     continue;
                 }
@@ -115,14 +120,18 @@ std::size_t Templates::load_templates(std::string const& template_ext, std::stri
 
                     if (try_load_template(key, template_filename, path.string()))
                     {
-                        ++count;
+                        ++ok;
+                    }
+                    else
+                    {
+                        ++fail;
                     }
                 }
             }
         }
     }
 
-    return count;
+    return {ok, fail};
 }
 
 bool Templates::reload()
@@ -144,9 +153,9 @@ bool Templates::Preload(log::LoggerPtr app_logger)
 
     try
     {
-        std::size_t count = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        auto count = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
         _loaded_time = std::time(nullptr);
-        app_logger->info("All ({}) template(s) loaded.", count);
+        app_logger->info("Templates loaded. {} success, {} fail.", count.first, count.second);
 
         return true;
     }
@@ -326,7 +335,7 @@ Templates::TemplateUpdateAction Templates::check_new_template(std::string const&
 
             if (Utilities::EndsWith(path.filename().native(), template_ext))
             {
-                if (is_deprecated(path))
+                if (is_ignored(path))
                 {
                     continue;
                 }

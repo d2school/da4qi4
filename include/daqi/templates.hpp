@@ -35,10 +35,11 @@ private:
     bool reload();
 
 private:
-    size_t load_templates(std::string const& template_ext, std::string const& key_ext);
+    std::pair<size_t, size_t>
+    load_templates(std::string const& template_ext, std::string const& key_ext);
     bool try_load_template(std::string const& key
                            , std::string const& template_filename
-                           , std::string const& full_template_filename);
+                           , std::string const& full_template_filename) noexcept;
 
     enum class TemplateUpdateAction
     {
