@@ -44,6 +44,8 @@ link_libraries(nlohmann_json)
 
 if(_DAQI_TARGET_TYPE_ STREQUAL "DEMO_SERVER")
     message(STATUS "~BUILD DAQI AS DEMO SERVER~")    
+    link_libraries(ssl)
+    link_libraries(crypto)
     add_definitions(-D_BUILD_DAQI_DEMO_SERVER_=1)
     add_executable(${PROJECT_NAME} ${DAQI_SRC_FILES})  
 elseif(_DAQI_TARGET_TYPE_ STREQUAL "STATIC_LIB")    

@@ -26,6 +26,12 @@ void init_template_env(inja::Environment& env)
     env.set_element_notation(inja::ElementNotation::Dot);
 }
 
+std::string remove_template_ext(std::string const& fn)
+{
+    return (Utilities::EndsWith(fn, daqi_HTML_template_ext)) ?
+           fn.substr(0, fn.length() - daqi_HTML_template_ext.length()) : fn;
+}
+
 bool Templates::try_load_template(std::string const& key
                                   , std::string const& template_filename
                                   , std::string const& full_template_filename) noexcept
@@ -47,7 +53,7 @@ bool Templates::try_load_template(std::string const& key
         Item item {templ, full_template_filename};
         _templates.insert(std::make_pair(key, item));
 
-        _app_logger->info("Template load success. \"{}\".", template_filename);
+        _app_logger->info("Template load success. \"{}\".", remove_template_ext(template_filename));
         return true;
     }
     catch (std::exception const& e)
