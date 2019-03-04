@@ -19,7 +19,7 @@ struct SessionOptions
     bool prefix_with_time = true;
     std::string domain;
     std::string path = "/";
-    int max_age = 3600;
+    int max_age = 1800;
     Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_only;
     Cookie::Secure secure = Cookie::Secure::for_http_and_https;
     Cookie::SameSite samesite = Cookie::SameSite::none;
