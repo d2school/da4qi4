@@ -685,6 +685,19 @@ std::string DecIntToHexStr(std::size_t num)
 }
 
 
+std::string HTMLEscape(std::string const& s)
+{
+    // & > <  空格 , ' "
+    std::string r = ReplaceAll(s, "&", "&amp;");
+    r = ReplaceAll(r, ">", "&gt;");
+    r = ReplaceAll(r, "<", "&lt;");
+    r = ReplaceAll(r, " ", "&nbsp;");
+    r = ReplaceAll(r, "\"", "&quot;");
+    r = ReplaceAll(r, "'", "&apos;");
+
+    return r;
+}
+
 } //Utilities
 } //da4qi4
 
