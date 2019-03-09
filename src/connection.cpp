@@ -510,7 +510,7 @@ void Connection::do_read()
 
         free_multipart_parser(will_free_mp_parser);
 
-        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER MESSAGE READ COMPLETED.");
+        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER REQUEST READ MESSAGE COMPLETED.");
 
         if (_request.IsFormUrlEncoded())
         {

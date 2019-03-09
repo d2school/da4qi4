@@ -153,6 +153,23 @@ public:
     {
         return logger();
     }
+
+public:
+    std::string const& GetTemplateName() const
+    {
+        return _template_name;
+    }
+
+    void SetTemplateName(std::string const& template_name)
+    {
+        _template_name = template_name;
+    }
+
+    void ClearTemplateName()
+    {
+        _template_name.clear();
+    }
+
 public:
     void InitRequestPathParameters(std::vector<std::string> const& names
                                    , std::vector<std::string> const& values);
@@ -340,12 +357,15 @@ private:
     {
         return this->Req().IsExistsCookie(name);
     }
+
+    void prepair_template_env();
+    std::string auto_match_template();
+
 private:
     ConnectionPtr _cnt;
 
     Json _data;
-
-    inja::Environment _env;
+    TemplatesEnv _env; //every context has it's templats env;
 
     Intercepter::On _intercepter_on;
     Intercepter::ChainIterator  _intercepter_iter;
@@ -353,6 +373,7 @@ private:
 
     RedisClientPtr _redis;
 
+    std::string _template_name;
 private:
     static std::string session_data_name;
     static std::string model_data_name;

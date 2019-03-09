@@ -28,12 +28,23 @@ ContextIMP::ContextIMP(ConnectionPtr cnt)
     , _env(cnt->HasApplication() ? cnt->GetApplication()->GetTemplateRoot().native() : "")
     , _redis(init_redis_client(cnt))
 {
-    init_template_env(_env);
-    regist_template_enginer_common_functions();
+    prepair_template_env();
 }
 
 ContextIMP::~ContextIMP()
 {
+}
+
+void ContextIMP::prepair_template_env()
+{
+    init_template_env(_env);
+
+    if (_cnt->HasApplication())
+    {
+        _cnt->GetApplication()->GetTemplates().CopyIncludeTemplateTo(_env);
+    }
+
+    regist_template_enginer_common_functions();
 }
 
 size_t ContextIMP::IOContextIndex() const
@@ -208,6 +219,11 @@ std::string ContextIMP::render_on_template(std::string const& templ_name, Templa
     server_render_error = false;
     error_what.clear();
 
+    if (templ_name != _template_name)
+    {
+        _template_name = templ_name;
+    }
+
     try
     {
         return _env.render(templ, data);
@@ -249,7 +265,7 @@ std::string ContextIMP::render_on_template(std::string const& templ_name, Templa
             error_what = exception_message;
         }
 
-        logger()->error("Render template \"{}\" exception. {}. {}"
+        logger()->error("Render template \"{}\" exception. {}. {}."
                         , templ_name, exception_type, exception_message);
     }
     catch (std::exception const& e)
@@ -257,8 +273,14 @@ std::string ContextIMP::render_on_template(std::string const& templ_name, Templa
         server_render_error = true;
         error_what = e.what();
 
-        logger()->error("Render template \"{}\" exception. {}"
+        logger()->error("Render template \"{}\" exception. {}."
                         , templ_name, e.what());
+    }
+    catch (std::string const& s)
+    {
+        server_render_error = true;
+        error_what = s;
+        logger()->error("Render template \"{}\" exception. {}.", templ_name, s);
     }
     catch (...)
     {
@@ -348,25 +370,49 @@ ContextIMP& ContextIMP::RenderWithData(std::string const& template_name, Json co
     return *this;
 }
 
-ContextIMP& ContextIMP::RenderWithData(Json const& data)
+std::string ContextIMP::auto_match_template()
 {
     std::string const& path = Req().GetUrl().path;
 
-    if (path.empty())
+    if (path == "/" || path.empty())
     {
-        Res().ReplyBadRequest();
-        return *this;
+        return "index";
     }
 
     std::string template_name;
 
-    if (path == "/")
-    {
-        template_name = "index";
-    }
-    else if (path[0] == '/')
+    if (path[0] == '/') // and path != "/"
     {
         template_name = path.substr(1);
+    }
+
+    return template_name;
+}
+
+ContextIMP& ContextIMP::RenderWithData(Json const& data)
+{
+    std::string const& explicit_template(_template_name);
+
+    if (!explicit_template.empty())
+    {
+        if (auto templ = App().GetTemplates().Get(explicit_template))
+        {
+            render_on_template(explicit_template, *templ, data, HTTP_STATUS_OK);
+        }
+        else
+        {
+            RenderNofound();
+        }
+
+        return *this;
+    }
+
+    std::string template_name = auto_match_template();
+
+    if (template_name.empty())
+    {
+        RenderNofound();
+        return *this;
     }
 
     auto templ = App().GetTemplates().Get(template_name);

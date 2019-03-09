@@ -4,7 +4,6 @@ namespace da4qi4
 {
 
 Handler theEmptyHandler;
-Handler theMethodUnsupportHandler;
 
 HandlerMethod _DELETE_ = HandlerMethod::DELETE;
 HandlerMethod _GET_ = HandlerMethod ::GET;

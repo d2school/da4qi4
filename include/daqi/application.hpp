@@ -73,8 +73,8 @@ public:
 
     ~Application();
 
-    enum class NeedLogger {no, yes};
-    bool Init(NeedLogger create_logger = NeedLogger::no, log::Level level = log::Level::info,
+    enum class ActualLogger {no, yes};
+    bool Init(ActualLogger create_logger = ActualLogger::no, log::Level level = log::Level::info,
               size_t max_file_size_kb = 5 * 1024, size_t max_file_count = 9)
     {
         assert(!_inited);
@@ -211,36 +211,39 @@ public:
     void Handle(Context ctx);
 
 public:
-    bool AddHandler(HandlerMethod m, std::string const& url, Handler h)
+    bool AddHandler(HandlerMethod m, std::string const& url, Handler h, std::string const& t = "")
     {
         if (IsRuning())
         {
             return false;
         }
 
-        return AddHandler(m, router_equals(url), h);
+        return AddHandler(m, router_equals(url), h, t);
     }
 
-    bool AddHandler(HandlerMethod m, router_equals r, Handler h);
-    bool AddHandler(HandlerMethod m, router_starts r, Handler h);
-    bool AddHandler(HandlerMethod m, router_regex r, Handler h);
+    bool AddHandler(HandlerMethod m, router_equals r, Handler h, std::string const& t = "");
+    bool AddHandler(HandlerMethod m, router_starts r, Handler h, std::string const& t = "");
+    bool AddHandler(HandlerMethod m, router_regex r, Handler h, std::string const& t = "");
 
-    bool AddHandler(HandlerMethods ms, std::string const& url, Handler h)
+    bool AddHandler(HandlerMethods ms, std::string const& url, Handler h, std::string const& t = "")
     {
         if (IsRuning())
         {
             return false;
         }
 
-        return AddHandler(ms, router_equals(url), h);
+        return AddHandler(ms, router_equals(url), h, t);
     }
-    bool AddHandler(HandlerMethods ms, router_equals e, Handler h);
-    bool AddHandler(HandlerMethods ms, router_starts e, Handler h);
-    bool AddHandler(HandlerMethods ms, router_regex e, Handler h);
+    bool AddHandler(HandlerMethods ms, router_equals e, Handler h, std::string const& t = "");
+    bool AddHandler(HandlerMethods ms, router_starts e, Handler h, std::string const& t = "");
+    bool AddHandler(HandlerMethods ms, router_regex e, Handler h, std::string const& t = "");
 
-    bool AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
-    bool AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
-    bool AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+    bool AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h
+                         , std::string const& t = "");
+    bool AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h
+                         , std::string const& t = "");
+    bool AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h
+                        , std::string const& t = "");
 
 public:
     void AddIntercepter(Intercepter::Handler intercepter)
@@ -259,10 +262,11 @@ public:
 
 private:
     bool init_pathes();
-    bool init_logger(NeedLogger will_create_logger, log::Level level, size_t max_file_size_kb, size_t max_file_count);
+    bool init_logger(ActualLogger will_create_logger
+                     , log::Level level, size_t max_file_size_kb, size_t max_file_count);
     bool init_templates();
 private:
-    Handler& find_handler(const Context& ctx);
+    Handler* find_handler(const Context& ctx, std::string const& retry_path = "");
     void do_handle(Context& ctx);
 private:
     EqualsRoutingTable _equalRouter;

@@ -32,13 +32,19 @@ std::string remove_template_ext(std::string const& fn)
            fn.substr(0, fn.length() - daqi_HTML_template_ext.length()) : fn;
 }
 
+bool is_include_dir(fs::path const& path)
+{
+    return (path.native().find("/i/") != std::string::npos
+            || path.native().find("\\i\\") != std::string::npos);
+}
+
 bool Templates::try_load_template(std::string const& key
                                   , std::string const& template_filename
                                   , std::string const& full_template_filename) noexcept
 {
     try
     {
-        inja::Environment env(_root);
+        TemplatesEnv env(_root);
         init_template_env(env);
 
         std::string tmpl_src = env.load_file(template_filename);
@@ -51,7 +57,15 @@ bool Templates::try_load_template(std::string const& key
 
         TemplatePtr templ = TemplatePtr(new Template(env.parse(tmpl_src)));
         Item item {templ, full_template_filename};
-        _templates.insert(std::make_pair(key, item));
+
+        if (is_include_dir(full_template_filename))
+        {
+            _includes_templates.insert(std::make_pair(key, std::move(item)));
+        }
+        else
+        {
+            _templates.insert(std::make_pair(key, std::move(item)));
+        }
 
         _app_logger->info("Template load success. \"{}\".", remove_template_ext(template_filename));
         return true;
@@ -74,12 +88,6 @@ bool is_ignored(fs::path const& path)
             (path.string().find("/.") != std::string::npos
              || path.string().find("/_") != std::string::npos
              || path.string().find(".deprecated.") != std::string::npos));
-}
-
-bool is_include_dir(fs::path const& path)
-{
-    return (path.native().find("/i/") != std::string::npos
-            || path.native().find("\\i\\") != std::string::npos);
 }
 
 std::pair<size_t, size_t> Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
@@ -106,12 +114,6 @@ std::pair<size_t, size_t> Templates::load_templates(std::string const& template_
             {
                 if (is_ignored(path))
                 {
-                    continue;
-                }
-
-                if (is_include_dir(path))
-                {
-                    _includes.push_back(path.string());
                     continue;
                 }
 
@@ -145,6 +147,14 @@ bool Templates::reload()
     return (!_app_logger) ? false : Preload(_app_logger);
 }
 
+void Templates::CopyIncludeTemplateTo(TemplatesEnv& env)
+{
+    for (auto pair : _includes_templates)
+    {
+        env.include_template(pair.first, *(pair.second.templ));
+    }
+}
+
 bool Templates::Preload(log::LoggerPtr app_logger)
 {
     if (_app_logger != app_logger)
@@ -155,7 +165,7 @@ bool Templates::Preload(log::LoggerPtr app_logger)
     std::lock_guard<std::mutex> _guard_(_m);
 
     _templates.clear();
-    _includes.clear();
+    _includes_templates.clear();
 
     try
     {
@@ -242,19 +252,17 @@ bool Templates::ReloadIfFindUpdate()
     return false;
 }
 
-Templates::TemplateUpdateAction Templates::check_exists_template()
+Templates::TemplateUpdateAction
+Templates::check_exists_template(std::unordered_map<std::string, Item> const& templates)
 {
     TemplateUpdateAction action = TemplateUpdateAction::none;
 
-    std::string modified_file;
-
-    for (auto item : _templates)
+    for (auto item : templates)
     {
         auto fp = fs::path(item.second.filename);
 
         if (!Utilities::IsFileExists(fp))
         {
-            modified_file = item.second.filename;
             action = TemplateUpdateAction::removed;
             break;
         }
@@ -269,35 +277,24 @@ Templates::TemplateUpdateAction Templates::check_exists_template()
         }
         else if (t > _loaded_time)
         {
-            modified_file = item.second.filename;
             action = TemplateUpdateAction::modified;
             break;
         }
     }
 
-    if (modified_file.empty())
-    {
-        for (auto filename : _includes)
-        {
-            auto fp = fs::path(filename);
-            errorcode ec;
-            std::time_t t = fs::last_write_time(fp, ec);
+    return action;
+}
 
-            if (ec)
-            {
-                _app_logger->warn("Check templates include file \"{}\" last-write-time exception. {}",
-                                  filename, ec.message());
-            }
-            else if (t > _loaded_time)
-            {
-                modified_file = filename;
-                action = TemplateUpdateAction::modified;
-                break;
-            }
-        }
+Templates::TemplateUpdateAction Templates::check_exists_template()
+{
+    TemplateUpdateAction action = check_exists_template(_templates);
+
+    if (action != TemplateUpdateAction::none)
+    {
+        return action;
     }
 
-    return action;
+    return check_exists_template(_includes_templates);
 }
 
 bool Templates::ReloadIfFindNew()
@@ -346,28 +343,19 @@ Templates::TemplateUpdateAction Templates::check_new_template(std::string const&
                     continue;
                 }
 
-                if (is_include_dir(path))
-                {
-                    std::lock_guard<std::mutex> _guard_(_m);
-                    auto fd = std::find(_includes.cbegin(), _includes.cend(), path.string());
-
-                    if (fd == _includes.cend())
-                    {
-                        return TemplateUpdateAction::appended;
-                    }
-                }
-
                 std::string::size_type len = path.size();
                 std::string::size_type root_len = root.size();
                 std::string mpath = path.native().substr(root_len, len - root_len - template_ext.size());
 
                 if (!mpath.empty())
                 {
+                    bool is_include = is_include_dir(path);
                     std::string key = _app_prefix + mpath + key_ext;
 
                     std::lock_guard<std::mutex> _guard_(_m);
 
-                    if (_templates.find(key) == _templates.cend())
+                    if ((!is_include && (_templates.find(key) == _templates.cend()))
+                        || (is_include && (_includes_templates.find(key) == _includes_templates.cend())))
                     {
                         return TemplateUpdateAction::appended;
                     }

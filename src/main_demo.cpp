@@ -30,7 +30,7 @@ int main()
                                       , app_root + "upload/"
                                      );
 
-    if (!web->Init(Application::NeedLogger::yes))
+    if (!web->Init(Application::ActualLogger::yes))
     {
         std::cerr << "Init application " << web->GetName() << " fail." << std::endl;
         return -2;

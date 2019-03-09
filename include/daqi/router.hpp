@@ -14,6 +14,7 @@ namespace da4qi4
 struct RouterItem
 {
     std::map<HandlerMethod, Handler> handlers;
+    std::string template_name;
 };
 
 struct RouterResult
@@ -24,6 +25,8 @@ struct RouterResult
     {
         if (item)
         {
+            template_name = item->template_name;
+
             auto it = item->handlers.find(method);
 
             if (it != item->handlers.end())
@@ -34,6 +37,7 @@ struct RouterResult
     }
 
     Handler* handler = nullptr;
+    std::string template_name;
     std::string error;
 };
 
@@ -93,7 +97,8 @@ private:
     }
 
 public:
-    bool Add(std::string const& url_matcher, HandlerMethod method,  Handler handler, std::string& error)
+    bool Add(std::string const& url_matcher, HandlerMethod method,  Handler handler,
+             std::string const& template_name, std::string& error)
     {
         assert(!url_matcher.empty());
 
@@ -102,6 +107,7 @@ public:
         if (!item)
         {
             typename IMP::Item ri;
+            ri.template_name = template_name;
             ri.handlers[method] = handler;
             return imp()->Insert(url_matcher, ri, error);
         }
@@ -112,7 +118,8 @@ public:
         }
     }
 
-    bool Add(std::string const& url_matcher, HandlerMethods methods, Handler handler, std::string& error)
+    bool Add(std::string const& url_matcher, HandlerMethods methods, Handler handler,
+             std::string const& template_name, std::string& error)
     {
         for (size_t i = 0; i < methods.mark.size(); ++i)
         {
@@ -120,7 +127,7 @@ public:
             {
                 HandlerMethod method = static_cast<HandlerMethod>(i);
 
-                if (!this->Add(url_matcher, method, handler, error))
+                if (!this->Add(url_matcher, method, handler, template_name, error))
                 {
                     return false;
                 }
@@ -143,8 +150,9 @@ public:
     using Item = RouterItem;
     using Result = RouterResult;
 
-    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string&)
+    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string& error)
     {
+        error.clear();
         _map.insert(std::make_pair(url_matcher, item));
         return true;
     }
@@ -172,8 +180,9 @@ public:
     using Item = RouterItem;
     using Result = RouterResult;
 
-    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string&)
+    bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string& error)
     {
+        error.clear();
         _map.insert(std::make_pair(url_matcher, item));
         return true;
     }

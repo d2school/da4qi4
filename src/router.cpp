@@ -68,8 +68,9 @@ std::string to_parameter_pattern(std::string simple_pattern
 bool RegexMatchRoutingTable::Insert(std::string const&  url_matcher,
                                     RouterItem const& item, std::string& error)
 {
-    Item ri(item);
+    error.clear();
 
+    Item ri(item);
     ri.url_matcher = url_matcher;
 
     try

@@ -12,6 +12,8 @@
 namespace da4qi4
 {
 
+using TemplatesEnv = inja::Environment;
+
 class Templates
 {
 public:
@@ -28,6 +30,8 @@ public:
 
     TemplatePtr const Get(std::string const& name);
 
+    void CopyIncludeTemplateTo(TemplatesEnv& env);
+
     bool ReloadIfFindUpdate();
     bool ReloadIfFindNew();
 
@@ -37,6 +41,7 @@ private:
 private:
     std::pair<size_t, size_t>
     load_templates(std::string const& template_ext, std::string const& key_ext);
+
     bool try_load_template(std::string const& key
                            , std::string const& template_filename
                            , std::string const& full_template_filename) noexcept;
@@ -47,8 +52,10 @@ private:
     };
 
     TemplateUpdateAction check_exists_template();
+
     TemplateUpdateAction check_new_template(std::string const& template_ext
                                             , std::string const& key_ext);
+
 
     void hint_template_updated_found(TemplateUpdateAction action);
     void hint_template_reload_fail();
@@ -59,12 +66,15 @@ private:
         std::string filename;
     };
 
+    TemplateUpdateAction check_exists_template(std::unordered_map<std::string, Item> const& templates);
+
+private:
     std::mutex _m;  // for _templates reload and get
     log::LoggerPtr _app_logger;
 
     std::time_t _loaded_time;
     std::unordered_map<std::string, Item> _templates;
-    std::vector<std::string> _includes;
+    std::unordered_map<std::string, Item> _includes_templates;
 
     std::string _root, _app_prefix;
 };

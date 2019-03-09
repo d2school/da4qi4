@@ -53,7 +53,6 @@ struct HandlerMethods
     HandlerMethodMark mark;
 };
 
-
 using Handler = std::function<void (Context)>;
 
 extern Handler theEmptyHandler;

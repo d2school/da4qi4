@@ -252,13 +252,13 @@ void Application::Enable()
     _disabled = false;
 }
 
-bool Application::init_logger(NeedLogger will_create_logger, log::Level level,
+bool Application::init_logger(ActualLogger will_create_logger, log::Level level,
                               size_t max_file_size_kb,
                               size_t max_file_count)
 {
     assert(!IsRuning());
 
-    if (will_create_logger == NeedLogger::no)
+    if (will_create_logger == ActualLogger::no)
     {
         _logger = log::Null();
         return true;
@@ -370,7 +370,7 @@ bool Application::init_templates()
     return _templates.Preload(_logger);
 }
 
-bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)
+bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -382,7 +382,7 @@ bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)
 
     std::string error;
 
-    if (!_equalRouter.Add(r, m, h, error))
+    if (!_equalRouter.Add(r, m, h, t, error))
     {
         _logger->error("Add router {} fail. {}", r.s, error);
         return false;
@@ -391,7 +391,7 @@ bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h)
     return true;
 }
 
-bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h)
+bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -403,16 +403,16 @@ bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h)
 
     std::string error;
 
-    if (!_startwithsRouter.Add(r, m, h, error))
+    if (!_startwithsRouter.Add(r, m, h, t, error))
     {
-        _logger->error("Add starts router {} fail. {}", r.s, error);
+        _logger->error("Add starts router {} fail. {}", r.s, t, error);
         return false;
     }
 
     return true;
 }
 
-bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h)
+bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -424,7 +424,7 @@ bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h)
 
     std::string error;
 
-    if (!_regexRouter.Add(r, m, h, error))
+    if (!_regexRouter.Add(r, m, h, t, error))
     {
         _logger->error("Add regex router {} fail. {}", r.s, error);
         return false;
@@ -433,7 +433,7 @@ bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h)
     return true;
 }
 
-bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h)
+bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -445,7 +445,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h)
 
     std::string error;
 
-    if (!_equalRouter.Add(r, ms, h, error))
+    if (!_equalRouter.Add(r, ms, h, t, error))
     {
         _logger->error("Add equals router {} fail. {}", r.s, error);
         return false;
@@ -454,7 +454,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h)
     return true;
 }
 
-bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h)
+bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -466,7 +466,7 @@ bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h)
 
     std::string error;
 
-    if (!_startwithsRouter.Add(r, ms, h, error))
+    if (!_startwithsRouter.Add(r, ms, h, t, error))
     {
         _logger->error("Add starts router {} fail. {}", r.s, error);
         return false;
@@ -475,7 +475,7 @@ bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h)
     return true;
 }
 
-bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
+bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
@@ -487,7 +487,7 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
 
     std::string error;
 
-    if (!_regexRouter.Add(r, ms, h, error))
+    if (!_regexRouter.Add(r, ms, h, t, error))
     {
         _logger->error("Add regex router {} fail. {}", r.s, error);
         return false;
@@ -496,11 +496,12 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return true;
 }
 
-bool Application::AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+bool Application::AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h,
+                                  std::string const& t)
 {
     for (auto a : urls)
     {
-        if (!AddHandler(m, router_equals(a), h))
+        if (!AddHandler(m, router_equals(a), h, t))
         {
             return false;
         }
@@ -509,11 +510,12 @@ bool Application::AddEqualsRouter(HandlerMethod m, std::vector<std::string> cons
     return true;
 }
 
-bool Application::AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+bool Application::AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h,
+                                  std::string const& t)
 {
     for (auto a : urls)
     {
-        if (!AddHandler(m, router_starts(a), h))
+        if (!AddHandler(m, router_starts(a), h, t))
         {
             return false;
         }
@@ -522,11 +524,12 @@ bool Application::AddStartsRouter(HandlerMethod m, std::vector<std::string> cons
     return true;
 }
 
-bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h,
+                                 std::string const& t)
 {
     for (auto a : urls)
     {
-        if (!AddHandler(m, router_regex(a), h))
+        if (!AddHandler(m, router_regex(a), h, t))
         {
             return false;
         }
@@ -535,16 +538,17 @@ bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const
     return true;
 }
 
-Handler& Application::find_handler(Context const& ctx)
+Handler* Application::find_handler(Context const& ctx, std::string const& retry_path)
 {
     HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
 
     if (m == HandlerMethod::UNSUPPORT)
     {
-        return theEmptyHandler;
+        ctx->ClearTemplateName();
+        return nullptr;
     }
 
-    std::string const& url = ctx->Req().GetUrl().path;
+    std::string const& url = (retry_path.empty() ? ctx->Req().GetUrl().path : retry_path);
 
     RouterResult rr = _equalRouter.Search(url, m);
 
@@ -555,7 +559,8 @@ Handler& Application::find_handler(Context const& ctx)
 
     if (rr.handler)
     {
-        return *rr.handler;
+        ctx->SetTemplateName(rr.template_name);
+        return rr.handler;
     }
 
     rr = _startwithsRouter.Search(url, m);
@@ -567,7 +572,8 @@ Handler& Application::find_handler(Context const& ctx)
 
     if (rr.handler)
     {
-        return *rr.handler;
+        ctx->SetTemplateName(rr.template_name);
+        return rr.handler;
     }
 
     RegexRouterResult rrr = _regexRouter.Search(url, m);
@@ -579,11 +585,12 @@ Handler& Application::find_handler(Context const& ctx)
 
     if (rrr.handler)
     {
+        ctx->SetTemplateName(rrr.template_name);
         ctx->InitRequestPathParameters(rrr.parameters, rrr.values);
-        return *rrr.handler;
+        return rrr.handler;
     }
 
-    return theEmptyHandler;
+    return nullptr;
 }
 
 void Application::Handle(Context ctx)
@@ -593,18 +600,24 @@ void Application::Handle(Context ctx)
 
 void Application::do_handle(Context& ctx)
 {
-    Handler& h = find_handler(ctx);
+    Handler* h = find_handler(ctx);
 
-    if (!h)
+    if ((!h || !*h) && Utilities::EndsWith(ctx->Req().GetUrl().path, "/index"))
     {
-        ctx->RenderWithoutData();
-        ctx->Pass();
+        auto try_path = ctx->Req().GetUrl().path.substr(0, //5: length of "index"
+                                                        ctx->Req().GetUrl().path.length() - 5);
+        h = find_handler(ctx, try_path);
+    }
+
+    if (!h || !*h)
+    {
+        ctx->RenderWithoutData().Pass();
         return;
     }
 
     try
     {
-        h(ctx);
+        (*h)(ctx);
     }
     catch (std::exception const& e)
     {

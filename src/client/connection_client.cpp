@@ -1,4 +1,4 @@
-#include "daqi/client/connection.hpp"
+#include "daqi/client/connection_client.hpp"
 
 #include "daqi/utilities/asio_utilities.hpp"
 
