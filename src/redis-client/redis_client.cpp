@@ -51,40 +51,6 @@ RedisClient::~RedisClient()
     Disconnect();
 }
 
-bool RedisClient::ConnectSync(std::string const& host, unsigned short port)
-{
-    if (IsConnected() || IsConnectting())
-    {
-        return true;
-    }
-
-    _host = host;
-    _port = port;
-
-    return do_sync_connect();
-}
-
-bool RedisClient::do_sync_connect()
-{
-    _connect_status = is_connectting;
-
-    boost::system::error_code ec;
-
-    boost::asio::ip::tcp::endpoint end_point(boost::asio::ip::address::from_string(_host), _port);
-
-    _socket.connect(end_point, ec);
-
-    if (ec)
-    {
-        std::cerr << ec.message() << std::endl;
-        _connect_status = not_connect;
-        return false;
-    }
-
-    _connect_status = is_connected;
-    return true;
-}
-
 void RedisClient::Connect(std::function<void (boost::system::error_code const& ec)> on,
                           std::string const& host, unsigned short port)
 {
@@ -268,6 +234,28 @@ void RedisClient::do_disconnect()
     _connect_status = not_connect;
 }
 
+#ifdef _DEBUG_REDIS_NEED_SYNC_OPERATOR_
+bool RedisClient::do_sync_connect()
+{
+    _connect_status = is_connectting;
+
+    boost::system::error_code ec;
+
+    boost::asio::ip::tcp::endpoint end_point(boost::asio::ip::address::from_string(_host), _port);
+
+    _socket.connect(end_point, ec);
+
+    if (ec)
+    {
+        std::cerr << ec.message() << std::endl;
+        _connect_status = not_connect;
+        return false;
+    }
+
+    _connect_status = is_connected;
+    return true;
+}
+
 RedisValue RedisClient::CommandSync(std::string cmd, std::deque<RedisBuffer> args)
 {
     assert(!cmd.empty());
@@ -329,6 +317,20 @@ RedisValue RedisClient::CommandSync(std::string cmd, std::deque<RedisBuffer> arg
 
     return (completed) ? parser.Result() : RedisValue("parse fail", RedisValue::ErrorTag());
 }
+
+bool RedisClient::ConnectSync(std::string const& host, unsigned short port)
+{
+    if (IsConnected() || IsConnectting())
+    {
+        return true;
+    }
+
+    _host = host;
+    _port = port;
+
+    return do_sync_connect();
+}
+#endif //_DEBUG_REDIS_NEED_SYNC_OPERATOR_
 
 void RedisClient::Command(std::string cmd, std::deque<RedisBuffer> args,
                           std::function<void(RedisValue value)> on)

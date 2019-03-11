@@ -6,7 +6,7 @@
 namespace da4qi4
 {
 
-Json theEmptyJson;
+Json theNullJson;
 
 namespace Valuetool
 {

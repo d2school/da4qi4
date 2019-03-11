@@ -183,7 +183,7 @@ void Server::do_accept()
 {
     auto ioc_ctx = _ioc_pool.GetIOContextAndIndex();
 
-    ConnectionPtr cnt = Connection::Create(ioc_ctx.first, ioc_ctx.second);
+    ConnectionPtr cnt = Connection::Create(ioc_ctx.first /* ioc */, ioc_ctx.second /* index */);
 
     _acceptor.async_accept(cnt->GetSocket()
                            , [this, cnt](errorcode ec)

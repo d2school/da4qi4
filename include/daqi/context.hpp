@@ -54,7 +54,7 @@ public:
 
         if (it == _data.cend())
         {
-            return theEmptyJson;
+            return theNullJson;
         }
 
         return *it;
@@ -176,7 +176,7 @@ public:
 
 public:
     ContextIMP& Render();
-    ContextIMP& Render(std::string const& template_name, Json const& data = theEmptyJson)
+    ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson)
     {
         return RenderWithData(template_name, data);
     }
@@ -188,49 +188,49 @@ public:
 public:
     ContextIMP& RenderWithoutData(http_status status)
     {
-        return RenderWithData(status, theEmptyJson);
+        return RenderWithData(status, theNullJson);
     }
     ContextIMP& RenderWithoutData(std::string const& template_name)
     {
-        return RenderWithData(template_name, theEmptyJson);
+        return RenderWithData(template_name, theNullJson);
     }
     ContextIMP& RenderWithoutData()
     {
-        return RenderWithData(theEmptyJson);
+        return RenderWithData(theNullJson);
     }
 
 public:
-    ContextIMP& RenderNofound(Json const& data = theEmptyJson)
+    ContextIMP& RenderNofound(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_NOT_FOUND, data);
     }
 
-    ContextIMP& RenderBadRequest(Json const& data = theEmptyJson)
+    ContextIMP& RenderBadRequest(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_BAD_REQUEST, data);
     }
 
-    ContextIMP& RenderUnauthorized(Json const& data = theEmptyJson)
+    ContextIMP& RenderUnauthorized(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_UNAUTHORIZED, data);
     }
 
-    ContextIMP& RenderForbidden(Json const& data = theEmptyJson)
+    ContextIMP& RenderForbidden(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_FORBIDDEN, data);
     }
 
-    ContextIMP& RenderNotImplemented(Json const& data = theEmptyJson)
+    ContextIMP& RenderNotImplemented(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_NOT_IMPLEMENTED, data);
     }
 
-    ContextIMP& RenderServiceUnavailable(Json const& data = theEmptyJson)
+    ContextIMP& RenderServiceUnavailable(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
     }
 
-    ContextIMP& RenderInternalServerError(Json const& data = theEmptyJson)
+    ContextIMP& RenderInternalServerError(Json const& data = theNullJson)
     {
         return RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
     }

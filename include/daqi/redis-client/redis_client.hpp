@@ -17,6 +17,8 @@ namespace da4qi4
 enum class RedisClientErrorHandlePolicy {do_nothing, auto_reconnect};
 
 class RedisParser;
+
+/*!!! THE REDISCLIENT IS DESIGNED FOR SINGLE-THREAD (BUT ASYNC-CALL SUPPORTED) !!!*/
 class RedisClient
     : public boost::noncopyable
 {
@@ -33,7 +35,9 @@ public:
                  std::string const& host = "127.0.0.1", unsigned short port = 6379);
 
     void Reconnect(std::function<void (boost::system::error_code const& ec)> on = nullptr);
+    void Disconnect();
 
+#ifdef _DEBUG_REDIS_NEED_SYNC_OPERATOR_
     bool ConnectSync(std::string const& host = "127.0.0.1", unsigned short port = 6379);
     bool ReconnectSync()
     {
@@ -45,9 +49,11 @@ public:
 
         return true;
     }
-    void Disconnect();
 
     RedisValue CommandSync(std::string cmd, std::deque<RedisBuffer> args);
+#endif //_DEBUG_REDIS_NEED_SYNC_OPERATOR_
+
+public:
     void Command(std::string cmd, std::deque<RedisBuffer> args,
                  std::function<void(RedisValue value)> on = nullptr);
 
@@ -63,7 +69,11 @@ public:
 
 private:
     void do_disconnect();
+
+#ifdef _DEBUG_REDIS_NEED_SYNC_OPERATOR_
     bool do_sync_connect();
+#endif //_DEBUG_REDIS_NEED_SYNC_OPERATOR_
+
     void do_async_connect(std::function<void (boost::system::error_code const& ec)> on);
     void on_connect_finished(std::function<void (boost::system::error_code const& ec)> on
                              , boost::system::error_code const& ec);
@@ -90,7 +100,7 @@ private:
 private:
     std::string _reply_buf;
     std::size_t _reply_parse_beg;
-    static size_t const  _read_buffer_size_ = 512;
+    static size_t const  _read_buffer_size_ = (1024);
     char _tmp_read_buf[_read_buffer_size_];
 
 private:
