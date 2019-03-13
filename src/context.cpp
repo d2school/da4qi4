@@ -231,63 +231,27 @@ std::string ContextIMP::render_on_template(std::string const& templ_name, Templa
     catch (std::runtime_error const& e)
     {
         server_render_error = true;
-
-        /* format is :  "[inja.exception." + type + "] " + message */
-        std::string exception_type;
-        std::string exception_message = e.what();
-
-        static std::string const inja_exception_prefix = "[inja.exception.";
-        auto pos = exception_message.find(inja_exception_prefix);
-        std::string::size_type offset = 0;
-
-        bool formated = (pos == 0);
-
-        if (formated)
-        {
-            offset = inja_exception_prefix.size();
-            auto type_end = exception_message.find("] ", offset);
-
-            if (type_end == std::string::npos)
-            {
-                formated = false;
-            }
-            else
-            {
-                exception_type = exception_message.substr(offset, type_end - offset);
-                exception_message = exception_message.substr(type_end + 2);
-                error_what = exception_type + ", " + exception_message;
-            }
-        }
-
-        if (!formated)
-        {
-            exception_type = "unknown";
-            error_what = exception_message;
-        }
-
-        logger()->error("Render template \"{}\" exception. {}. {}."
-                        , templ_name, exception_type, exception_message);
+        error_what = e.what();
     }
     catch (std::exception const& e)
     {
         server_render_error = true;
         error_what = e.what();
-
-        logger()->error("Render template \"{}\" exception. {}."
-                        , templ_name, e.what());
     }
     catch (std::string const& s)
     {
         server_render_error = true;
         error_what = s;
-        logger()->error("Render template \"{}\" exception. {}.", templ_name, s);
     }
     catch (...)
     {
         server_render_error = true;
         error_what = "unknown render error.";
+    }
 
-        logger()->error("Render template \"{}\" exception.", templ_name);
+    if (server_render_error)
+    {
+        logger()->error("Render template exception. {}. \"{}\".", error_what, templ_name);
     }
 
     return Utilities::theEmptyString;
