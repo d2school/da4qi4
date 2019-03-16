@@ -12,7 +12,9 @@ ApplicationPtr Application::Abortive()
 {
     ApplicationPtr app = Application::Default();
     app->_name = abortive_app_name;
+#ifdef NDEBUG
     app->_is_abortive = true;
+#endif
     app->Init(ActualLogger::yes, log::Level::trace);
     return app;
 }
