@@ -6,6 +6,16 @@ namespace da4qi4
 {
 
 static char const* default_app_name = "da4qi4-Default";
+static char const* abortive_app_name = "ABORTIVE-APP";
+
+ApplicationPtr Application::Abortive()
+{
+    ApplicationPtr app = Application::Default();
+    app->_name = abortive_app_name;
+    app->_is_abortive = true;
+    app->Init(ActualLogger::yes, log::Level::trace);
+    return app;
+}
 
 ApplicationMgr& AppMgr()
 {
@@ -88,7 +98,11 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 
     if (l == _map.end())
     {
+#ifdef NDEBUG
+        return _abortive_app;
+#else
         return nullptr;
+#endif
     }
 
     if (Utilities::iStartsWith(url, l->first))
@@ -106,7 +120,11 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
         }
     }
 
+#ifdef NDEBUG
+    return _abortive_app;
+#else
     return nullptr;
+#endif
 }
 
 ApplicationPtr ApplicationMgr::FindByName(std::string const& name)
@@ -118,6 +136,15 @@ ApplicationPtr ApplicationMgr::FindByName(std::string const& name)
             return a.second;
         }
     }
+
+#ifdef NDEBUG
+
+    if (name == abortive_app_name)
+    {
+        return _abortive_app;
+    }
+
+#endif
 
     return nullptr;
 }
@@ -131,6 +158,15 @@ ApplicationPtr const ApplicationMgr::FindByName(std::string const& name) const
             return a.second;
         }
     }
+
+#ifdef NDEBUG
+
+    if (name == abortive_app_name)
+    {
+        return _abortive_app;
+    }
+
+#endif
 
     return nullptr;
 }
@@ -268,9 +304,10 @@ bool Application::init_logger(ActualLogger will_create_logger, log::Level level,
     {
         if (_root_log.empty())
         {
-            _root_log = fs::current_path();
+            _root_log = fs::current_path() / "/";
         }
-        else if (!_root_log.is_absolute())
+
+        if (!_root_log.is_absolute())
         {
             _root_log = fs::absolute(_root_log);
         }
@@ -366,6 +403,15 @@ bool Application::init_templates()
 {
     assert(!IsRuning());
     assert(_logger != nullptr);
+
+#ifdef NDEBUG
+
+    if (IsAbortive())
+    {
+        return true;
+    }
+
+#endif
 
     return _templates.Preload(_logger);
 }
@@ -623,6 +669,18 @@ void Application::do_handle(Context& ctx)
     {
         _logger->error("Handler {} exception. {}", ctx->Req().GetUrl().full, e.what());
     }
+}
+
+log::LoggerPtr ApplicationMgr::GetApplicationLogger(std::string const& application_name)
+{
+    auto it = _app_loggers.find(application_name);
+#ifndef NDEBUG
+    return (it == _app_loggers.end() ? log::Null() : it->second);
+#else
+
+    return (it != _app_loggers.end()) ? it->second :
+           ((application_name == abortive_app_name) ? _abortive_app->GetLogger() : log::Null());
+#endif
 }
 
 } //namespace da4qi4

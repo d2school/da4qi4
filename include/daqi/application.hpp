@@ -57,6 +57,8 @@ public:
         return ApplicationPtr(new Application());
     }
 
+    static ApplicationPtr Abortive();
+
     static ApplicationPtr Customize(std::string const& name
                                     , std::string const& root_url
                                     , fs::path const& root_log
@@ -82,6 +84,13 @@ public:
         return init_logger(create_logger, level, max_file_size_kb, max_file_count)
                && init_pathes() && init_templates();
     }
+
+#ifdef NDEBUG
+    bool IsAbortive() const
+    {
+        return _is_abortive;
+    }
+#endif
 
     Application& SetStaticRoot(std::string const& root_static)
     {
@@ -299,6 +308,10 @@ private:
 
 private:
     log::LoggerPtr _logger;
+
+#ifdef NDEBUG
+    bool _is_abortive = false;
+#endif
 };
 
 using ApplicationPtr = std::shared_ptr<Application>;
@@ -309,6 +322,10 @@ using ApplicationMap = std::map<std::string /* url */
 class ApplicationMgr
 {
 public:
+    ApplicationMgr() = default;
+    ApplicationMgr(ApplicationMgr const&) = delete;
+    ApplicationMgr& operator = (ApplicationMgr&) = delete;
+
     bool CreateDefaultIfEmpty();
     bool MountApplication(ApplicationPtr app);
 
@@ -323,11 +340,7 @@ public:
     ApplicationPtr FindByName(std::string const& name);
     ApplicationPtr const FindByName(std::string const& name) const;
 
-    log::LoggerPtr GetApplicationLogger(std::string const& application_name)
-    {
-        auto it = _app_loggers.find(application_name);
-        return (it == _app_loggers.end() ? log::Null() : it->second);
-    }
+    log::LoggerPtr GetApplicationLogger(std::string const& application_name);
 
     ApplicationMap const& All() const
     {
@@ -346,7 +359,20 @@ public:
         return _map.size();
     }
 
+    bool IsFailedApp(ApplicationPtr ptr)
+    {
+#ifdef NDEBUG
+        return _abortive_app == ptr;
+#else
+        return false;
+#endif
+    }
+
 private:
+#ifdef NDEBUG
+    ApplicationPtr _abortive_app = Application::Abortive();
+#endif
+
     ApplicationMap _map;
     bool _mounted = false;
 
