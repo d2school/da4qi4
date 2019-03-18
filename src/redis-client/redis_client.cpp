@@ -129,7 +129,7 @@ char const* get_async_handler_action_name(AsyncHandlerAction aha)
 }
 
 template <typename On, typename Parame>
-void try_on_redis_handler(On on, Parame const& p, AsyncHandlerAction aha)
+void try_on_redis_handler(On on, Parame p, AsyncHandlerAction aha)
 {
     if (!on)
     {
@@ -138,7 +138,7 @@ void try_on_redis_handler(On on, Parame const& p, AsyncHandlerAction aha)
 
     try
     {
-        on(p);
+        on(std::move(p));
     }
     catch (std::exception const& e)
     {
@@ -179,7 +179,7 @@ void RedisClient::on_connect_finished(std::function<void (boost::system::error_c
         _connect_status = is_connected;
     }
 
-    try_on_redis_handler(on, ec, AsyncHandlerAction::on_async_connect);
+    try_on_redis_handler(on, std::move(ec), AsyncHandlerAction::on_async_connect);
 
     if (ec && (_error_handle_policy == RedisClientErrorHandlePolicy::auto_reconnect))
     {
@@ -367,7 +367,7 @@ void RedisClient::start_async_write()
         if (ec)
         {
             RedisValue error_value(ec.message(), RedisValue::ErrorTag());
-            try_on_redis_handler(on, error_value, AsyncHandlerAction::on_async_write);
+            try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_async_write);
             _command_queue.pop();
 
             if (_error_handle_policy == RedisClientErrorHandlePolicy::auto_reconnect)
@@ -412,7 +412,7 @@ void RedisClient::do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser,
         if (ec)
         {
             RedisValue error_value(ec.message(), RedisValue::ErrorTag());
-            try_on_redis_handler(on, error_value, AsyncHandlerAction::on_async_read);
+            try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_async_read);
             _command_queue.pop();
 
             return;
@@ -448,7 +448,7 @@ void RedisClient::do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser,
             if (completed)
             {
                 RedisValue value = parser->Result();
-                try_on_redis_handler(on, value, AsyncHandlerAction::on_reply_parse);
+                try_on_redis_handler(on, std::move(value), AsyncHandlerAction::on_reply_parse);
                 _command_queue.pop();
                 start_async_write();
                 return;
@@ -457,7 +457,7 @@ void RedisClient::do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser,
             if (error)
             {
                 RedisValue error_value("parse error. " + _reply_buf, RedisValue::ErrorTag());
-                try_on_redis_handler(on, error_value, AsyncHandlerAction::on_reply_parse);
+                try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_reply_parse);
                 _command_queue.pop();
                 start_async_write();
                 return;
