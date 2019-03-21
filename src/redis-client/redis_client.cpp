@@ -247,7 +247,6 @@ bool RedisClient::do_sync_connect()
 
     if (ec)
     {
-        std::cerr << ec.message() << std::endl;
         _connect_status = not_connect;
         return false;
     }

@@ -218,6 +218,7 @@ struct FormDataItem
     }
 };
 
+struct Application;
 struct UploadFileSaveOptions;
 
 struct UploadFile
@@ -292,8 +293,9 @@ struct UploadFile
         return _stream;
     }
 
-    bool StreamToMemory();
-
+    bool ToMemory();
+    bool ToStream(Application const& app, std::string const& ext);
+    bool ToStream(std::string const& filename);
 
 private:
     enum Status {no_found, in_stream, in_memory};
@@ -304,7 +306,6 @@ private:
 
     std::ifstream _stream;
     std::string _memory;
-
 
     std::string _src_filename;
     std::string _saved_filename;
@@ -486,10 +487,7 @@ public:
     bool ParseUrl(std::string&& url);
     void ParseContentType();
 
-    void ApplyApplication(std::string const& app_url_root)
-    {
-        _url.UnderApplication(app_url_root);
-    }
+    void ApplyApplication(std::string const& app_url_root);
 
     void AppendHeader(std::string&& field, std::string&& value);
 

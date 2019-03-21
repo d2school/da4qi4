@@ -9,8 +9,8 @@ namespace da4qi4
 namespace Utilities
 {
 
-bool SaveDataToFile(std::string const& data, std::string const& filename_with_path);
-bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path);
+bool SaveDataToFile(std::string const& data, std::string const& filename_with_path, std::string& err);
+bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path, std::string& err);
 
 bool IsFileExists(fs::path const& fullpath);
 bool IsFileExists(std::string const& fullpath);

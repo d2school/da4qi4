@@ -10,13 +10,13 @@ namespace da4qi4
 namespace Utilities
 {
 
-bool SaveDataToFile(std::string const& data, std::string const& filename_with_path)
+bool SaveDataToFile(std::string const& data, std::string const& filename_with_path, std::string& err)
 {
     fs::path f(filename_with_path);
-    return SaveDataToFile(data, f);
+    return SaveDataToFile(data, f, err);
 }
 
-bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path)
+bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path, std::string& err)
 {
     bool dir_exists = false;
 
@@ -27,12 +27,13 @@ bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path)
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        err = e.what();
         return false;
     }
 
     if (!dir_exists)
     {
+        err = "dir no exists";
         return false;
     }
 
@@ -43,7 +44,7 @@ bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path)
         return false;
     }
 
-    ofs.write(data.data(), data.size());
+    ofs.write(data.data(), static_cast<std::streamsize>(data.size()));
     ofs.close();
 
     return true;

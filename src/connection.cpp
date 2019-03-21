@@ -97,7 +97,7 @@ void Connection::update_request_after_header_parsed()
 
 void Connection::update_request_url_after_app_resolve()
 {
-    assert(_app);
+    assert(_app != nullptr);
     _request.ApplyApplication(_app->GetUrlRoot());
 }
 
@@ -169,7 +169,7 @@ int Connection::on_headers_complete(http_parser* parser)
 
     cnt->update_request_url_after_app_resolve();
 
-    if (cnt->_request.GetContentLength() > cnt->_app->GetUpoadMaxSizeLimitKB())
+    if ((cnt->_request.GetContentLength() / 1024) > cnt->_app->GetUpoadMaxSizeLimitKB())
     {
         cnt->process_too_large_size_upload();
         return -1;

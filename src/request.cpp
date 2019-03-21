@@ -153,7 +153,7 @@ OptionalStringRefConst Request::TryGetUrlParameter(std::string const& name) cons
     return Utilities::TryGetHeader(_url.parameters, name);
 }
 
-bool UploadFile::StreamToMemory()
+bool UploadFile::ToMemory()
 {
     if ((_status == in_stream && !_stream) || (_status == no_found))
     {
@@ -165,7 +165,7 @@ bool UploadFile::StreamToMemory()
         return true;
     }
 
-    size_t const tmp_buf_size = 512;
+    size_t const tmp_buf_size = 2048;
     char buf[tmp_buf_size];
     _memory.clear();
     _memory.reserve(tmp_buf_size << 1);
@@ -185,6 +185,85 @@ bool UploadFile::StreamToMemory()
     _status = in_memory;
 
     return true;
+}
+
+bool UploadFile::ToStream(std::string const& filename)
+{
+    if (_status == no_found)
+    {
+        return false;
+    }
+
+    if (_status == in_memory)
+    {
+        return true;
+    }
+
+    std::string err;
+
+    if (!Utilities::SaveDataToFile(this->_memory, filename, err))
+    {
+        log::Server()->error("Try create temp file for upload fail. {}. {}. {}."
+                             , filename, _src_filename, err);
+        return false;
+    }
+
+    std::ofstream ofs(filename.c_str(), std::ios_base::out | std::ios_base::binary);
+
+    if (_stream.is_open())
+    {
+        _stream.close();
+    }
+
+    _stream.open(filename.c_str(), std::ios_base::in | std::ios_base::binary);
+
+    if (!_stream)
+    {
+        log::Server()->error("Try open temp file for upload fail. {}. {}."
+                             , filename, _src_filename);
+        return false;
+    }
+
+    _saved_filename = filename;
+    return  true;
+}
+
+extern fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& dir);
+
+bool UploadFile::ToStream(const Application& app, std::string const& ext)
+{
+    if (_status == no_found)
+    {
+        return false;
+    }
+
+    if (_status == in_memory)
+    {
+        return true;
+    }
+
+    auto upload_root = app.GetUploadRoot().string();
+
+    if (upload_root.empty())
+    {
+        errorcode ec;
+        upload_root = fs::temp_directory_path(ec).native();
+
+        if (ec)
+        {
+            log::Server()->error("Get system temp file path fail. {}.", ec.message());
+            return false;
+        }
+    }
+
+    auto templ_file_path = MakeUploadFileTemporaryName(ext, upload_root);
+
+    if (templ_file_path.empty())
+    {
+        return false;
+    }
+
+    return ToStream(templ_file_path.native());
 }
 
 bool Request::IsExistsFile(std::string const& field_name) const
@@ -214,7 +293,7 @@ bool UploadFile::FromFormDataItem(FormDataItem const& item)
         return true;
     }
 
-    if (item.IsFile())
+    if (item.IsFile()) //but no saved still
     {
         _status = UploadFile::in_memory;
         _memory = item.data;
@@ -504,6 +583,11 @@ void Request::ParseContentType()
     }
 }
 
+void Request::ApplyApplication(std::string const& app_url_root)
+{
+    _url.UnderApplication(app_url_root);
+}
+
 void Request::SetMultiPartBoundary(char const* at, size_t length)
 {
     _boundary = std::string(at, length);
@@ -704,11 +788,18 @@ void Request::TransferMultiPartsToFormData(UploadFileSaveOptions const& options,
 
                     if (!temporary_file_name.empty())
                     {
-                        if (Utilities::SaveDataToFile(fd_item.data, temporary_file_name))
+                        std::string err;
+
+                        if (Utilities::SaveDataToFile(fd_item.data, temporary_file_name, err))
                         {
                             fd_item.data = temporary_file_name.string();
                             fd_item.data_flag = FormDataItem::is_file_temporary_name;
                             part.SetTransferResult(MultiPart::transfer_file_saved);
+                        }
+                        else
+                        {
+                            log::Server()->error("Save form-item to template file fail. {}. {}. {}."
+                                                 , fd_item.filename, temporary_file_name.native(), err);
                         }
                     }
                 }

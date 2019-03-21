@@ -456,7 +456,8 @@ void Response::ReplyRedirect(std::string const& dst_location
                              , RedirectType type
                              , std::string body)
 {
-    _status_code = (type != RedirectType::permanent) ? HTTP_STATUS_PERMANENT_REDIRECT
+    _status_code = (type == RedirectType::permanent)
+                   ? HTTP_STATUS_PERMANENT_REDIRECT
                    : HTTP_STATUS_TEMPORARY_REDIRECT;
     SetLocation(dst_location);
     set_or_default_body(std::move(body), false);

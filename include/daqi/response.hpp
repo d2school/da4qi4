@@ -214,7 +214,7 @@ public:
                    , std::size_t max_age, Cookie::HttpOnly http_only = Cookie::HttpOnly::for_http_and_js)
     {
         Cookie cookie(name, value);
-        cookie.SetMaxAge(max_age);
+        cookie.SetMaxAge(static_cast<int>(max_age));
         cookie.SetHttpOnly(http_only);
         cookie.ApplyHttpVersion(_version_major, _version_minor);
         SetCookie(cookie);
@@ -225,7 +225,7 @@ public:
     {
         Cookie cookie(name, value);
         cookie.SetSecure(Cookie::Secure::for_https_only);
-        cookie.SetMaxAge(max_age);
+        cookie.SetMaxAge(static_cast<int>(max_age));
         cookie.SetHttpOnly(http_only);
         cookie.ApplyHttpVersion(_version_major, _version_minor);
         SetCookie(cookie);
@@ -237,7 +237,7 @@ public:
     {
         Cookie cookie(name, value, domain, path);
         cookie.SetHttpOnly(http_only);
-        cookie.SetMaxAge(max_age);
+        cookie.SetMaxAge(static_cast<int>(max_age));
         cookie.ApplyHttpVersion(_version_major, _version_minor);
         SetCookie(cookie);
     }
@@ -249,7 +249,7 @@ public:
         Cookie cookie(name, value, domain, path);
         cookie.SetSecure(Cookie::Secure::for_https_only);
         cookie.SetHttpOnly(http_only);
-        cookie.SetMaxAge(max_age);
+        cookie.SetMaxAge(static_cast<int>(max_age));
         cookie.ApplyHttpVersion(_version_major, _version_minor);
         SetCookie(cookie);
     }
