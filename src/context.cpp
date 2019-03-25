@@ -211,6 +211,23 @@ Cookie ContextIMP::GetSessionCookie() const
     return da4qi4::GetSessionCookie(session);
 }
 
+void ContextIMP::ClearSessionData()
+{
+    auto& session = this->SessionData();
+
+    for (auto it = session.begin(); it != session.end();)
+    {
+        if (it.key() != da4qi4::session_cookie_name)
+        {
+            it = session.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
 std::string ContextIMP::render_on_template(std::string const& templ_name, Template const& templ
                                            , Json const& data
                                            , bool& server_render_error

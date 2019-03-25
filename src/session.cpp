@@ -3,10 +3,7 @@
 namespace da4qi4
 {
 
-namespace
-{
-std::string session_cookie_name = "_cookie_";
-}
+std::string const session_cookie_name = "_cookie_";
 
 Json MakeNewSession(Cookie const& cookie)
 {

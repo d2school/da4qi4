@@ -133,6 +133,8 @@ public:
         SaveData(session_data_name, data);
     }
 
+    void ClearSessionData();
+
     std::string GetSessionID() const;
     Cookie GetSessionCookie() const;
 

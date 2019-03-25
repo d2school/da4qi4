@@ -12,6 +12,8 @@ namespace da4qi4
 Json MakeNewSession(Cookie const& cookie);
 Cookie GetSessionCookie(Json const& session);
 
+extern std::string const session_cookie_name;
+
 struct SessionOptions
 {
     std::string name = "session_id";
