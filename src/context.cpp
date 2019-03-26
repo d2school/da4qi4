@@ -320,6 +320,18 @@ ContextIMP& ContextIMP::Render()
     return *this;
 }
 
+ContextIMP& ContextIMP::Render(std::string const& template_name, Json const& data)
+{
+    if (!data.is_null())
+    {
+        return RenderWithData(template_name, data);
+    }
+
+    Json& page_data = ModelData();
+    (page_data.is_null()) ? RenderWithoutData(template_name) : RenderWithData(template_name, page_data);
+    return *this;
+}
+
 ContextIMP& ContextIMP::RenderWithData(http_status status, Json const& data)
 {
     std::string template_name = std::to_string(static_cast<int>(status));

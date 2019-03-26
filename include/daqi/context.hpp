@@ -178,10 +178,7 @@ public:
 
 public:
     ContextIMP& Render();
-    ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson)
-    {
-        return RenderWithData(template_name, data);
-    }
+    ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson);
 
     ContextIMP& RenderWithData(http_status status, Json const& data);
     ContextIMP& RenderWithData(std::string const& template_name, Json const& data);
