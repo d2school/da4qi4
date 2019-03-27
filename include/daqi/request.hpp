@@ -483,6 +483,11 @@ public:
         return !_body.empty();
     }
 
+    std::string const& Body() const
+    {
+        return _body;
+    }
+
 public:
     bool ParseUrl(std::string&& url);
     void ParseContentType();
