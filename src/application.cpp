@@ -8,15 +8,36 @@ namespace da4qi4
 static char const* default_app_name = "da4qi4-Default";
 static char const* abortive_app_name = "ABORTIVE-APP";
 
+namespace
+{
+std::string default_abortive_app_log_root = "./";
+std::string abortive_app_log_root = default_abortive_app_log_root;
+}
+
 ApplicationPtr Application::Abortive()
 {
     ApplicationPtr app = Application::Default();
+    app->_root_log = abortive_app_log_root;
     app->_name = abortive_app_name;
 #ifdef NDEBUG
     app->_is_abortive = true;
 #endif
     app->Init(ActualLogger::yes, log::Level::trace);
     return app;
+}
+
+void ApplicationMgr::InitAbortiveAppLogRoot(std::string const& log_path)
+{
+    if (abortive_app_log_root == default_abortive_app_log_root
+        && log_path != default_abortive_app_log_root)
+    {
+        abortive_app_log_root = log_path;
+    }
+}
+
+std::string const& ApplicationMgr::GetAbortiveAppLogRoot()
+{
+    return abortive_app_log_root;
 }
 
 ApplicationMgr& AppMgr()
