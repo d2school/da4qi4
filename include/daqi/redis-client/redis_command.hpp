@@ -9,7 +9,7 @@
 namespace da4qi4
 {
 
-std::vector<char> MakeCommand(const std::deque<RedisBuffer>& items);
+std::vector<char> MakeCommand(std::deque<RedisBuffer> const& items);
 
 } // namespace da4qi4
 

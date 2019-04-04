@@ -4,7 +4,7 @@ namespace da4qi4
 {
 
 RedisBuffer::RedisBuffer(const char* ptr, size_t dataSize)
-    : data(std::vector<char>(ptr, ptr + dataSize))
+    : data(ptr + 0, ptr + dataSize)
 {
 }
 
@@ -19,20 +19,13 @@ RedisBuffer::RedisBuffer(std::string s)
 }
 
 RedisBuffer::RedisBuffer(std::vector<char> buf)
-    : data(std::move(buf))
+    : data(buf.cbegin(), buf.cend())
 {
 }
 
 size_t RedisBuffer::size() const
 {
-    if (data.type() == typeid(std::string))
-    {
-        return boost::get<std::string>(data).size();
-    }
-    else
-    {
-        return boost::get<std::vector<char>>(data).size();
-    }
+    return data.size();
 }
 
 } // namespace da4qi4

@@ -2,7 +2,7 @@
 #define DAQI_REDIS_BUFFER_H
 
 #include <string>
-#include <boost/variant.hpp>
+#include <vector>
 
 namespace da4qi4
 {
@@ -22,7 +22,7 @@ struct RedisBuffer
 
     size_t size() const;
 
-    boost::variant<std::string, std::vector<char>> data;
+    std::string data;
 };
 
 } // namespace da4qi4

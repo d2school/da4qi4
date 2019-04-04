@@ -13,40 +13,21 @@ namespace
 
 static const char crlf[] = {'\r', '\n'};
 
-void bufferAppend(std::vector<char>& vec, const std::string& s);
-void bufferAppend(std::vector<char>& vec, const std::vector<char>& s);
-//void bufferAppend(std::vector<char>& vec, const char* s);
+void bufferAppend(std::vector<char>& vec, std::string const& s);
 void bufferAppend(std::vector<char>& vec, char c);
 
 template<std::size_t size>
 void bufferAppend(std::vector<char>& vec, const char (&s)[size]);
 
-void bufferAppend(std::vector<char>& vec, const RedisBuffer& buf)
+void bufferAppend(std::vector<char>& vec, RedisBuffer const& buf)
 {
-    if (buf.data.type() == typeid(std::string))
-    {
-        bufferAppend(vec, boost::get<std::string>(buf.data));
-    }
-    else
-    {
-        bufferAppend(vec, boost::get<std::vector<char>>(buf.data));
-    }
+    bufferAppend(vec, buf.data);
 }
 
-void bufferAppend(std::vector<char>& vec, const std::string& s)
+void bufferAppend(std::vector<char>& vec, std::string const& s)
 {
     vec.insert(vec.end(), s.begin(), s.end());
 }
-
-void bufferAppend(std::vector<char>& vec, const std::vector<char>& s)
-{
-    vec.insert(vec.end(), s.begin(), s.end());
-}
-
-//void bufferAppend(std::vector<char>& vec, const char* s)
-//{
-//    vec.insert(vec.end(), s, s + strlen(s));
-//}
 
 void bufferAppend(std::vector<char>& vec, char c)
 {
