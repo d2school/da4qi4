@@ -368,6 +368,9 @@ public:
 #endif
     }
 
+    static void InitAbortiveAppLogRoot(std::string const& log_path);
+    static std::string const& GetAbortiveAppLogRoot();
+
 private:
 #ifdef NDEBUG
     ApplicationPtr _abortive_app = Application::Abortive();
