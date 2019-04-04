@@ -176,7 +176,8 @@ std::string TrimRightCopy(std::string const& m)
 
 std::string GetUUID(const std::string& prefix)
 {
-    static boost::uuids::random_generator gen;
+    //static
+    boost::uuids::random_generator gen; //too slow
 
     boost::uuids::uuid uid = gen();
     std::stringstream ss;

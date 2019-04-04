@@ -672,14 +672,12 @@ void Request::TransferHeadersToCookies()
 
 fs::path MakeUploadFileTemporaryName(std::string const& ext, std::string const& dir)
 {
-    static boost::uuids::random_generator gen;
     fs::path disk_fn(dir);
 
     do
     {
-        boost::uuids::uuid uid = gen();
         std::stringstream ss;
-        ss << uid << ext;
+        ss << Utilities::GetUUID() << ext;
 
         disk_fn /= ss.str();
         size_t retry_count = 0;
