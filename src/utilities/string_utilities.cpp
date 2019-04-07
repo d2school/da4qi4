@@ -61,12 +61,16 @@ char const* dt_fmt_yyyy_mm_dd_CN = "%Y年%m月%d日";
 
 std::string GMTFormatTime(std::time_t t)
 {
-    return FormatDateTime(t, dt_fmt_gmt);
+    struct tm gmt = *std::gmtime(&t);
+    char buff[48] = "\0";
+    strftime(buff, sizeof(buff), dt_fmt_gmt, &gmt);
+
+    return buff;
 }
 
 std::string FormatDateTime(std::time_t t, char const* fmt)
 {
-    struct tm gmt = *std::gmtime(&t);
+    struct tm gmt = *std::localtime(&t);
     char buff[48] = "\0";
     strftime(buff, sizeof(buff), fmt, &gmt);
 

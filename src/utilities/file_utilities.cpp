@@ -37,7 +37,7 @@ bool SaveDataToFile(std::string const& data, fs::path const& filename_with_path,
         return false;
     }
 
-    std::ofstream ofs(filename_with_path.native().c_str(), std::ios_base::binary);
+    std::ofstream ofs(filename_with_path.native().c_str(), std::ios_base::out | std::ios_base::binary);
 
     if (!ofs)
     {
