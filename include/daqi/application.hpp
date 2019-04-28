@@ -275,7 +275,8 @@ private:
                      , log::Level level, size_t max_file_size_kb, size_t max_file_count);
     bool init_templates();
 private:
-    Handler* find_handler(const Context& ctx, std::string const& retry_path = "");
+    Handler* find_handler(const Context& ctx, bool& url_exists, bool& unsupport_method
+                          , std::string const& retry_path = "");
     void do_handle(Context& ctx);
 private:
     EqualsRoutingTable _equalRouter;

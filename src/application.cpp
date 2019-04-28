@@ -607,19 +607,21 @@ bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const
     return true;
 }
 
-Handler* Application::find_handler(Context const& ctx, std::string const& retry_path)
+Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& unsupport_method
+                                   , std::string const& retry_path)
 {
     HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
 
     if (m == HandlerMethod::UNSUPPORT)
     {
+        unsupport_method = true;
         ctx->ClearTemplateName();
         return nullptr;
     }
 
     std::string const& url = (retry_path.empty() ? ctx->Req().GetUrl().path : retry_path);
 
-    RouterResult rr = _equalRouter.Search(url, m);
+    RouterResult rr = _equalRouter.Search(url, m, url_exists);
 
     if (!rr.error.empty())
     {
@@ -632,7 +634,7 @@ Handler* Application::find_handler(Context const& ctx, std::string const& retry_
         return rr.handler;
     }
 
-    rr = _startwithsRouter.Search(url, m);
+    rr = _startwithsRouter.Search(url, m, url_exists);
 
     if (!rr.error.empty())
     {
@@ -645,7 +647,7 @@ Handler* Application::find_handler(Context const& ctx, std::string const& retry_
         return rr.handler;
     }
 
-    RegexRouterResult rrr = _regexRouter.Search(url, m);
+    RegexRouterResult rrr = _regexRouter.Search(url, m, url_exists);
 
     if (!rrr.error.empty())
     {
@@ -669,19 +671,39 @@ void Application::Handle(Context ctx)
 
 void Application::do_handle(Context& ctx)
 {
-    Handler* h = find_handler(ctx);
+    bool url_exists = false;
+    bool unsupport_method = false;
+    bool retring = false;
 
-    if ((!h || !*h) && Utilities::EndsWith(ctx->Req().GetUrl().path, "/index"))
-    {
-        auto try_path = ctx->Req().GetUrl().path.substr(0, //5: length of "index"
-                                                        ctx->Req().GetUrl().path.length() - 5);
-        h = find_handler(ctx, try_path);
-    }
+    Handler* h = find_handler(ctx, url_exists, unsupport_method);
 
-    if (!h || !*h)
+    while (!h || !*h)
     {
-        ctx->RenderWithoutData().Pass();
-        return;
+        if (url_exists || unsupport_method)
+        {
+            ctx->RenderNotImplemented().Pass();
+            return;
+        }
+
+        if (retring)
+        {
+            ctx->RenderWithoutData().Pass();
+            return;
+        }
+
+        retring = true;
+
+        if (Utilities::EndsWith(ctx->Req().GetUrl().path, "/index"))
+        {
+            const int len_of_str_index = 5; //len of "index"
+            std::size_t len = ctx->Req().GetUrl().path.length();
+            auto try_path = ctx->Req().GetUrl().path.substr(0, len - len_of_str_index);
+
+            h = find_handler(ctx, url_exists, unsupport_method, try_path);
+            continue;
+        }
+
+        break;
     }
 
     try

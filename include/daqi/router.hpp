@@ -137,9 +137,9 @@ public:
         return true;
     }
 
-    Result Search(std::string const& url, HandlerMethod method)
+    Result Search(std::string const& url, HandlerMethod method, bool& url_exists)
     {
-        return imp()->Match(url, method);
+        return imp()->Match(url, method, url_exists);
     }
 };
 
@@ -163,9 +163,10 @@ public:
         return (it == _map.end() ? nullptr : & (it->second));
     }
 
-    Result Match(std::string const& url, HandlerMethod method)
+    Result Match(std::string const& url, HandlerMethod method, bool& url_exists)
     {
         auto item = this->Exists(url);
+        url_exists = (item != nullptr);
         return Result(item, method);
     }
 
@@ -193,7 +194,7 @@ public:
         return (it == _map.end() ? nullptr : & (it->second));
     }
 
-    Result Match(std::string const& url, HandlerMethod method);
+    Result Match(std::string const& url, HandlerMethod method, bool& url_exists);
 
     std::string const& GetError() const
     {
@@ -244,7 +245,7 @@ public:
 
     bool Insert(std::string const&    url_matcher, RouterItem const& item, std::string& error);
     Item* Exists(std::string const& url_matcher);
-    Result Match(std::string const& url, HandlerMethod method);
+    Result Match(std::string const& url, HandlerMethod method, bool& url_exists);
 private:
     List _lst;
 };

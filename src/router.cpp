@@ -18,7 +18,8 @@ router_regex operator "" _router_regex(char const* str, std::size_t n)
     return router_regex(std::string(str, n));
 }
 
-StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& url, HandlerMethod method)
+StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& url, HandlerMethod method
+                                                             , bool& url_exists)
 {
     auto it = _map.begin();
 
@@ -26,6 +27,7 @@ StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& 
     {
         if (Utilities::iStartsWith(url, it->first))
         {
+            url_exists = true;
             return Result(&(it->second), method);
         }
     }
@@ -105,7 +107,8 @@ RegexMatchRoutingTable::Item* RegexMatchRoutingTable::Exists(std::string const& 
     return nullptr;
 }
 
-RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& url, HandlerMethod method)
+RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& url, HandlerMethod method
+                                                             , bool& url_exists)
 {
     Result r;
 
@@ -117,6 +120,7 @@ RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& 
 
             if (std::regex_match(url, result, item.regex_pattern))
             {
+                url_exists = true;
                 Result rr(&item, method);
 
                 if (!rr.handler)
