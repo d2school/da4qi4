@@ -700,10 +700,7 @@ void Application::do_handle(Context& ctx)
             auto try_path = ctx->Req().GetUrl().path.substr(0, len - len_of_str_index);
 
             h = find_handler(ctx, url_exists, unsupport_method, try_path);
-            continue;
         }
-
-        break;
     }
 
     try
