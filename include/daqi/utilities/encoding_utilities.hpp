@@ -16,7 +16,7 @@ class Converter
 {
 public:
     Converter(char const* in_encode, char const* out_encode,
-              bool _ignore_error = false, std::size_t const& buf_size = 5);
+              bool _ignore_error = false, std::size_t const& buf_size = 1024);
 
     ~Converter();
 
