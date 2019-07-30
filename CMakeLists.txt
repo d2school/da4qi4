@@ -15,8 +15,9 @@ project(da4qi4)
 
 find_library(LIBBOOSTSYSTEM boost_system /usr/local/lib /usr/lib NO_DEFAULT_PATH)
 find_library(LIBBOOSTFILESYSTEM boost_filesystem /usr/local/lib /usr/lib NO_DEFAULT_PATH)
+find_library(LIBICONV iconv /usr/local/lib)
 
-link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} pthread)
+link_libraries(${LIBBOOSTSYSTEM} ${LIBBOOSTFILESYSTEM} ${LIBICONV} pthread)
 
 include_directories(.)
 include_directories(include/)

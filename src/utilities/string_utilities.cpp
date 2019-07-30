@@ -1,5 +1,7 @@
 #include "daqi/utilities/string_utilities.hpp"
 
+#include <iconv.h>
+
 #include <ctime>
 #include <codecvt>
 
@@ -180,26 +182,13 @@ std::string TrimRightCopy(std::string const& m)
 
 std::string GetUUID(const std::string& prefix)
 {
-    //static
-    boost::uuids::random_generator gen; //too slow
+    boost::uuids::random_generator gen; //NOTE: too slow
 
     boost::uuids::uuid uid = gen();
     std::stringstream ss;
     ss << prefix << uid;
 
     return ss.str();
-}
-
-std::wstring FromUTF8(std::string const& utf8str)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
-    return wconv.from_bytes(utf8str);
-}
-
-std::string ToUTF8(std::wstring const& wstr)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wconv;
-    return wconv.to_bytes(wstr);
 }
 
 } //namespace Utilities

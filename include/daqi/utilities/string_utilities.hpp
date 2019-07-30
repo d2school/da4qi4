@@ -6,8 +6,6 @@
 #include <vector>
 #include <map>
 
-#include "daqi/utilities/base64.hpp"
-
 namespace da4qi4
 {
 namespace Utilities
@@ -73,9 +71,6 @@ void TrimOnOptions(std::string& m, TrimOptions opt);
 std::string TrimOnOptionsCopy(std::string const& m, TrimOptions opt);
 
 std::string GetUUID(std::string const& prefix = theEmptyString);
-
-std::wstring FromUTF8(std::string const& utf8str);
-std::string ToUTF8(std::wstring const& wstr);
 
 } //namespace Utilities
 } //namespace da4qi4
