@@ -23,7 +23,7 @@ using ReadBuffer = std::array<char, 1024 * 2>;
 
 struct SocketBase
 {
-    virtual ~SocketBase() = 0;
+    virtual ~SocketBase();
 
     virtual void async_connect(Tcp::endpoint const&, std::function<void (errorcode const&)>) = 0;
 
