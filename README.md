@@ -94,8 +94,7 @@ int main()
     svc->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html 
-              = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
