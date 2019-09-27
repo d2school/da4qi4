@@ -168,9 +168,7 @@ using namespace da4qi4;
 
 int main()
 {
-    if (!log::InitServerLogger(
-                       "/home/zhuangyan/Projects/CPP/daqi_demo/www/logs"
-                               , log::Level::debug))
+    if (!log::InitServerLogger("/home/zhuangyan/Projects/CPP/daqi_demo/www/logs", log::Level::debug))
     {
         std::cerr << "Create server logger fail." << std::endl;
         return -1;
@@ -184,8 +182,7 @@ int main()
     web_app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html
-             = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
@@ -248,11 +245,9 @@ int main()
                                           www_root + "upload/");
 
     //初始化web应用日志
-    if (!web_app->Init(Application::ActualLogger::yes
-                         , log::Level::debug))
+    if (!web_app->Init(Application::ActualLogger::yes, log::Level::debug))
     {
-        log::Server()->critical("Init application {} fail."
-                         , web_app->GetName());
+        log::Server()->critical("Init application {} fail.", web_app->GetName()); 
         return -2;
     }
 
