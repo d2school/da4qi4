@@ -1,66 +1,337 @@
-```cpp
-int main(int argc, char* argv[])
+# 一、快速了解
+
+## 1.1 一个空转的Web Server
+像所有的C++程序，我们至少需要一个C++文件，假设名字还是熟悉的“main.cpp”，在本例中，它的内容如下：
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
 {
-    int concurrent_count = std::thread::hardware_concurrency(); //物理线程数
+    auto svc = Server::Supply(4098);
+    svc->Run();
+}
+```
 
-    auto svc = Server::Supply(80, concurrent_count); //在80端口
+不到10行代码，我们创建了一个空转的，似乎不干活的Web Server。虽然被污蔑为不干活，但其实个Web Server是在正常运行中，它之所以表现成不干活，只是因为它要忠于创建它的主人，也就是我们（程序员）：我们没有指示它如何响应，所以它对所有的请求，都只能回应一句：“Not Found”（没错，就是404）。
 
-    std::string app_root = "./www";   //daqi网站的根目录
-    auto web = Application::Customize("web"   //支持多个应用，这个是应用名称
-                                      , "/"    //www root
-                                      , app_root + "logs/"   //网站运行日志目录   
-                                      , app_root + "static/"   //静态文件，实际网站交给 nginx 托管
-                                      , app_root + "view/"     //网页模板文件 MVC中的 V
-                                      , app_root + "upload/"   //上传文件时的临时目录
-                                     );
+编译、运行，然后在浏览器地址栏输入：http://127.0.0.1:4098 ，而后回车，浏览器将显示一个页面，上面写着：
 
-    if (!web->Init(Application::ActualLogger::yes))  //要不要开启日志
+```
+Not Found
+```
+
+> 小提示：代码中的“Supply(4098)”调用，如果不提供4098这个入参，那么Web Server将在HTTP默认的80端口监听。我们使用4098是考虑到在许多程序员的开发电脑上，80端口可能已经被别的应用占用了。
+
+
+## 1.2 Hello World!
+不管访问什么都回我们一句”Not Found“这仅人沮丧。接下我们希望，当访问网站的根路径时，它能答应一声：“Hello World!”。
+
+### 1.2.1 针对指定URL的响应
+
+这需要我们通过代码指示框架在遇上有人访问网站根路径时，能有必要的响应动作。我们使用C++11引入的lambda：
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
+{
+    auto svc = Server::Supply(4098);
+
+    svc->AddHandler(_GET_, "/", [](Context ctx)
     {
-        std::cerr << "Init application " << web->GetName() << " fail." << std::endl;
-        return -2;
-    }
-
-    //静态文件
-    //如果不想让nginx或apache托管静态文件（实际项目基本需要），则自己管理：
-    //下面演示凡是访问  css, js, img/目录下，以及 /favicon.ico，都直接走静态文件
-    //静态文件并不会每次走到服务器读磁盘文件，实际会让浏览器做缓存（SetCacheMaxAge）,
-    //当然，还是强烈推荐3分钟安装配置下nginx的好，因为处理静态文件，我们强不过nginx……
-    Intercepter::StaticFile static_file;
-    static_file.SetCacheMaxAge(600).AddEntry("css/").AddEntry("js/")
-               .AddEntry("img/").AddEntry("favicon.ico", "img/favicon.ico");
-    web->AddIntercepter(static_file);
-   
-    //配置session数据使用 redis。因此，哪天网站压力大了点，在 nginx之后一拖N，多部署几个这个程序
-    //就可以简单负载分摊一下了。
-    Intercepter::SessionOnRedis session_redis;
-    web->AddIntercepter(session_redis);
-
-    /* 以上配置了很多，不过我们这个例子只要一个 hello world, */
-    web->AddHandler(_GET_, {"/", "/index"}, [](Context ctx)
-    {
-        std::string name = ctx->Req("name");
-        if (name.empty()) name = "小明";
-
-        ctx->Res().ReplyOk("<html><body>Hello " + name + "</body></html>")
+        ctx->Res().ReplyOk("Hello World!");
         ctx->Pass();
     });
 
-    svc->Mount(web); //一个"server" 可以 挂接 多个 "Application" 
-
-    //因为session使用redis,所以需要初始化下redis池，da4qi4集成了C++ rds 的异步访问功能
-    RedisPool().CreateClients(svc->GetIOContextPool());
-
-    try
-    {
-        svc->Run();
-    }
-    catch (std::exception const& e)
-    {
-        log::Server()->error("Run exception. {}.", e.what());
-    }
-
-    RedisPool().Stop();
-    svc.reset();
-    log::Server()->info("Bye.");
+    svc->Run();
 }
 ```
+
+例中使用到的Server类的AddHandler()方法，并提供三个入参：
+
+1. 指定的HTTP访问方法： \_GET\_;
+
+2. 指定的访问URL： /，即根路径 ;
+
+3. 匿名的lambda表达式。
+
+三个入参以及方法名，表达一个意思：如果用户以GET方法访问网站的根路径，框架就调用lambda 表达式以做出响应。
+
+编译、运行。现在用浏览器访问 http://127.0.0.1:4098 ，将看到提：
+
+```
+Hello World!
+```
+
+### 1.2.2 返回HTML 
+以上代码返回给浏览器纯文本内容，接下来，应该来返回HTML格式的内容。出于演示目的，我们干了一件有“恶臭”的事：直接在代码中写HTML字符串。放心，我们很快就会演示正常的做法：使用静态文件，或者基于网页模板文件来定制网页的页面内容。
+
+我们要修改的字符串，是第11行代码调用”ReplyOK()“函数的入参，原来是“Hello World!”，现在将它改成一串HTML：
+
+```c++
+……
+   ctx->Res().ReplyOk("<html><body><h1>Hello World!</h1></body></html>");
+……
+```
+
+## 1.3 处理请求
+接下来，我们希望请求和响应的内容都能够有点变化，并且二者的变化存在一定的匹配关系。具体是：在请求的URL中，加一个参数，假设是“name=Tom”，则我们希望后台能返回“Hello Tom!”。
+
+这就需要用到”Request/请求“和”Response/响应“两个类：
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
+{
+    auto svc = Server::Supply(4098);
+
+    svc->AddHandler(_GET_, "/", [](Context ctx)
+    {
+        std::string name = ctx->Req("name");
+        std::string html 
+              = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        ctx->Res().ReplyOk(html);
+        ctx->Pass();
+    });
+
+    svc->Run();
+}
+```
+
+编译、运行。通过浏览器访问 ”http://127.0.0.1:4098/?name=Tom“ ，将得到带有HTML格式控制的：
+
+```
+Hello Tom!
+```
+
+> 小提示：试试看将“Tom”改为汉字，比如“张三”，通常你的浏览器会在“Hello ”后面显示成一团乱码；这不是大器框架的问题，这是我们手工写的那段html内容不够规范。
+
+## 1.4 引入“Application”
+Server代表一个Web 服务端，但同一个Web Server系统很可能可分成多个不同的人群。
+
+比如写一个在线商城，第一类用户，也是主要的用户，当然就是来商城在线购物的买家，第二类用户则是卖家和商城的管理员。这种区别，也可以称作是：一个服务端，多个应用。在大器框架中，应用以Application表达，
+
+就当前而言，还不到演示一个Server上挂接多个Application的复杂案例，那我们为什么要开始介绍Application呢？Application才是负责应后台行为的主要实现者。在前面的例子中，虽然没有在代码中虽然只看到Server，但背后是由Server帮我们创建一个默认的 Application 对象，然后依靠该默认对象以实现演示中的相关功能。
+
+现在我们要做的是：显式创建一个Application对象，并代替Server对象来实前面最后一个例子的功能。
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
+{
+    auto svc = Server::Supply(4098);
+    auto web_app = Application::Customize("web", "/", "./log");
+
+    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    {
+        std::string name = ctx->Req("name");
+        std::string html 
+             = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        ctx->Res().ReplyOk(html);
+        ctx->Pass();
+    });
+
+    svc->Mount(web_app);
+    svc->Run();
+}
+```
+
+发生的变化：使用”Aplication“类的静态成员函数，定制（Customize）了一个应用，例中命名为web_app；然后改用它来添加前端以GET方法访问网站根URL路径时的处理方法。最后在svc运行之前，需要先将该应用挂接（Mount）上去。
+
+这段代码和前面没有显式引入Application的代码，功能一致，输出效果也一致。但为什么我们一定要引入Application呢？除了前述的，为将来一个Server对应多个Application做准备之外，从设计及运维上讲，还有一个目的：让Server和Application各背责任。Application负责较为高层的逻辑，重点是具体的某类业务，而Server则负责服务器较基础的逻辑，重点是网络方面的功能。下一小节将要讲到日志，正好是二者分工的一个典型体现。
+
+## 1.5 运行日志
+一个Web Server在运行时，当然容易遇到或产生各种问题。这时候后台能够输出、存储运行时的各种日志是大有必要的功能。
+
+结合前面所说的Server与Application的分工。日志在归集上就被分成两大部分：服务日志和应用日志。
+
+- 服务层日志：记录底层网络、相关的周边运行支撑环境(缓存/Redis、数据库/MySQL)等基础设施的运行状态。
+
+- 应用层日志：记录具体应用的运行日志。
+
+其中，相对底层的Server日志全局唯一，由框架自动创建；而应用层日志自然是每个应用对应一套日志。程序可以为服务层和应用层日志创建不同的日志策略。事实上，如果有多个应用，那自然可以为每个应用定制不同的日志策略。
+
+在前面例子中，服务层日志对象已经存在，只是我们没有主动配置它，也没有主动使用它记录日志。而唯一的应用web_app则采用默认的日记策略：即没有日志。没错，应用允许不记录日志。
+
+为了使用服务层日志，我们需要在程序启动后，服务还未创建时，就初始化服务层的日志对象，这样才有机会记录服务创建过程中的日志（比如最常见的，服务端口被占用的问题）。假设初始化日志这一步都失败，记录失败信息的人，肯定不能是日志对象，只能是我们熟悉的std::cerr或std::cout对象。
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
+{
+    if (!log::InitServerLogger(
+                       "/home/zhuangyan/Projects/CPP/daqi_demo/www/logs"
+                               , log::Level::debug))
+    {
+        std::cerr << "Create server logger fail." << std::endl;
+        return -1;
+    }
+
+    auto svc = Server::Supply(4098);
+    log::Server()->info("准备web应用中……");
+
+    auto web_app = Application::Customize("web", "/", "./log");
+
+    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    {
+        std::string name = ctx->Req("name");
+        std::string html
+             = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        ctx->Res().ReplyOk(html);
+        ctx->Pass();
+    });
+
+    svc->Mount(web_app);
+    svc->Run();
+}
+```
+
+> 小提示：为方便演示，上面代码暂时使用绝对路径以指定服务层日志文件的存储位置，实际项目通常以相对路径，或读取外部配置的方式以方便部署。
+
+一旦“InitServerLogger()”调用成功，并且设置低于INFO的日志输出级别（例中为DEBUG级别，见该函数的第2个入参：log::Level::debug），框架中有关服务层的许多日志，就会打印到屏幕（控制台）上及相应的日志文件里。
+
+## 1.6 HTMl 模板
+是时候解决在代码中直接写HTML的问题了。
+
+用户最终看到的网页的内容，有一些在系统设计阶段就很清楚，有一些则必须等用户访问时才知道。比如前面的例子中，在设计时就清楚的有：页面字体格式，以及“Hello, _____!”；而需要在运行时用户访问后才能知道的，就是当中的下划线处所要填写的内容。
+
+下面是适用于本例的，一个相当简单的的HTMl网页模板：
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <title>首页</title>
+    <meta content="text/html; charset=UTF-8">
+</head>
+<body>
+    <h1>你好，{=name=}！</h1>
+</body>
+</html>
+```
+
+“你好，”后面的特定格式，将会被程序的模板解析引擎识别，并填写上运行时的数据。使用模板后，现在用于产生的网页内容的完整C++代码如下：
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+int main()
+{
+    //网站根目录 （同样，我们暂使用绝对路径）
+    std::string www_root = "/home/zhuangyan/Projects/CPP/daqi_demo/www/";
+
+    //初始化服务层日志
+    if (!log::InitServerLogger(www_root + "logs", log::Level::debug))
+    {
+        std::cerr << "Create server logger fail." << std::endl;
+        return -1;
+    }
+
+    auto svc = Server::Supply(4098);
+    log::Server()->info("准备web应用中……"); //纯粹是为了演示日志……
+
+    auto web_app = Application::Customize("web", "/",
+                                          www_root + "logs/",
+                                          www_root + "static/",
+                                          www_root + "view/",
+                                          www_root + "upload/");
+
+    //初始化web应用日志
+    if (!web_app->Init(Application::ActualLogger::yes
+                         , log::Level::debug))
+    {
+        log::Server()->critical("Init application {} fail."
+                         , web_app->GetName());
+        return -2;
+    }
+
+    //添加请求处理
+    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    {
+        std::string name = ctx->Req().GetUrlParameter("name");
+        ctx->ModelData()["name"] = name;
+        ctx->Render().Pass();
+    });
+
+    svc->Mount(web_app);
+    svc->Run();
+}
+```
+
+由于我们所写的模板文件正确地指定了相关编码，所以现在如果访问 http://127.0.0.1:4098?name=大器da4qi4 。将得到带有HTML格式的：
+
+```
+你好，大器da4qi4！
+```
+
+框架提供的模板引擎，不仅能替换数据，也支持基本的条件判断、循环、自定函数等功能，类似一门“脚本”。
+
+> 小提示：大多数情况下，我们写的C++程序用以高性能地、从各种来源（数据库、缓存、文件、网络等）、以各种花样（同步、异步）获取数据、处理数据。而HTML模板引擎在C++程序中以解释的方式运行，因此正常的做法是不要让一个模板引擎干太复杂的，毕竟，在C++这种“彪形大汉”的语言面，它就是个小孩子。
+
+## 1.7 更多
+前面未提及的，但框架本身集成功能还包括：
+
+1. cookie支持
+
+2. 前端（浏览器）缓存支持
+
+3. Redis 缓存支持
+
+4. Session 支持
+
+5. 静态文件
+
+6. 模板文件更新检测
+
+7. HTTP 客户端组件
+
+8. POST响应支持
+
+9. 文件上传、下载
+
+10. 访问限流
+
+11. HTTPS
+
+12. JSON
+
+13. 纯数据输出的API接口，与前端AJAX配合
+
+14. 框架全方式集成：(a) 基于源代码集成、(b) 基于动态库集成、(c) 基于静态库集成
+
+15. ……
+
+而框架外围当前可供集成或实现的功能有：
+
+1. 数据库访问
+
+2. 和nginx配合（实现负载均衡的快速横向扩展）
+
+3. 阿里短信云异步客户端
+
+4. 微信扫一扫登录异步客户端
+
+5. 基于OpenSSL的数据加密工具
+
+6. 常用字符串处理
+
+7. 常用编码转换（UTF-8、UCS、GBK、GB18030）
+
+8. ……
+
