@@ -178,6 +178,11 @@ void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
     _cnt->GetRequest().InitPathParameters(names, values);
 }
 
+void ContextIMP::InitRequestPathParameter(std::string const& value)
+{
+    this->InitRequestPathParameters({""}, {value});
+}
+
 std::string ContextIMP::GetSessionID() const
 {
     Json const& session = this->SessionData();
@@ -316,8 +321,7 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
 ContextIMP& ContextIMP::Render()
 {
     Json& page_data = ModelData();
-    (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
-    return *this;
+    return (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
 }
 
 ContextIMP& ContextIMP::Render(std::string const& template_name, Json const& data)
@@ -328,8 +332,8 @@ ContextIMP& ContextIMP::Render(std::string const& template_name, Json const& dat
     }
 
     Json& page_data = ModelData();
-    (page_data.is_null()) ? RenderWithoutData(template_name) : RenderWithData(template_name, page_data);
-    return *this;
+    return (page_data.is_null()) ?
+           RenderWithoutData(template_name) : RenderWithData(template_name, page_data);
 }
 
 ContextIMP& ContextIMP::RenderWithData(http_status status, Json const& data)
@@ -367,16 +371,37 @@ std::string ContextIMP::auto_match_template()
 {
     std::string const& path = Req().GetUrl().path;
 
-    if (path == "/" || path.empty())
+    if (path.empty())
     {
-        return "index";
+        return "/index";
+    }
+
+    std::string::const_iterator first = path.begin();
+    std::string::const_reverse_iterator last = path.crbegin();
+
+    if (first == std::prev(last.base())) // path.size() == 1
+    {
+        return (*first == '/') ? "/index" : "";
+    }
+
+    if (*last != '/' && *first == '/')
+    {
+        return path;
     }
 
     std::string template_name;
+    template_name.reserve(path.size() + 2);
 
-    if (path[0] == '/') // and path != "/"
+    if (*first != '/')
     {
-        template_name = path.substr(1);
+        template_name = "/";
+    }
+
+    template_name += path;
+
+    if (*last == '/')
+    {
+        template_name += "index";
     }
 
     return template_name;
@@ -384,13 +409,11 @@ std::string ContextIMP::auto_match_template()
 
 ContextIMP& ContextIMP::RenderWithData(Json const& data)
 {
-    std::string const& explicit_template(_template_name);
-
-    if (!explicit_template.empty())
+    if (!_template_name.empty()) // explicit template name
     {
-        if (auto templ = App().GetTemplates().Get(explicit_template))
+        if (auto templ = App().GetTemplates().Get(_template_name))
         {
-            render_on_template(explicit_template, *templ, data, HTTP_STATUS_OK);
+            render_on_template(_template_name, *templ, data, HTTP_STATUS_OK);
         }
         else
         {
@@ -400,40 +423,23 @@ ContextIMP& ContextIMP::RenderWithData(Json const& data)
         return *this;
     }
 
-    std::string template_name = auto_match_template();
+    std::string auto_matched_template_name = auto_match_template();
 
-    if (template_name.empty())
+    if (auto_matched_template_name.empty())
     {
         RenderNofound();
         return *this;
     }
 
-    auto templ = App().GetTemplates().Get(template_name);
+    auto templ = App().GetTemplates().Get(auto_matched_template_name);
 
     if (templ)
     {
-        render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
+        render_on_template(auto_matched_template_name, *templ, data, HTTP_STATUS_OK);
         return *this;
     }
 
-    bool template_name_is_path_form = !template_name.empty() && (*(--template_name.end()) == '/');
-
-    if (!template_name_is_path_form)
-    {
-        RenderNofound();
-        return *this;
-    }
-
-    template_name += "index";
-    templ = App().GetTemplates().Get(template_name);
-
-    if (!templ)
-    {
-        RenderNofound();
-        return *this;
-    }
-
-    render_on_template(template_name, *templ, data, HTTP_STATUS_OK);
+    RenderNofound();
     return *this;
 }
 

@@ -28,13 +28,6 @@ void Url::UnderApplication(std::string const& app_url_root)
     path_under_app = path.substr(app_url_root.size());
 }
 
-std::string make_routing_path_parameter_key(std::string const& name)
-{
-    std::stringstream ss;
-    ss << std::setw(2) << std::setfill('0') << name;
-    return ss.str();
-}
-
 void RoutingPathParameters::InitParameters(std::vector<std::string> const& names
                                            , std::vector<std::string> const& values)
 {
@@ -42,46 +35,27 @@ void RoutingPathParameters::InitParameters(std::vector<std::string> const& names
 
     for (size_t i = 0; i < names.size(); ++i)
     {
-        std::string key = make_routing_path_parameter_key(names[i]);
         std::string value = (i < values.size()) ? values[i] : Utilities::theEmptyString;
-        _parameters.insert(std::make_pair(key, value));
+        _parameters.insert(std::make_pair(names[i], value));
     }
 }
 
 bool RoutingPathParameters::IsExists(std::string const& name) const
 {
-    std::string key = make_routing_path_parameter_key(name);
-    return _parameters.find(key) != _parameters.cend();
+    return _parameters.find(name) != _parameters.cend();
 }
 
 std::string const& RoutingPathParameters::Get(std::string const& name) const
 {
-    std::string key = make_routing_path_parameter_key(name);
-    auto it = _parameters.find(key);
-
+    auto it = _parameters.find(name);
     return (it != _parameters.cend() ? it->second : Utilities::theEmptyString);
 }
 
 OptionalStringRefConst RoutingPathParameters::TryGet(std::string const& name) const
 {
-    std::string key = make_routing_path_parameter_key(name);
-    auto it = _parameters.find(key);
-
+    auto it = _parameters.find(name);
     return (it != _parameters.cend() ? OptionalStringRefConst(it->second)
             : OptionalStringRefConst(NoneObject));
-}
-
-std::string const& RoutingPathParameters::Get(size_t index) const
-{
-    if (index >= _parameters.size())
-    {
-        return Utilities::theEmptyString;
-    }
-
-    auto it = _parameters.begin();
-    std::advance(it, index);
-
-    return it->second;
 }
 
 MultiPart::MultiPart(MultiPart const& o)

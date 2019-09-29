@@ -137,19 +137,18 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
         return l->second;
     }
 
-    auto u = _map.upper_bound(url);
-
-    for (auto it = ++l; it != u; ++it)
+    for (++l; l != _map.end(); ++l)
     {
-        if (Utilities::iStartsWith(url, it->first))
+        if (Utilities::iStartsWith(url, l->first))
         {
-            return it->second;
+            return l->second;
         }
     }
 
 #ifdef NDEBUG
     return _abortive_app;
 #else
+    log::Server()->debug("No found application for {}.", url);
     return nullptr;
 #endif
 }
@@ -638,17 +637,20 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
         return rr.handler;
     }
 
-    rr = _startwithsRouter.Search(url, m, url_exists);
+    StartsRouterResult srr = _startwithsRouter.Search(url, m, url_exists);
 
-    if (!rr.error.empty())
+    if (!srr.error.empty())
     {
-        _logger->warn("Match starts router for {} exception. {}", url, rr.error);
+        _logger->warn("Match starts router for {} exception. {}", url, srr.error);
     }
 
-    if (rr.handler)
+    if (srr.handler)
     {
-        ctx->SetTemplateName(rr.template_name);
-        return rr.handler;
+        ctx->SetTemplateName(srr.template_name);
+        auto remain = url.size() - srr.key.size();
+        ctx->InitRequestPathParameter(url.substr(srr.key.size(), remain));
+
+        return srr.handler;
     }
 
     RegexRouterResult rrr = _regexRouter.Search(url, m, url_exists);
@@ -664,6 +666,9 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
         ctx->InitRequestPathParameters(rrr.parameters, rrr.values);
         return rrr.handler;
     }
+
+    log::Server()->debug("No found handler for {} on app-root_url {}. application {}.", url,
+                         this->_root_url, this->_name);
 
     return nullptr;
 }

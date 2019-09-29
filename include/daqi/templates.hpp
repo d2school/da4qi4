@@ -12,6 +12,8 @@
 namespace da4qi4
 {
 
+void init_template_env(inja::Environment& env);
+
 using TemplatesEnv = inja::Environment;
 
 class Templates
@@ -20,10 +22,6 @@ public:
     Templates(std::string const& template_root, std::string const& app_url_root)
         : _root(template_root), _app_prefix(app_url_root)
     {
-        if (!_app_prefix.empty() && _app_prefix[0] == '/')
-        {
-            _app_prefix = _app_prefix.substr(1);
-        }
     }
 
     bool Preload(log::LoggerPtr app_logger);
@@ -39,12 +37,22 @@ private:
     bool reload();
 
 private:
+    enum class TemplateFlag {for_normal, for_include};
+
     std::pair<size_t, size_t>
     load_templates(std::string const& template_ext, std::string const& key_ext);
 
-    bool try_load_template(std::string const& key
+    std::pair<size_t, size_t>
+    load_templates(TemplatesEnv& env
+                   , std::string const& template_ext
+                   , std::string const& key_ext
+                   , TemplateFlag flag);
+
+    bool try_load_template(TemplatesEnv& env
+                           , std::string const& key
                            , std::string const& template_filename
-                           , std::string const& full_template_filename) noexcept;
+                           , std::string const& full_template_filename
+                           , bool is_include_dir) noexcept;
 
     enum class TemplateUpdateAction
     {
@@ -78,8 +86,6 @@ private:
 
     std::string _root, _app_prefix;
 };
-
-void init_template_env(inja::Environment& env);
 
 } //namesapce da4qi4
 

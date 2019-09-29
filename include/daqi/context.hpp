@@ -176,6 +176,7 @@ public:
     void InitRequestPathParameters(std::vector<std::string> const& names
                                    , std::vector<std::string> const& values);
 
+    void InitRequestPathParameter(std::string const& value);
 public:
     ContextIMP& Render();
     ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson);

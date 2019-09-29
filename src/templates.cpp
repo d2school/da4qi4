@@ -38,15 +38,14 @@ bool is_include_dir(fs::path const& path)
             || path.native().find("\\i\\") != std::string::npos);
 }
 
-bool Templates::try_load_template(std::string const& key
+bool Templates::try_load_template(TemplatesEnv& env
+                                  , std::string const& key
                                   , std::string const& template_filename
-                                  , std::string const& full_template_filename) noexcept
+                                  , std::string const& full_template_filename
+                                  , bool is_include_dir) noexcept
 {
     try
     {
-        TemplatesEnv env(_root);
-        init_template_env(env);
-
         std::string tmpl_src = env.load_file(template_filename);
 
         if (tmpl_src.empty())
@@ -58,8 +57,9 @@ bool Templates::try_load_template(std::string const& key
         TemplatePtr templ = TemplatePtr(new Template(env.parse(tmpl_src)));
         Item item {templ, full_template_filename};
 
-        if (is_include_dir(full_template_filename))
+        if (is_include_dir)
         {
+            env.include_template(key, *templ);
             _includes_templates.insert(std::make_pair(key, std::move(item)));
         }
         else
@@ -67,12 +67,14 @@ bool Templates::try_load_template(std::string const& key
             _templates.insert(std::make_pair(key, std::move(item)));
         }
 
-        _app_logger->info("Template load success. \"{}\".", remove_template_ext(template_filename));
+        _app_logger->info("Template load success. {}=>\"{}\".", key
+                          , remove_template_ext(template_filename));
         return true;
     }
     catch (std::exception const& e)
     {
-        _app_logger->error("Template load exception. {}. \"{}\".", e.what(), full_template_filename);
+        _app_logger->error("Template load exception. {}. \"{}\".", e.what()
+                           , full_template_filename);
         return false;
     }
     catch (...)
@@ -90,7 +92,48 @@ bool is_ignored(fs::path const& path)
              || path.string().find(".deprecated.") != std::string::npos));
 }
 
-std::pair<size_t, size_t> Templates::load_templates(std::string const& template_ext, std::string const& key_ext)
+std::pair<size_t, size_t> Templates:: load_templates(std::string const& template_ext
+                                                     , std::string const& key_ext)
+{
+    TemplatesEnv env(_root);
+    init_template_env(env);
+
+    std::pair<size_t, size_t> counts_i = load_templates(env, template_ext, key_ext
+                                                        , TemplateFlag::for_include);
+
+    std::pair<size_t, size_t> counts = load_templates(env, template_ext, key_ext
+                                                      , TemplateFlag::for_normal);
+
+    return { counts_i.first + counts.first, counts_i.second + counts.second };
+}
+
+std::string make_template_key(std::string const& app_prefix, std::string const& mpath
+                              , std::string const& key_ext)
+{
+    std::string key;
+    key.reserve(app_prefix.size() + mpath.size() + key_ext.size() + 1);
+
+    key = app_prefix;
+
+    if (app_prefix.empty() || mpath.empty()
+        || *(--app_prefix.end()) != '/' || *(mpath.begin()) != '/')
+    {
+        key += mpath;
+    }
+    else
+    {
+        key += mpath.substr(1);
+    }
+
+    key += key_ext;
+
+    return key;
+}
+
+std::pair<size_t, size_t> Templates::load_templates(TemplatesEnv& env,
+                                                    std::string const& template_ext,
+                                                    std::string const& key_ext,
+                                                    TemplateFlag flag)
 {
     fs::path root(_root);
 
@@ -117,16 +160,25 @@ std::pair<size_t, size_t> Templates::load_templates(std::string const& template_
                     continue;
                 }
 
+                bool is_include = is_include_dir(path.string());
+
+                if ((flag == TemplateFlag::for_normal && is_include)
+                    || (flag == TemplateFlag::for_include && !is_include))
+                {
+                    continue;
+                }
+
                 std::string::size_type len = path.size();
                 std::string::size_type root_len = root.size();
-                std::string mpath = path.native().substr(root_len, len - root_len - template_ext.size());
+                std::string mpath = path.native().substr(root_len
+                                                         , len - root_len - template_ext.size());
 
                 if (!mpath.empty())
                 {
                     std::string template_filename = mpath + template_ext;
-                    std::string key = _app_prefix + mpath + key_ext;
+                    std::string key = make_template_key(_app_prefix, mpath, key_ext);
 
-                    if (try_load_template(key, template_filename, path.string()))
+                    if (try_load_template(env, key, template_filename, path.string(), is_include))
                     {
                         ++ok;
                     }
@@ -191,7 +243,7 @@ bool Templates::Preload(log::LoggerPtr app_logger)
     return false;
 }
 
-TemplatePtr const  Templates::Get(std::string const& name)
+TemplatePtr const Templates::Get(std::string const& name)
 {
     std::lock_guard<std::mutex> _guard_(_m);
 
@@ -345,17 +397,19 @@ Templates::TemplateUpdateAction Templates::check_new_template(std::string const&
 
                 std::string::size_type len = path.size();
                 std::string::size_type root_len = root.size();
-                std::string mpath = path.native().substr(root_len, len - root_len - template_ext.size());
+                std::string mpath = path.native().substr(root_len
+                                                         , len - root_len - template_ext.size());
 
                 if (!mpath.empty())
                 {
                     bool is_include = is_include_dir(path);
-                    std::string key = _app_prefix + mpath + key_ext;
+                    std::string key = make_template_key(_app_prefix, mpath, key_ext);
 
                     std::lock_guard<std::mutex> _guard_(_m);
 
                     if ((!is_include && (_templates.find(key) == _templates.cend()))
-                        || (is_include && (_includes_templates.find(key) == _includes_templates.cend())))
+                        || (is_include && (_includes_templates.find(key)
+                                           == _includes_templates.cend())))
                     {
                         return TemplateUpdateAction::appended;
                     }

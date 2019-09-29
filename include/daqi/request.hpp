@@ -78,9 +78,9 @@ struct RoutingPathParameters
     bool IsExists(std::string const& name) const;
     std::string const& Get(std::string const& name) const;
     OptionalStringRefConst TryGet(std::string const& name) const;
-    std::string const& Get(size_t index) const;
 
-    void InitParameters(std::vector<std::string> const& names, std::vector<std::string> const& values);
+    void InitParameters(std::vector<std::string> const& names
+                        , std::vector<std::string> const& values);
 private:
     std::map<std::string, std::string> _parameters;
 };
@@ -157,7 +157,11 @@ struct MultiPart
         _data.clear();
     }
 
-    enum TransferResult {transfer_none, tranfer_formdata, transfer_file_memory, transfer_file_saved};
+    enum TransferResult
+    {
+        transfer_none, tranfer_formdata,
+        transfer_file_memory, transfer_file_saved
+    };
 
     TransferResult GetTransferResult() const
     {
@@ -328,7 +332,8 @@ public:
     std::string const& GetUrlParameter(std::string const& name) const;
     OptionalStringRefConst TryGetUrlParameter(std::string const& name) const;
 
-    void InitPathParameters(std::vector<std::string> const& names, std::vector<std::string> const& values)
+    void InitPathParameters(std::vector<std::string> const& names
+                            , std::vector<std::string> const& values)
     {
         _path_parameters.InitParameters(names, values);
     }
@@ -340,10 +345,6 @@ public:
     std::string const& GetPathParameter(std::string const& name) const
     {
         return _path_parameters.Get(name);
-    }
-    std::string const& GetPathParameter(size_t index) const
-    {
-        return _path_parameters.Get(index);
     }
     OptionalStringRefConst TryGetPathParameter(std::string const& name) const
     {
