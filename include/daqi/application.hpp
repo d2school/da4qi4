@@ -35,6 +35,15 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
+struct ApplicationDirectories
+{
+    std::string log_dir;
+    std::string static_dir;
+    std::string template_dir;
+    std::string temporary_dir;
+    std::string upload_dir;
+};
+
 class Application;
 using ApplicationPtr = std::shared_ptr<Application>;
 
@@ -71,6 +80,14 @@ public:
                                               root_url, root_log, root_static,
                                               root_template, root_upload,
                                               root_temporary));
+    }
+
+    static ApplicationPtr Customize(std::string const& name, std::string const& url
+                                    , ApplicationDirectories const& ads)
+    {
+        return Customize(name, url
+                         , ads.log_dir, ads.static_dir, ads.template_dir
+                         ,  ads.upload_dir, ads.temporary_dir);
     }
 
     ~Application();

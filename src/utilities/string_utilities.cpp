@@ -18,7 +18,7 @@ namespace da4qi4
 namespace Utilities
 {
 
-std::string theEmptyString;
+std::string const theEmptyString;
 
 bool IgnoreCaseCompare::operator()(std::string const& l, std::string const& r) const
 {

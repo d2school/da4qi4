@@ -218,7 +218,7 @@ struct FormDataItem
     }
 };
 
-struct Application;
+class Application;
 struct UploadFileSaveOptions;
 
 struct UploadFile

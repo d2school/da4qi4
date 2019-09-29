@@ -72,7 +72,11 @@ bool ApplicationMgr::MountApplication(ApplicationPtr app)
     }
 
     assert(!app->GetName().empty());
-    assert(app->GetLogger() != nullptr);
+
+    if (app->GetLogger() == nullptr)
+    {
+        app->Init();
+    }
 
     if (!IsExists(app->GetName()))
     {
@@ -135,7 +139,7 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 
     auto u = _map.upper_bound(url);
 
-    for (auto it = ++l; it != u && it != _map.end(); ++it)
+    for (auto it = ++l; it != u; ++it)
     {
         if (Utilities::iStartsWith(url, it->first))
         {
@@ -152,7 +156,7 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 
 ApplicationPtr ApplicationMgr::FindByName(std::string const& name)
 {
-    for (auto a : _map)
+    for (auto& a : _map)
     {
         if (a.second->GetName() == name)
         {
@@ -174,7 +178,7 @@ ApplicationPtr ApplicationMgr::FindByName(std::string const& name)
 
 ApplicationPtr const ApplicationMgr::FindByName(std::string const& name) const
 {
-    for (auto a : _map)
+    for (auto const& a : _map)
     {
         if (a.second->GetName() == name)
         {
@@ -216,7 +220,7 @@ void ApplicationMgr::Mount()
 {
     _mounted = true;
 
-    for (auto a : _map)
+    for (auto& a : _map)
     {
         a.second->Mount();
     }
@@ -224,7 +228,7 @@ void ApplicationMgr::Mount()
 
 void ApplicationMgr::CheckTemplatesUpdate()
 {
-    for (auto a : _map)
+    for (auto& a : _map)
     {
         if (!a.second->GetTemplates().ReloadIfFindUpdate())
         {

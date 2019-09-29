@@ -169,9 +169,9 @@ bool Templates::Preload(log::LoggerPtr app_logger)
 
     try
     {
-        auto count = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        auto counts = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
         _loaded_time = std::time(nullptr);
-        app_logger->info("Templates loaded. {} success, {} fail.", count.first, count.second);
+        app_logger->info("Templates loaded. {} success, {} fail.", counts.first, counts.second);
 
         return true;
     }

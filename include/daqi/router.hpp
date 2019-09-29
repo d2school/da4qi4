@@ -252,4 +252,8 @@ private:
 
 } //namespace da4qi4
 
+da4qi4::router_equals operator "" _da4qi4_router_equals(char const* str, std::size_t n);
+da4qi4::router_starts operator "" _da4qi4_router_starts(char const* str, std::size_t n);
+da4qi4::router_regex operator "" _da4qi4_router_regex(char const*  str, std::size_t n);
+
 #endif // DAQI_ROUTER_HPP

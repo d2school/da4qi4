@@ -275,16 +275,18 @@ public:
 public:
     void ReplyStatus(int code, std::string body = EmptyBody());
 
-    void ReplyOk(std::string body = EmptyBody());
+    void ReplyOk();
+    void ReplyOk(const char* body);
+    void ReplyOk(std::string body);
     void ReplyOk(Json const& result);
 
-    void ReplyOkJSON(std::string body = EmptyBody(),
+    void ReplyOkJSON(std::string json_string,
                      std::string const& content_type = "application/json",
                      std::string const& content_encoding = "utf-8")
     {
         this->SetContentEncoding(content_encoding);
         this->SetContentType(content_type);
-        ReplyOk(body);
+        ReplyOk(json_string);
     }
 
     void ReplyContinue()

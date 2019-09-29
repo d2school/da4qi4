@@ -24,7 +24,7 @@ public:
     static Ptr Supply(unsigned short port, size_t thread_count);
 
     static Ptr Supply(std::string const& host, unsigned short port);
-    static Ptr Supply(unsigned short port);
+    static Ptr Supply(unsigned short port = 80);
 
     ~Server();
 
@@ -76,6 +76,10 @@ public:
     ApplicationPtr AddHandler(HandlerMethods ms, router_equals r, Handler h);
     ApplicationPtr AddHandler(HandlerMethods ms, router_starts r, Handler h);
     ApplicationPtr AddHandler(HandlerMethods ms, router_regex r, Handler h);
+
+    bool AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+    bool AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
+    bool AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h);
 
 public:
     ApplicationPtr PrepareApp(std::string const& url);

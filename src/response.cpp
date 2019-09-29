@@ -329,6 +329,18 @@ void Response::ReplyStatus(int code, std::string body)
     set_or_default_body(std::move(body));
 }
 
+void Response::ReplyOk()
+{
+    return ReplyOk(nullptr);
+}
+
+void Response::ReplyOk(const char* body)
+{
+    _status_code = HTTP_STATUS_OK;
+    std::string s = (body ? std::string(body) : EmptyBody());
+    set_or_default_body(std::move(s));
+}
+
 void Response::ReplyOk(std::string body)
 {
     _status_code = HTTP_STATUS_OK;

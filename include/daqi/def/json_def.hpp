@@ -9,7 +9,7 @@ namespace da4qi4
 {
 
 using Json = nlohmann::json;
-extern Json theNullJson;
+extern Json const theNullJson;
 
 namespace Valuetool
 {

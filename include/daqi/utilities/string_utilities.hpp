@@ -11,7 +11,7 @@ namespace da4qi4
 namespace Utilities
 {
 
-extern std::string theEmptyString;
+extern std::string const theEmptyString;
 
 extern char const* dt_fmt_gmt;
 extern char const* dt_fmt_yyyy_mm_dd_hh_mm_ss;

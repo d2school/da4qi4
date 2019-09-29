@@ -4,7 +4,7 @@
 namespace da4qi4
 {
 
-extern unsigned short int redis_server_default_port;
+extern unsigned short int const redis_server_default_port;
 extern char const* const redis_server_default_host;
 
 } //namespace da4qi4

@@ -8,7 +8,7 @@ namespace da4qi4
 Cookie& Cookie::SetExpires(std::time_t a_time_point)
 {
     std::time_t now(std::time(nullptr));
-    _max_age = a_time_point - now;
+    _max_age = static_cast<int>(a_time_point - now);
     return *this;
 }
 

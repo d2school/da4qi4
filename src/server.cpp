@@ -150,6 +150,46 @@ ApplicationPtr Server::AddHandler(HandlerMethods ms, router_regex r, Handler h)
     return ServerAddHandler(this, ms, r, h);
 }
 
+bool Server::AddEqualsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_equals(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Server::AddStartsRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_starts(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Server::AddRegexRouter(HandlerMethod m, std::vector<std::string> const& urls, Handler h)
+{
+    for (auto a : urls)
+    {
+        if (!AddHandler(m, router_regex(a), h))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 ApplicationPtr Server::PrepareApp(std::string const& url)
 {
     make_default_app_if_need();
