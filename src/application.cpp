@@ -148,7 +148,6 @@ ApplicationPtr ApplicationMgr::FindByURL(std::string const& url)
 #ifdef NDEBUG
     return _abortive_app;
 #else
-    log::Server()->debug("No found application for {}.", url);
     return nullptr;
 #endif
 }
@@ -666,9 +665,6 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
         ctx->InitRequestPathParameters(rrr.parameters, rrr.values);
         return rrr.handler;
     }
-
-    log::Server()->debug("No found handler for {} on app-root_url {}. application {}.", url,
-                         this->_root_url, this->_name);
 
     return nullptr;
 }
