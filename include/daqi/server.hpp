@@ -2,6 +2,7 @@
 #define DAQI_SERVER_HPP
 
 #include <atomic>
+#include <list>
 
 #include <boost/asio/deadline_timer.hpp>
 
@@ -14,10 +15,14 @@
 namespace da4qi4
 {
 
+extern int const _detect_templates_interval_seconds_;
+
 class Server
 {
     Server(Tcp::endpoint endpoint, size_t thread_count);
 public:
+    using IdleFunction = std::function<void (void)>;
+
     using Ptr = std::unique_ptr<Server>;
 
     static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count);
@@ -37,13 +42,27 @@ public:
     void Stop();
 
 public:
-    void EnableIdleTimer(std::size_t interval_seconds = 0);
-    void DisableIdleTimer();
-    void SetIdleTimerInterval(std::size_t seconds = 20);
+    void PauseIdleTimer();
+    void ResumeIdleTimer();
 
-    void EnableDetectTemplates()
+    bool IsIdleTimerRunning() const
     {
+        return _idle_running;
+    }
+
+    void EnableDetectTemplates(int interval_seconds = _detect_templates_interval_seconds_)
+    {
+        assert(interval_seconds > 0);
+
+        _detect_templates_status.interval_seconds = interval_seconds;
+        _detect_templates_status.next_timepoint = std::time(nullptr) + interval_seconds;
+
         _detect_templates = true;
+
+        if (_running && !_idle_running)
+        {
+            ResumeIdleTimer();
+        }
     }
 
     void DisableDetectTemplates()
@@ -55,6 +74,8 @@ public:
     {
         return _detect_templates;
     }
+
+    void AppendIdleFunction(int interval_seconds, IdleFunction func);
 
 public:
     bool Mount(ApplicationPtr app);
@@ -88,24 +109,53 @@ private:
     void start_accept();
     void do_accept();
     void do_stop();
+
 private:
     void make_default_app_if_need();
 
     void start_idle_timer();
     void on_idle_timer(errorcode const& ec);
     void stop_idle_timer();
+
 private:
+    int _idle_interval_seconds;
+
+private:
+    std::atomic_bool _running;
     std::atomic_bool _stopping;
 
     IOContextPool _ioc_pool;
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
 
-    static int const _defalut_idle_interval_seconds_ = 25;
+    std::atomic_bool _idle_running;
 
     std::atomic_bool _detect_templates;
-    int _idle_interval_seconds;
     boost::asio::deadline_timer _idle_timer;
+
+    struct IdleFunctionStatus
+    {
+        IdleFunctionStatus()
+            : interval_seconds(0), next_timepoint(static_cast<std::time_t>(0))
+        {}
+
+        IdleFunctionStatus(IdleFunctionStatus const&) = default;
+
+        IdleFunctionStatus(int interval_seconds, IdleFunction func)
+            : interval_seconds(interval_seconds),
+              next_timepoint(std::time(nullptr) + interval_seconds), func(func)
+        {}
+
+        int interval_seconds;
+        std::time_t next_timepoint;
+        IdleFunction func;
+    };
+
+    IdleFunctionStatus _detect_templates_status;
+    std::list<IdleFunctionStatus> _idle_functions;
+
+private:
+    static int call_idle_function_if_timeout(std::time_t now, IdleFunctionStatus& status);
 };
 
 }

@@ -12,13 +12,22 @@
 namespace da4qi4
 {
 
+#ifdef NDEBUG
+    int const _detect_templates_interval_seconds_ =  15 * 60; //15 minutes
+#else
+    int const _detect_templates_interval_seconds_ =  1 * 60;  //1 minutes
+#endif
+
+int const _first_idle_interval_seconds_ = 10;            //10 seconds
+
 Server::Server(Tcp::endpoint endpoint, size_t thread_count)
-    : _stopping(false)
+    : _idle_interval_seconds(_first_idle_interval_seconds_)
+    , _running(false), _stopping(false)
     , _ioc_pool(thread_count)
     , _acceptor(_ioc_pool.GetIOContext())
     , _signals(_ioc_pool.GetIOContext())
+    , _idle_running(false)
     , _detect_templates(false)
-    , _idle_interval_seconds(_defalut_idle_interval_seconds_)
     , _idle_timer(_ioc_pool.GetIOContext())
 {
     _signals.add(SIGINT);
@@ -80,9 +89,21 @@ bool Server::Mount(ApplicationPtr app)
 
 void Server::Run()
 {
+    assert(!_running);
+
+    if (_running)
+    {
+        log::Server()->critical("Server is running already.");
+        return;
+    }
+
+    _running = true;
+
     AppMgr().Mount();
 
+    _idle_running = true;
     start_idle_timer();
+
     start_accept();
 
     _ioc_pool.Run();
@@ -189,6 +210,13 @@ bool Server::AddRegexRouter(HandlerMethod m, std::vector<std::string> const& url
     return true;
 }
 
+void Server::AppendIdleFunction(int interval_seconds, IdleFunction func)
+{
+    assert(!_idle_running && "Idle-function is running.");
+    assert(interval_seconds > 0);
+
+    _idle_functions.emplace_back(interval_seconds, func);
+}
 
 ApplicationPtr Server::PrepareApp(std::string const& url)
 {
@@ -258,17 +286,49 @@ void Server::do_stop()
 
 void Server::start_idle_timer()
 {
+    if (!_idle_running)
+    {
+        return;
+    }
+
     errorcode ec;
     _idle_timer.expires_from_now(boost::posix_time::seconds(_idle_interval_seconds), ec);
 
     if (ec)
     {
         log::Server()->error("Idle timer set expires fail.");
+        return;
     }
-    else
+
+    _idle_timer.async_wait(std::bind(&Server::on_idle_timer, this, std::placeholders::_1));
+}
+
+void appmgr_check_templates_update()
+{
+    AppMgr().CheckTemplatesUpdate();
+}
+
+int Server::call_idle_function_if_timeout(std::time_t now, IdleFunctionStatus& status)
+{
+    int distance_seconds = static_cast<int>(status.next_timepoint - now);
+
+    if (distance_seconds <= 0)
     {
-        _idle_timer.async_wait(std::bind(&Server::on_idle_timer, this
-                                         , std::placeholders::_1));
+        status.func();
+
+        now = std::time(nullptr);
+        status.next_timepoint = now + status.interval_seconds;
+        return status.interval_seconds;
+    }
+
+    return distance_seconds;
+}
+
+void update_min_distance_seconds(int& min_distance_seconds, int a_distance_seconds)
+{
+    if (min_distance_seconds <= 0 || min_distance_seconds > a_distance_seconds)
+    {
+        min_distance_seconds = a_distance_seconds;
     }
 }
 
@@ -281,16 +341,46 @@ void Server::on_idle_timer(errorcode const& ec)
             log::Server()->error("Idle timer exception. {}", ec.message());
         }
 
+        _idle_running = false;
         return;
     }
 
+    std::time_t now = std::time(nullptr);
+    int min_distance_seconds = -1;
+
     if (_detect_templates)
     {
-        AppMgr().CheckTemplatesUpdate();
+        if (!_detect_templates_status.func)
+        {
+            _detect_templates_status.func = appmgr_check_templates_update;
+        }
+
+        if (_detect_templates_status.interval_seconds <= 0)
+        {
+            _detect_templates_status.interval_seconds = _detect_templates_interval_seconds_;
+        }
+
+        update_min_distance_seconds(min_distance_seconds,
+                                    call_idle_function_if_timeout(now, _detect_templates_status));
     }
 
-    if (_idle_interval_seconds > 0)
+    for (auto& ss : _idle_functions)
     {
+        update_min_distance_seconds(min_distance_seconds,
+                                    call_idle_function_if_timeout(now, ss));
+    }
+
+    if (min_distance_seconds <= 0)
+    {
+        _idle_running = false;
+    }
+    else
+    {
+        if (_idle_interval_seconds != min_distance_seconds)
+        {
+            _idle_interval_seconds = min_distance_seconds;
+        }
+
         start_idle_timer();
     }
 }
@@ -298,6 +388,7 @@ void Server::on_idle_timer(errorcode const& ec)
 void Server::stop_idle_timer()
 {
     errorcode ec;
+
     _idle_timer.cancel(ec);
 
     if (ec)
@@ -306,55 +397,23 @@ void Server::stop_idle_timer()
     }
 }
 
-void Server::EnableIdleTimer(std::size_t interval_seconds)
+void Server::PauseIdleTimer()
 {
-    if (interval_seconds > 24 * 60 * 60)
+    if (_idle_running)
     {
-        interval_seconds = 24 * 60 * 60;
+        _idle_running = false;
     }
-    else if (interval_seconds == 0)
+}
+
+void Server::ResumeIdleTimer()
+{
+    if (_idle_running)
     {
-        if (_idle_interval_seconds < 0)
-        {
-            _idle_interval_seconds *= -1;
-        }
-        else if (_idle_interval_seconds  == 0)
-        {
-            _idle_interval_seconds = _defalut_idle_interval_seconds_;
-        }
-    }
-    else
-    {
-        _idle_interval_seconds  = static_cast<int>(interval_seconds);
+        return;
     }
 
-    stop_idle_timer();
+    _idle_running = true;
     start_idle_timer();
 }
-
-void Server::DisableIdleTimer()
-{
-    if (_idle_interval_seconds > 0)
-    {
-        _idle_interval_seconds *= -1;
-    }
-}
-
-void Server::SetIdleTimerInterval(std::size_t seconds)
-{
-    if (seconds > 24 * 60 * 60)
-    {
-        seconds = 24 * 60 * 60;
-    }
-
-    bool is_stopped = _idle_interval_seconds < 0;
-    _idle_interval_seconds = static_cast<int>(seconds);
-
-    if (is_stopped && _idle_interval_seconds > 0)
-    {
-        start_idle_timer();
-    }
-}
-
 
 }//namespace da4qi4
