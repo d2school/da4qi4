@@ -11,7 +11,6 @@
 
 namespace da4qi4
 {
-
 void init_template_env(inja::Environment& env);
 
 using TemplatesEnv = inja::Environment;
