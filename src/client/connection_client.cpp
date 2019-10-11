@@ -372,7 +372,8 @@ void Connection::do_read(NotifyFunction notify)
             return;
         }
 
-        auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data(), bytes_transferred);
+        auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data()
+                                                                         , bytes_transferred);
 
         if (parsed != bytes_transferred || _parser->http_errno)
         {
