@@ -21,10 +21,15 @@ std::vector<Tcp::endpoint> from_http_host_sync(std::string const& host, IOC& ioc
                                                , std::string& exception);
 
 using HostResolveHandler = std::function<void (errorcode const& ec,  Tcp::resolver::results_type)>;
+
 void from_host(std::string const& host
-               , std::string const& service //http ? https?
+               , std::string const& service //http ? https? or port numbers
                , Tcp::resolver& resolver, HostResolveHandler handler);
 
+Tcp::resolver::results_type from_host(std::string const& host
+                                      , std::string const& service //http ? https? or port numbers
+                                      , Tcp::resolver& resolver
+                                      , errorcode& ec);
 } //namespace Utilities
 } //namespace da4qi4
 

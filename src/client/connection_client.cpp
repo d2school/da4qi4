@@ -3,6 +3,7 @@
 #include "daqi/utilities/asio_utilities.hpp"
 
 #include <iostream>
+#include <condition_variable>
 
 namespace da4qi4
 {
@@ -35,10 +36,34 @@ void Socket::async_read_some(ReadBuffer& read_buffer,
     _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
-void Socket::async_write(char* const write_buffer, std::size_t size,
+void Socket::async_write(char const* write_buffer, std::size_t size,
                          std::function<void (errorcode const&, std::size_t)> on_write)
 {
     boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), on_write);
+}
+
+errorcode Socket::sync_connect(Tcp::endpoint const& ep)
+{
+    errorcode ec;
+    _socket.connect(ep, ec);
+    return ec;
+}
+
+errorcode Socket::sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred)
+{
+    errorcode ec;
+    bytes_transferred = _socket.read_some(boost::asio::buffer(read_buffer), ec);
+    return ec;
+}
+
+errorcode Socket::sync_write(char const* write_buffer, std::size_t write_buffer_size
+                             , std::size_t& bytes_transferred)
+{
+    errorcode ec;
+    bytes_transferred = boost::asio::write(_socket
+                                           , boost::asio::buffer(write_buffer, write_buffer_size)
+                                           , ec);
+    return ec;
 }
 
 void Socket::close(errorcode& ec)
@@ -73,10 +98,35 @@ void SocketWithSSL::async_read_some(ReadBuffer& read_buffer,
     _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
-void SocketWithSSL::async_write(char* const write_buffer, std::size_t size,
+void SocketWithSSL::async_write(char const*  write_buffer, std::size_t size,
                                 std::function<void (errorcode const&, std::size_t)> on_write)
 {
     boost::asio::async_write(_stream, boost::asio::buffer(write_buffer, size), on_write);
+}
+
+errorcode SocketWithSSL::sync_connect(Tcp::endpoint const& ep)
+{
+    errorcode ec;
+    _stream.lowest_layer().connect(ep, ec);
+    return ec;
+}
+
+errorcode SocketWithSSL::sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred)
+{
+    errorcode ec;
+    bytes_transferred = _stream.read_some(boost::asio::buffer(read_buffer), ec);
+    return ec;
+}
+
+errorcode SocketWithSSL::sync_write(const char* write_buffer
+                                    , std::size_t write_buffer_size
+                                    , std::size_t& bytes_transferred)
+{
+    errorcode ec;
+    bytes_transferred = boost::asio::write(_stream
+                                           , boost::asio::buffer(write_buffer, write_buffer_size)
+                                           , ec);
+    return ec;
 }
 
 void SocketWithSSL::close(errorcode& ec)
@@ -268,12 +318,45 @@ Connection& Connection::SetBody(std::string body, BodySetAction action)
     return *this;
 }
 
+namespace
+{
+std::string const default_http_services [] = {"http", "https"};
+}
+
+errorcode Connection::do_resolver()
+{
+    errorcode ec;
+
+    auto results = Utilities::from_host(_server
+                                        , (_service.empty()
+                                           ? default_http_services[_with_ssl ? 1 : 0] : _service)
+                                        , _resolver
+                                        , ec);
+
+    if (ec)
+    {
+        _error = Error::on_resolver;
+        _error_msg = "Resolver host address exception.";
+        return ec;
+    }
+
+    if (results.empty())
+    {
+        _error = Error::on_resolver;
+        _error_msg = "Resolver host address got a empty results.";
+    }
+    else
+    {
+        this->_server_endpoint = *results.cbegin();
+    }
+
+    return ec;
+}
+
 void Connection::do_resolver(NotifyFunction notify)
 {
-    static std::string const http_services [] = {"http", "https"};
-
     Utilities::from_host(_server
-                         , (_service.empty() ? http_services[_with_ssl ? 1 : 0] : _service)
+                         , (_service.empty() ? default_http_services[_with_ssl ? 1 : 0] : _service)
                          , _resolver
                          , [this, notify](errorcode const & ec, Tcp::resolver::results_type results)
     {
@@ -288,15 +371,37 @@ void Connection::do_resolver(NotifyFunction notify)
         if (results.empty())
         {
             _error = Error::on_resolver;
-            _error_msg = "Resolver host address fail.";
+            _error_msg = "Resolver host address got a empty results.";
             notify(ec);
             return;
         }
 
         this->_server_endpoint = *results.cbegin();
-
         this->do_connect(notify);
     });
+}
+
+errorcode Connection::do_connect()
+{
+    if (_is_connected)
+    {
+        return errorcode();
+    }
+
+    auto ec = _socket_ptr->sync_connect(this->_server_endpoint);
+
+    if (!ec)
+    {
+        _is_connected = true;
+        reset();
+    }
+    else
+    {
+        _error = Error::on_connect;
+        _error_msg = "Connect to server fail. " + ec.message();
+    }
+
+    return ec;
 }
 
 void Connection::do_connect(NotifyFunction notify)
@@ -326,9 +431,10 @@ void Connection::do_connect(NotifyFunction notify)
     });
 }
 
-void Connection::do_write(NotifyFunction notify)
+std::string Connection::make_request_buffer()
 {
     std::stringstream os;
+
     os << _method << ' ' << _uri << " HTTP/" << _http_version << "\r\n"
        << "Host:" << _server << "\r\n";
 
@@ -344,7 +450,28 @@ void Connection::do_write(NotifyFunction notify)
         os << _request_body;
     }
 
-    std::string request_buffer = os.str();
+    return os.str();
+}
+
+errorcode Connection::do_write(std::size_t& bytes_transferred)
+{
+    auto request_buffer = make_request_buffer();
+
+    auto ec = _socket_ptr->sync_write(request_buffer.c_str(), request_buffer.size()
+                                      , bytes_transferred);
+
+    if (ec)
+    {
+        _error = Error::on_write;
+        _error_msg = "Write to server fail. " + ec.message();
+    }
+
+    return ec;
+}
+
+void Connection::do_write(NotifyFunction notify)
+{
+    auto request_buffer = make_request_buffer();
 
     _socket_ptr->async_write(request_buffer.data(), request_buffer.size(),
                              [this, notify](errorcode const & ec, size_t /*bytes_transferred*/)
@@ -357,6 +484,40 @@ void Connection::do_write(NotifyFunction notify)
 
         notify(ec);
     });
+}
+
+errorcode Connection::do_read(std::size_t& bytes_transferred)
+{
+    bytes_transferred = 0;
+
+    do
+    {
+        std::size_t read = 0;
+        errorcode ec = _socket_ptr->sync_read_some(_read_buffer, read);
+        bytes_transferred += read;
+
+        if (ec)
+        {
+            _error = Error::on_read;
+            _error_msg = "Read from server fail. " + ec.message();
+            return ec;
+        }
+
+        auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data()
+                                          , read);
+
+        if (parsed != read || _parser->http_errno)
+        {
+            _error = Error::on_read;
+            _error_msg = "Parse response content error. "
+                         + std::to_string(_parser->http_errno) + ".";
+            return ec;
+        }
+
+    }
+    while (_read_complete != read_message_complete);
+
+    return errorcode();
 }
 
 void Connection::do_read(NotifyFunction notify)
@@ -373,7 +534,7 @@ void Connection::do_read(NotifyFunction notify)
         }
 
         auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data()
-                                                                         , bytes_transferred);
+                                          , bytes_transferred);
 
         if (parsed != bytes_transferred || _parser->http_errno)
         {
@@ -526,14 +687,42 @@ void Connection::Connect(NotifyFunction notify)
     });
 }
 
+bool Connection::ConnectSync()
+{
+    if (!this->_server_endpoint.port())
+    {
+        auto ec = this->do_resolver();
+
+        if (ec || HasError())
+        {
+            return false;
+        }
+    }
+
+    auto ec = this->do_connect();
+    return (!ec && !HasError());
+}
+
 void Connection::Write(NotifyFunction notify)
 {
     do_write(notify);
 }
 
+bool Connection::WriteSync(std::size_t& bytes_transferred)
+{
+    auto ec = do_write(bytes_transferred);
+    return (!ec && !this->HasError());
+}
+
 void Connection::Read(NotifyFunction notify)
 {
     do_read(notify);
+}
+
+bool Connection::ReadSync(std::size_t& bytes_transferred)
+{
+    auto ec = do_read(bytes_transferred);
+    return (!ec && !this->HasError());
 }
 
 void Connection::Request(NotifyFunction notify, ActionAfterRequest action)
@@ -567,6 +756,29 @@ void Connection::Request(NotifyFunction notify, ActionAfterRequest action)
     });
 }
 
+bool Connection::RequestSync(std::size_t& bytes_wrote, std::size_t& bytes_read
+                             , ActionAfterRequest action)
+{
+    bytes_wrote = 0;
+    bytes_read = 0;
+
+    if (!this->_is_connected)
+    {
+        if (!this->ConnectSync())
+        {
+            return false;
+        }
+    }
+
+    auto success = (this->WriteSync(bytes_wrote) && this->ReadSync(bytes_read));
+
+    if (action == ActionAfterRequest::close_connection)
+    {
+        this->do_close();
+    }
+
+    return success;
+}
 
 } // namespace Client
 } // namespace da4qi4

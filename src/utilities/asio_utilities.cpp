@@ -55,5 +55,15 @@ void from_host(std::string const& host,  std::string const& service,
     resolver.async_resolve(query, handler);
 }
 
+Tcp::resolver::results_type from_host(std::string const& host
+                                      , std::string const& service
+                                      , Tcp::resolver& resolver
+                                      , errorcode& ec)
+{
+    Tcp::resolver::query query(host, service);
+    return resolver.resolve(query, ec);
+}
+
+
 } //namespace Utilities
 } //namespace da4qi4

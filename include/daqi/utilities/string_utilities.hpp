@@ -72,6 +72,8 @@ std::string TrimOnOptionsCopy(std::string const& m, TrimOptions opt);
 
 std::string GetUUID(std::string const& prefix = theEmptyString);
 
+std::string DecIntToHexStr(std::size_t num);
+
 } //namespace Utilities
 } //namespace da4qi4
 

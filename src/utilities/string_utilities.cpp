@@ -191,6 +191,34 @@ std::string GetUUID(const std::string& prefix)
     return ss.str();
 }
 
+std::string DecIntToHexStr(std::size_t num)
+{
+    std::string remainders;
+    size_t quotient = num, remainder;
+
+    do
+    {
+        remainder = quotient % 16;
+        quotient = quotient / 16;
+
+        char c = (remainder < 10) ? static_cast<char>('0' + remainder)
+                 : static_cast<char>('A' + remainder - 10);
+
+        remainders.push_back(c);
+    }
+    while (quotient > 0);
+
+    std::string hex_str;
+    hex_str.reserve(remainders.length());
+
+    for (size_t i = remainders.length(); i > 0; --i)
+    {
+        hex_str.push_back(remainders[i - 1]);
+    }
+
+    return hex_str;
+}
+
 } //namespace Utilities
 } //namespace da4qi4
 

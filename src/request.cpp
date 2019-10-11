@@ -13,6 +13,7 @@
 #include "daqi/utilities/string_utilities.hpp"
 #include "daqi/utilities/file_utilities.hpp"
 #include "daqi/utilities/html_utilities.hpp"
+#include "daqi/utilities/http_utilities.hpp"
 
 #include "daqi/application.hpp"
 

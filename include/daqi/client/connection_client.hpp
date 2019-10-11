@@ -9,7 +9,10 @@
 #include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"
 #include "daqi/def/asio_def.hpp"
+
+#include "daqi/utilities/http_utilities.hpp"
 #include "daqi/utilities/string_utilities.hpp"
+#include "daqi/utilities/html_utilities.hpp"
 
 namespace da4qi4
 {
@@ -25,11 +28,20 @@ struct SocketBase
 {
     virtual ~SocketBase();
 
-    virtual void async_connect(Tcp::endpoint const&, std::function<void (errorcode const&)>) = 0;
+    virtual void async_connect(Tcp::endpoint const&
+                               , std::function<void (errorcode const&)>) = 0;
 
-    virtual void async_read_some(ReadBuffer&, std::function<void (errorcode const&, std::size_t)>) = 0;
+    virtual void async_read_some(ReadBuffer&
+                                 , std::function<void (errorcode const&, std::size_t)>) = 0;
 
-    virtual void async_write(char* const, std::size_t, std::function<void (errorcode const&, std::size_t)>) = 0;
+    virtual void async_write(char const*, std::size_t
+                             , std::function<void (errorcode const&, std::size_t)>) = 0;
+
+
+    virtual errorcode sync_connect(Tcp::endpoint const&) = 0;
+    virtual errorcode sync_read_some(ReadBuffer&, std::size_t& bytes_transferred) = 0;
+    virtual errorcode sync_write(char const* write_buffer, std::size_t write_buffer_size
+                                 , std::size_t& bytes_transferred) = 0;
 
     virtual void close(errorcode& ec) = 0;
 
@@ -50,8 +62,13 @@ struct Socket : SocketBase
                        std::function<void (errorcode const& ec)> on_connect) override;
     void async_read_some(ReadBuffer& read_buffer,
                          std::function<void (errorcode const&, std::size_t)> on_read) override;
-    void async_write(char* const write_buffer, std::size_t size,
+    void async_write(char const* write_buffer, std::size_t size,
                      std::function<void (errorcode const&, std::size_t)> on_write) override;
+
+    errorcode sync_connect(Tcp::endpoint const& ep) override;
+    errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
+    errorcode sync_write(char const* write_buffer, std::size_t write_buffer_size
+                         , std::size_t& bytes_transferred) override;
 
     void close(errorcode& ec) override;
 
@@ -68,14 +85,19 @@ struct SocketWithSSL : SocketBase
 
     ~SocketWithSSL() override;
 
+    Tcp::socket& get_socket() override;
+
     void async_connect(Tcp::endpoint const& ep,
                        std::function<void (errorcode const& ec)> on_connect) override;
     void async_read_some(ReadBuffer& read_buffer,
                          std::function<void (errorcode const&, std::size_t)> on_read) override;
-    void async_write(char* const write_buffer, std::size_t size,
+    void async_write(char const* write_buffer, std::size_t size,
                      std::function<void (errorcode const&, std::size_t)> on_write) override;
 
-    Tcp::socket& get_socket() override;
+    errorcode sync_connect(Tcp::endpoint const& ep) override;
+    errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
+    errorcode sync_write(char const* write_buffer, std::size_t write_buffer_size
+                         , std::size_t& bytes_transferred) override;
 
     void close(errorcode& ec) override;
 
@@ -139,7 +161,7 @@ public:
     ~Connection();
 
 public:
-    enum class Error {on_none,
+    enum class Error {on_none = 0,
                       on_resolver,
                       on_connect,
                       on_write,
@@ -172,11 +194,25 @@ public:
 
     void Read(NotifyFunction notify);
 
+    enum class ActionAfterRequest { keep_connection, close_connection };
+    void Request(NotifyFunction notify
+                 , ActionAfterRequest action = ActionAfterRequest::keep_connection);
+public:
+    bool ConnectSync();
+    bool WriteSync(std::size_t& bytes_transferred);
+    bool ReadSync(std::size_t& bytes_transferred);
+    bool RequestSync(std::size_t& bytes_wrote, std::size_t& bytes_read
+                     , ActionAfterRequest action = ActionAfterRequest::keep_connection);
+
+    bool RequestSync(ActionAfterRequest action = ActionAfterRequest::keep_connection)
+    {
+        std::size_t w(0), r(0);
+        return RequestSync(w, r, action);
+    }
+
+public:
     void Reset();
     void Close();
-
-    enum class ActionAfterRequest { keep_connection, close_connection };
-    void Request(NotifyFunction notify, ActionAfterRequest action = ActionAfterRequest::keep_connection);
 
 public:
     IOC& GetIOC()
@@ -230,6 +266,11 @@ public:
         return _response_body;
     }
 
+    bool HasError() const
+    {
+        return _error != Error::on_none;
+    }
+
     Error GetError() const
     {
         return this->_error;
@@ -251,11 +292,18 @@ public:
     }
 
 private:
+    std::string make_request_buffer();
+
     void do_resolver(NotifyFunction notify);
     void do_connect(NotifyFunction notify);
 
     void do_write(NotifyFunction notify);
     void do_read(NotifyFunction notify);
+
+    errorcode do_resolver();
+    errorcode do_connect();
+    errorcode do_write(std::size_t& bytes_transferred);
+    errorcode do_read(std::size_t& bytes_transferred);
 
     void do_close();
 
