@@ -92,16 +92,39 @@ Tcp::socket& SocketWithSSL::get_socket()
 
 } // namespace detail
 
+namespace
+{
+std::string port_to_service(unsigned short port)
+{
+    return std::to_string(port);
+}
+}
+
 Connection::Connection(IOC& ioc, std::string const& server)
     : _with_ssl(false), _ioc(ioc), _resolver(ioc),
       _socket_ptr(new detail::Socket(ioc)),
       _parser(new http_parser), _server(server),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
-    this->init_parser();
-    this->init_parser_setting();
+    init();
+}
 
-    ResetHeaders();
+Connection::Connection(IOC& ioc, std::string const& server, std::string const& service)
+    : _with_ssl(false), _ioc(ioc), _resolver(ioc),
+      _socket_ptr(new detail::Socket(ioc)),
+      _parser(new http_parser), _server(server), _service(service),
+      _method("GET"), _uri("/"), _http_version("1.1")
+{
+    init();
+}
+
+Connection::Connection(IOC& ioc, std::string const& server, unsigned short port)
+    : _with_ssl(false), _ioc(ioc), _resolver(ioc),
+      _socket_ptr(new detail::Socket(ioc)),
+      _parser(new http_parser), _server(server), _service(port_to_service(port)),
+      _method("GET"), _uri("/"), _http_version("1.1")
+{
+    init();
 }
 
 Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, const std::string& server)
@@ -110,10 +133,27 @@ Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, const std::stri
       _parser(new http_parser), _server(server),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
-    this->init_parser();
-    this->init_parser_setting();
+    init();
+}
 
-    ResetHeaders();
+Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+                       , const std::string& service)
+    : _with_ssl(true), _ioc(ioc), _resolver(ioc),
+      _socket_ptr(new detail::SocketWithSSL(ioc, ctx)),
+      _parser(new http_parser), _server(server), _service(service),
+      _method("GET"), _uri("/"), _http_version("1.1")
+{
+    init();
+}
+
+Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+                       , unsigned short port)
+    : _with_ssl(true), _ioc(ioc), _resolver(ioc),
+      _socket_ptr(new detail::SocketWithSSL(ioc, ctx)),
+      _parser(new http_parser), _server(server), _service(port_to_service(port)),
+      _method("GET"), _uri("/"), _http_version("1.1")
+{
+    init();
 }
 
 Connection::~Connection()
@@ -122,6 +162,14 @@ Connection::~Connection()
 
     delete _parser;
     delete _socket_ptr;
+}
+
+void Connection::init()
+{
+    this->init_parser();
+    this->init_parser_setting();
+
+    ResetHeaders();
 }
 
 void Connection::Reset()
@@ -222,9 +270,11 @@ Connection& Connection::SetBody(std::string body, BodySetAction action)
 
 void Connection::do_resolver(NotifyFunction notify)
 {
-    static char const* const p_names [] = {"http", "https"};
+    static std::string const http_services [] = {"http", "https"};
 
-    Utilities::from_host(_server, p_names[_with_ssl ? 1 : 0], _resolver
+    Utilities::from_host(_server
+                         , (_service.empty() ? http_services[_with_ssl ? 1 : 0] : _service)
+                         , _resolver
                          , [this, notify](errorcode const & ec, Tcp::resolver::results_type results)
     {
         if (ec)
@@ -244,6 +294,7 @@ void Connection::do_resolver(NotifyFunction notify)
         }
 
         this->_server_endpoint = *results.cbegin();
+
         this->do_connect(notify);
     });
 }

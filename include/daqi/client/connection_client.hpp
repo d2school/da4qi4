@@ -85,12 +85,53 @@ private:
 
 } // namespace detail
 
-class Connection
+class Connection final
     : public std::enable_shared_from_this<Connection>
 {
-public:
     Connection(IOC& ioc, std::string const& server);
+    Connection(IOC& ioc, std::string const& server, std::string const& service);
+    Connection(IOC& ioc, std::string const& server, unsigned short port);
+
     Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server);
+    Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+               , std::string const& service);
+    Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+               , unsigned short port);
+
+public:
+    typedef std::shared_ptr<Connection> Ptr;
+
+    static Ptr Create(IOC& ioc, std::string const& server)
+    {
+        return Ptr(new Connection(ioc, server));
+    }
+
+    static Ptr Create(IOC& ioc, std::string const& server, std::string const& service)
+    {
+        return Ptr(new Connection(ioc, server, service));
+    }
+
+    static Ptr Create(IOC& ioc, std::string const& server, unsigned short port)
+    {
+        return Ptr(new Connection(ioc, server, port));
+    }
+
+    static Ptr Create(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server)
+    {
+        return Ptr(new Connection(ioc, ctx, server));
+    }
+
+    static Ptr Create(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+                      , std::string const& service)
+    {
+        return Ptr(new Connection(ioc, ctx, server, service));
+    }
+
+    Ptr Create(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
+               , unsigned short port)
+    {
+        return Ptr(new Connection(ioc, ctx, server, port));
+    }
 
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
@@ -219,6 +260,7 @@ private:
     void do_close();
 
 private:
+    void init();
     void init_parser();
     void init_parser_setting();
 
@@ -265,6 +307,7 @@ private:
 
 private:
     std::string _server;
+    std::string _service;
     Tcp::endpoint _server_endpoint;
 
     std::string _method;

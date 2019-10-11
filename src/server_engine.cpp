@@ -29,7 +29,7 @@ IOContextPool::IOContextPool(std::size_t pool_size)
 
 void init_srand_seed(int thread_index)
 {
-    unsigned int rand_seed = static_cast<unsigned int>(std::time(nullptr) + thread_index * 10389);
+    unsigned int rand_seed = static_cast<unsigned int>(std::time(nullptr) + thread_index * 13);
     std::srand(rand_seed);
 }
 
