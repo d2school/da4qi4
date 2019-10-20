@@ -520,7 +520,7 @@ std::string const& GetMIMEType(std::string const&  extension)
 
 std::string HTMLEscape(std::string const& s)
 {
-    // & > <  空格 , ' "
+    // & > <  white_space , ' "
     std::string r = ReplaceAll(s, "&", "&amp;");
     r = ReplaceAll(r, ">", "&gt;");
     r = ReplaceAll(r, "<", "&lt;");

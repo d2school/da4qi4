@@ -67,19 +67,19 @@ bool Templates::try_load_template(TemplatesEnv& env
             _templates.insert(std::make_pair(key, std::move(item)));
         }
 
-        _app_logger->info("Template load success. {}=>\"{}\".", key
-                          , remove_template_ext(template_filename));
+        _app_logger->info("Template load success. \"{}\". {}.",
+                          remove_template_ext(template_filename), key);
         return true;
     }
     catch (std::exception const& e)
     {
-        _app_logger->error("Template load exception. {}. \"{}\".", e.what()
-                           , full_template_filename);
+        _app_logger->error("Template load exception. {}. \"{}\". {}.", e.what()
+                           , full_template_filename, key);
         return false;
     }
     catch (...)
     {
-        _app_logger->error("Template load exception. \"{}\".", full_template_filename);
+        _app_logger->error("Template load exception. \"{}\". {}.", full_template_filename, key);
         return false;
     }
 }
