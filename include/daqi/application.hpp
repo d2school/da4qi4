@@ -286,15 +286,22 @@ public:
         return { _intercepters.begin(), _intercepters.end() };
     }
 
+public:
+    std::vector<UniformItem> GetEqualsRouterUniformItems() const;
+    std::vector<UniformItem> GetStartsRouterUniformItems() const;
+    std::vector<UniformRegexItem> GetRegexRouterUniformItems() const;
+
 private:
     bool init_pathes();
     bool init_logger(ActualLogger will_create_logger
                      , log::Level level, size_t max_file_size_kb, size_t max_file_count);
     bool init_templates();
+
 private:
     Handler* find_handler(const Context& ctx, bool& url_exists, bool& unsupport_method
                           , std::string const& retry_path = "");
     void do_handle(Context& ctx);
+
 private:
     EqualsRoutingTable _equalRouter;
     StartsWithRoutingTable _startwithsRouter;
@@ -403,6 +410,8 @@ private:
 };
 
 ApplicationMgr& AppMgr();
+
+void AddDa4Qi4DefaultHandler(ApplicationPtr app);
 
 } // namespace da4qi4
 

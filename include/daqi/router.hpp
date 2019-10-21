@@ -11,6 +11,18 @@
 namespace da4qi4
 {
 
+struct UniformItem
+{
+    UniformItem() = default;
+    UniformItem(std::string const& url_matcher)
+        : url_matcher(url_matcher)
+    {}
+
+    std::string method;
+    std::string url_matcher;
+    std::string template_name;
+};
+
 struct RouterItem
 {
     std::map<HandlerMethod, Handler> handlers;
@@ -163,6 +175,7 @@ class EqualsRoutingTable : public RoutingTable<EqualsRoutingTable, RouterResult,
     using Map = std::map<std::string, RouterItem, Utilities::IgnoreCaseCompare>;
 public:
     using Item = RouterItem;
+
     using Result = RouterResult;
 
     bool Insert(std::string const&  url_matcher, RouterItem const& item, std::string& error)
@@ -184,6 +197,8 @@ public:
         url_exists = (item != nullptr);
         return Result(item, method);
     }
+
+    std::vector<UniformItem> Uniforms() const;
 
 private:
     Map _map;
@@ -221,16 +236,18 @@ public:
     }
 
     Result Match(std::string const& url, HandlerMethod method, bool& url_exists);
+    std::vector<UniformItem> Uniforms() const;
 
-    std::string const& GetError() const
-    {
-        return Utilities::theEmptyString;
-    }
-
-    void ClearError()
-    {}
 private:
     Map _map;
+};
+
+
+struct UniformRegexItem : public UniformItem
+{
+    using UniformItem::UniformItem;
+
+    std::string regex_matcher;
 };
 
 struct RegexRouterItem : public RouterItem
@@ -273,6 +290,9 @@ public:
     bool Insert(std::string const&    url_matcher, RouterItem const& item, std::string& error);
     Item* Exists(std::string const& url_matcher);
     Result Match(std::string const& url, HandlerMethod method, bool& url_exists);
+
+    std::vector<UniformRegexItem> Uniforms() const;
+
 private:
     List _lst;
 };

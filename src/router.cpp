@@ -18,6 +18,49 @@ router_regex operator "" _router_regex(char const* str, std::size_t n)
     return router_regex(std::string(str, n));
 }
 
+std::size_t to_uniform_items(std::string const& url_matcher
+                             , RouterItem const& ri, std::vector<UniformItem>& uitems)
+{
+    for (auto const& h : ri.handlers)
+    {
+        UniformItem ui(url_matcher);
+        ui.method = HandlerMethodName(h.first);
+        ui.template_name = ri.template_name;
+        uitems.push_back(ui);
+    }
+
+    return ri.handlers.size();
+}
+
+std::size_t to_uniform_items(RegexRouterItem const& ri, std::vector<UniformRegexItem>& uitems)
+{
+    for (auto const& h : ri.handlers)
+    {
+        UniformRegexItem ui(ri.url_matcher);
+
+        ui.method = HandlerMethodName(h.first);
+        ui.template_name = ri.template_name;
+
+        ui.regex_matcher = ri.regex_matcher;
+
+        uitems.push_back(ui);
+    }
+
+    return ri.handlers.size();
+}
+
+std::vector<UniformItem> EqualsRoutingTable::Uniforms() const
+{
+    std::vector<UniformItem> items;
+
+    for (auto const& p : _map)
+    {
+        to_uniform_items(p.first, p.second, items);
+    }
+
+    return items;
+}
+
 StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& url
                                                              , HandlerMethod method
                                                              , bool& url_exists)
@@ -34,6 +77,18 @@ StartsWithRoutingTable::Result StartsWithRoutingTable::Match(std::string const& 
     }
 
     return Result();
+}
+
+std::vector<UniformItem> StartsWithRoutingTable::Uniforms() const
+{
+    std::vector<UniformItem> items;
+
+    for (auto const& p : _map)
+    {
+        to_uniform_items(p.first, p.second, items);
+    }
+
+    return items;
 }
 
 std::string to_parameter_pattern(std::string simple_pattern
@@ -155,6 +210,18 @@ RegexMatchRoutingTable::Result RegexMatchRoutingTable::Match(std::string const& 
     }
 
     return r;
+}
+
+std::vector<UniformRegexItem> RegexMatchRoutingTable::Uniforms() const
+{
+    std::vector<UniformRegexItem> items;
+
+    for (auto const& l : _lst)
+    {
+        to_uniform_items(l, items);
+    }
+
+    return items;
 }
 
 } //namespace da4qi4

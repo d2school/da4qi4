@@ -609,6 +609,21 @@ bool Application::AddRegexRouter(HandlerMethod m, std::vector<std::string> const
     return true;
 }
 
+std::vector<UniformItem> Application::GetEqualsRouterUniformItems() const
+{
+    return _equalRouter.Uniforms();
+}
+
+std::vector<UniformItem> Application::GetStartsRouterUniformItems() const
+{
+    return _startwithsRouter.Uniforms();
+}
+
+std::vector<UniformRegexItem> Application::GetRegexRouterUniformItems() const
+{
+    return _regexRouter.Uniforms();
+}
+
 Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& unsupport_method
                                    , std::string const& retry_path)
 {
@@ -728,6 +743,80 @@ log::LoggerPtr ApplicationMgr::GetApplicationLogger(std::string const& applicati
     return (it != _app_loggers.end()) ? it->second :
            ((application_name == abortive_app_name) ? _abortive_app->GetLogger() : log::Null());
 #endif
+}
+
+void AddDa4Qi4DefaultHandler(ApplicationPtr app)
+{
+    app->AddHandler(_GET_, "/.da4qi4", [app](Context ctx)
+    {
+        std::stringstream ss;
+        ss << "<!DOCTYPE html>\n<html>\n<head>\n<title>"
+           << app->GetName() << " on da4qi4</title>\n"
+           << "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n"
+           << "<meta name=\"description\" content=\"default da4qi4-web-routers page\" />\n"
+           << "</head>\n<body>";
+
+        {
+            ss << "<h1>" << app->GetName() << "</h1>\n";
+            ss << "<ul>\n"
+               << "<li>url-root : " << app->GetUrlRoot() << "</li>\n"
+#ifndef NDEBUG
+               << "<li>template-root : " << app->GetTemplateRoot().string() << "</li>\n"
+               << "<li>static-root : " << app->GetStaticRootPath().string() << "</li>\n"
+               << "<li>upload-root : " << app->GetUploadRoot().string() << "</li>\n"
+#endif
+               << "<li>max-upload-bytes : " << app->GetUpoadMaxSizeLimitKB() << "KB</li>\n"
+               << "<li>default-charset : " << app->GetDefaultCharset() << "</li>\n";
+            ss << "</ul>\n";
+        }
+
+        {
+            auto items = app->GetEqualsRouterUniformItems();
+            ss << "<h2>Equals-Routers</h2>\n<ol>\n";
+
+            for (auto const& i : items)
+            {
+                ss << "<li>" << i.method << "&nbsp;&nbsp; "
+                   << i.url_matcher << "&nbsp;&nbsp;"
+                   << i.template_name << "</li>\n";
+            }
+
+            ss << "</ol>\n";
+        }
+
+        {
+            auto items = app->GetStartsRouterUniformItems();
+            ss << "<h2>Starts-Routers</h2>\n<ol>\n";
+
+            for (auto const& i : items)
+            {
+                ss << "<li>" << i.method << "&nbsp;&nbsp; "
+                   << i.url_matcher << "&nbsp;&nbsp;"
+                   << i.template_name << "</li>\n";
+            }
+
+            ss << "</ol>\n";
+        }
+
+        {
+            auto items = app->GetRegexRouterUniformItems();
+            ss << "<h2>Regex-Routers</h2>\n<ol>\n";
+
+            for (auto const& i : items)
+            {
+                ss << "<li>" << i.method << "&nbsp;&nbsp;" << i.url_matcher
+                   << "&nbsp;&nbsp;" << i.regex_matcher
+                   << "&nbsp;&nbsp;" << i.template_name << "</li>\n";
+            }
+
+            ss << "</ol>\n";
+        }
+
+        ss << "</body></html>";
+
+        ctx->Res().ReplyOk(ss.str());
+        ctx->Pass();
+    });
 }
 
 } //namespace da4qi4

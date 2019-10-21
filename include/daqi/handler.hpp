@@ -26,6 +26,8 @@ enum class HandlerMethod
 
 extern HandlerMethod _DELETE_, _GET_, _HEAD_, _POST_, _PUT_;
 
+char const* HandlerMethodName(HandlerMethod hm);
+
 HandlerMethod from_http_method(http_method m);
 
 using HandlerMethodMark = std::bitset<5>;

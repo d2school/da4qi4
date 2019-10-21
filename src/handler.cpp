@@ -11,6 +11,35 @@ HandlerMethod _HEAD_ = HandlerMethod::HEAD;
 HandlerMethod _POST_ = HandlerMethod::POST;
 HandlerMethod _PUT_ = HandlerMethod::PUT;
 
+char const* HandlerMethodName(HandlerMethod hm)
+{
+    switch (hm)
+    {
+        case HandlerMethod::UNSUPPORT :
+            return "UNSUPPORT";
+
+        case HandlerMethod::DELETE :
+            return "DELETE";
+
+        case HandlerMethod::GET :
+            return "GET";
+
+        case  HandlerMethod::HEAD :
+            return "HEAD";
+
+        case HandlerMethod::POST :
+            return "POST";
+
+        case HandlerMethod::PUT :
+            return "PUT";
+
+        case HandlerMethod::ANY :
+            return "ANY";
+    }
+
+    return "";
+}
+
 HandlerMethod from_http_method(http_method m)
 {
     switch (m)
@@ -99,6 +128,7 @@ void HandlerMethods::Set(HandlerMethod m)
         case HandlerMethod::ANY :
             mark.reset();
             mark.flip();
+            break;
 
         case HandlerMethod::UNSUPPORT :
             mark.reset();
