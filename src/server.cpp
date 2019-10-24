@@ -15,7 +15,7 @@ namespace da4qi4
 #ifdef NDEBUG
     int const _detect_templates_interval_seconds_ =  15 * 60; //15 minutes
 #else
-    int const _detect_templates_interval_seconds_ =  1 * 60;  //1 minutes
+    int const _detect_templates_interval_seconds_ =  15;  //15 seconds
 #endif
 
 int const _first_idle_interval_seconds_ = 10;            //10 seconds
@@ -220,7 +220,7 @@ void Server::AppendIdleFunction(int interval_seconds, IdleFunction func)
 
 ApplicationPtr Server::PrepareApp(std::string const& url)
 {
-    make_default_app_if_need();
+    make_default_app_if_empty();
 
     auto app = AppMgr().FindByURL(url);
 
@@ -233,17 +233,37 @@ ApplicationPtr Server::PrepareApp(std::string const& url)
     return app;
 }
 
-void Server::make_default_app_if_need()
+ApplicationPtr Server::DefaultApp(const std::string& name)
+{
+    auto app = AppMgr().FindByURL("/");
+
+    if (!app)
+    {
+        make_default_app(name);
+        app = AppMgr().FindByURL("/");
+    }
+
+    assert(app != nullptr);
+
+    return app;
+}
+
+void Server::make_default_app_if_empty()
 {
     if (AppMgr().IsEmpty())
     {
-        AppMgr().CreateDefaultIfEmpty();
+        AppMgr().CreateDefault();
     }
+}
+
+void Server::make_default_app(std::string const& name)
+{
+    AppMgr().CreateDefault(name);
 }
 
 void Server::start_accept()
 {
-    make_default_app_if_need();
+    make_default_app_if_empty();
     do_accept();
 }
 

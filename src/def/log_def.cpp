@@ -35,7 +35,13 @@ LoggerPtr Null()
     return the_null_log;
 }
 
-bool InitServerLogger(const std::string& log_dir, Level level, size_t max_file_size_kb, size_t max_file_count)
+bool IsNull(LoggerPtr logger)
+{
+    return (logger == nullptr) || (logger == the_null_log);
+}
+
+bool InitServerLogger(const std::string& log_dir, Level level
+                      , size_t max_file_size_kb, size_t max_file_count)
 {
     try
     {

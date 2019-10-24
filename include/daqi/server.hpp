@@ -78,6 +78,8 @@ public:
     void AppendIdleFunction(int interval_seconds, IdleFunction func);
 
 public:
+    ApplicationPtr DefaultApp(std::string const& name = "");
+
     bool Mount(ApplicationPtr app);
 
 public:
@@ -111,7 +113,8 @@ private:
     void do_stop();
 
 private:
-    void make_default_app_if_need();
+    void make_default_app_if_empty();
+    void make_default_app(std::string const& name);
 
     void start_idle_timer();
     void on_idle_timer(errorcode const& ec);

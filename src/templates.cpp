@@ -92,8 +92,8 @@ bool is_ignored(fs::path const& path)
              || path.string().find(".deprecated.") != std::string::npos));
 }
 
-std::pair<size_t, size_t> Templates:: load_templates(std::string const& template_ext
-                                                     , std::string const& key_ext)
+std::pair<size_t, size_t> Templates::load_templates(std::string const& template_ext
+                                                    , std::string const& key_ext)
 {
     TemplatesEnv env(_root);
     init_template_env(env);

@@ -5,7 +5,7 @@
 namespace da4qi4
 {
 
-static char const* default_app_name = "da4qi4-Default";
+static char const* default_app_name = "DAQI-APP";
 static char const* abortive_app_name = "ABORTIVE-APP";
 
 namespace
@@ -17,12 +17,13 @@ std::string abortive_app_log_root = default_abortive_app_log_root;
 ApplicationPtr Application::Abortive()
 {
     ApplicationPtr app = Application::Default();
+
     app->_root_log = abortive_app_log_root;
     app->_name = abortive_app_name;
+
 #ifdef NDEBUG
     app->_is_abortive = true;
 #endif
-    app->Init(ActualLogger::yes, log::Level::trace);
     return app;
 }
 
@@ -46,22 +47,12 @@ ApplicationMgr& AppMgr()
     return mgr;
 }
 
-bool ApplicationMgr::CreateDefaultIfEmpty()
+void ApplicationMgr::CreateDefault(const std::string& app_name)
 {
-    if (_map.empty())
-    {
-        auto app = Application::Default();
+    auto app = Application::Default((!app_name.empty() ? app_name
+                                     : std::string(default_app_name)));
 
-        if (!app->Init())
-        {
-            return false;
-        }
-
-        _map.insert(std::make_pair("/", app));
-        return true;
-    }
-
-    return false;
+    _map.insert(std::make_pair(app->GetUrlRoot(), app));
 }
 
 bool ApplicationMgr::MountApplication(ApplicationPtr app)
@@ -72,11 +63,6 @@ bool ApplicationMgr::MountApplication(ApplicationPtr app)
     }
 
     assert(!app->GetName().empty());
-
-    if (app->GetLogger() == nullptr)
-    {
-        app->Init();
-    }
 
     if (!IsExists(app->GetName()))
     {
@@ -276,8 +262,16 @@ Application::Application()
     : _name(default_app_name)
     , _default_charset("utf-8")
     , _root_url("/")
-    , _templates("", "/")
 {
+    default_init();
+}
+
+Application::Application(std::string const& name)
+    : _name(name)
+    , _default_charset("utf-8")
+    , _root_url("/")
+{
+    default_init();
 }
 
 Application::Application(std::string const& name
@@ -297,6 +291,7 @@ Application::Application(std::string const& name
     , _templates(root_template.native(), root_url)
 
 {
+    this->InitPathes();
 }
 
 Application::~Application()
@@ -313,16 +308,47 @@ void Application::Enable()
     _disabled = false;
 }
 
-bool Application::init_logger(ActualLogger will_create_logger, log::Level level,
-                              size_t max_file_size_kb,
-                              size_t max_file_count)
+void Application::default_init()
 {
     assert(!IsRuning());
 
-    if (will_create_logger == ActualLogger::no)
+    default_init_pathes();
+    default_init_logger();
+    default_init_templates();
+}
+
+void Application::default_init_logger()
+{
+    if (_logger == nullptr)
     {
         _logger = log::Null();
-        return true;
+    }
+}
+
+void Application::default_init_pathes()
+{
+    _root_log = fs::current_path();
+    _root_template = fs::current_path();
+    _root_static = fs::current_path();
+
+    _root_upload = fs::temp_directory_path();
+    _root_temporary = fs::temp_directory_path();
+}
+
+void Application::default_init_templates()
+{
+    _templates.InitPathes(_root_template.native(), "/");
+}
+
+bool Application::InitLogger(log::Level level
+                             , size_t max_log_file_size_kb, size_t max_log_file_count)
+{
+    assert(!IsRuning());
+    assert(log::IsNull(_logger));
+
+    if (!log::IsNull(_logger))
+    {
+        return false;
     }
 
     try
@@ -353,7 +379,8 @@ bool Application::init_logger(ActualLogger will_create_logger, log::Level level,
         return false;
     }
 
-    _logger = log::CreateAppLogger(_name, _root_log.native(), level, max_file_size_kb, max_file_count);
+    _logger = log::CreateAppLogger(_name, _root_log.native()
+                                   , level, max_log_file_size_kb, max_log_file_count);
 
     if (!_logger)
     {
@@ -364,9 +391,11 @@ bool Application::init_logger(ActualLogger will_create_logger, log::Level level,
     return true;
 }
 
-bool Application::init_pathes()
+bool Application::InitPathes()
 {
     assert(!IsRuning());
+
+    std::stringstream ss;
 
     try
     {
@@ -410,21 +439,30 @@ bool Application::init_pathes()
     }
     catch (fs::filesystem_error const& e)
     {
-        _logger->error("Init pathes exception. {}", e.what());
+        ss << "Init pathes filesystem-exception. " << e.what();
     }
     catch (std::exception const& e)
     {
-        _logger->error("Init pathes exception. {}", e.what());
+        ss << "Init pathes exception. " << e.what();
     }
     catch (...)
     {
-        _logger->error("Init pathes unknown exception.");
+        ss << "Init pathes unknown exception.";
+    }
+
+    if (log::IsNull(_logger))
+    {
+        std::cerr << ss.str() << std::endl;
+    }
+    else
+    {
+        _logger->error(ss.str());
     }
 
     return false;
 }
 
-bool Application::init_templates()
+bool Application::InitTemplates()
 {
     assert(!IsRuning());
     assert(_logger != nullptr);
@@ -438,6 +476,7 @@ bool Application::init_templates()
 
 #endif
 
+    _templates.InitPathes(_root_template.native(), _root_url);
     return _templates.Preload(_logger);
 }
 

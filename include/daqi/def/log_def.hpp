@@ -29,6 +29,7 @@ LoggerPtr CreateAppLogger(std::string const& application_name,
 LoggerPtr Null();
 LoggerPtr Server();
 LoggerPtr App(std::string const& application_name);
+bool IsNull(LoggerPtr logger);
 
 void SetLogLevel(Level level);
 void SetServerLogLevel(Level level);

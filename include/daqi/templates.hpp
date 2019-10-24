@@ -18,9 +18,17 @@ using TemplatesEnv = inja::Environment;
 class Templates
 {
 public:
+    Templates() = default;
+
     Templates(std::string const& template_root, std::string const& app_url_root)
         : _root(template_root), _app_prefix(app_url_root)
     {
+    }
+
+    void InitPathes(std::string const& template_root, std::string const& app_url_root)
+    {
+        _root = template_root;
+        _app_prefix = app_url_root;
     }
 
     bool Preload(log::LoggerPtr app_logger);
@@ -31,6 +39,11 @@ public:
 
     bool ReloadIfFindUpdate();
     bool ReloadIfFindNew();
+
+    std::string const& GetRoot() const
+    {
+        return _root;
+    }
 
 private:
     bool reload();
@@ -62,7 +75,6 @@ private:
 
     TemplateUpdateAction check_new_template(std::string const& template_ext
                                             , std::string const& key_ext);
-
 
     void hint_template_updated_found(TemplateUpdateAction action);
     void hint_template_reload_fail();

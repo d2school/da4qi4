@@ -51,6 +51,7 @@ class Application
 {
 private:
     Application();
+    Application(std::string const& name);
 
     Application(std::string const& name
                 , std::string const& root_url
@@ -66,7 +67,10 @@ public:
         return ApplicationPtr(new Application());
     }
 
-    static ApplicationPtr Abortive();
+    static ApplicationPtr Default(std::string const& name)
+    {
+        return ApplicationPtr(new Application(name));
+    }
 
     static ApplicationPtr Customize(std::string const& name
                                     , std::string const& root_url
@@ -90,17 +94,21 @@ public:
                          ,  ads.upload_dir, ads.temporary_dir);
     }
 
+    static ApplicationPtr Abortive();
+
     ~Application();
 
-    enum class ActualLogger {no, yes};
-    bool Init(ActualLogger create_logger = ActualLogger::no, log::Level level = log::Level::info,
-              size_t max_file_size_kb = 5 * 1024, size_t max_file_count = 9)
+    bool Init(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
+              size_t max_log_file_count = 9)
     {
-        assert(!_inited);
-        _inited = true;
-        return init_logger(create_logger, level, max_file_size_kb, max_file_count)
-               && init_pathes() && init_templates();
+        return InitLogger(level, max_log_file_size_kb, max_log_file_count)
+               && InitPathes() && InitTemplates();
     }
+
+    bool InitLogger(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
+                    size_t max_log_file_count = 9);
+    bool InitPathes();
+    bool InitTemplates();
 
 #ifdef NDEBUG
     bool IsAbortive() const
@@ -108,12 +116,6 @@ public:
         return _is_abortive;
     }
 #endif
-
-    Application& SetStaticRoot(std::string const& root_static)
-    {
-        _root_static = root_static;
-        return *this;
-    }
 
     void Mount()
     {
@@ -123,6 +125,22 @@ public:
     bool IsRuning() const
     {
         return  _mounted && !_disabled;
+    }
+
+    Application& SetStaticRoot(std::string const& root_static)
+    {
+        _root_static = root_static;
+        return *this;
+    }
+
+    Application& SetLogRoot(std::string const& root_log)
+    {
+        if (!IsRuning() && log::IsNull(_logger))
+        {
+            _root_log = root_log;
+        }
+
+        return *this;
     }
 
     Application& SetTemplateRoot(std::string const& root_template)
@@ -292,10 +310,10 @@ public:
     std::vector<UniformRegexItem> GetRegexRouterUniformItems() const;
 
 private:
-    bool init_pathes();
-    bool init_logger(ActualLogger will_create_logger
-                     , log::Level level, size_t max_file_size_kb, size_t max_file_count);
-    bool init_templates();
+    void default_init();
+    void default_init_pathes();
+    void default_init_logger();
+    void default_init_templates();
 
 private:
     Handler* find_handler(const Context& ctx, bool& url_exists, bool& unsupport_method
@@ -308,7 +326,6 @@ private:
     RegexMatchRoutingTable _regexRouter;
 
 private:
-    bool _inited = false;
     bool _disabled = false;
     bool _mounted = false;
 
@@ -351,7 +368,7 @@ public:
     ApplicationMgr(ApplicationMgr const&) = delete;
     ApplicationMgr& operator = (ApplicationMgr&) = delete;
 
-    bool CreateDefaultIfEmpty();
+    void CreateDefault(std::string const& app_name = "");
     bool MountApplication(ApplicationPtr app);
 
     void Enable(std::string const& name);
