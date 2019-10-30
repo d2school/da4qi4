@@ -61,9 +61,9 @@ log::LoggerPtr ContextIMP::logger()
     return _cnt->GetApplication()->GetLogger();
 }
 
-void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function_name,
-                                                            PSSFun func,
-                                                            std::string defaultValue)
+void ContextIMP::regist_string_function_with_oneS_string_parameter(char const* function_name,
+                                                                   PSSFun func,
+                                                                   std::string defaultValue)
 {
     _env.add_callback(function_name, 1
                       , [this, func, function_name, defaultValue](inja::Arguments & args) -> std::string
@@ -92,9 +92,9 @@ void ContextIMP::RegistStringFunctionWithOneStringParameter(char const* function
     });
 }
 
-void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_name,
-                                                          PBSFun func,
-                                                          bool defaultValue)
+void ContextIMP::regist_bool_function_with_one_string_parameter(char const* function_name,
+                                                                PBSFun func,
+                                                                bool defaultValue)
 {
     _env.add_callback(function_name, 1
                       , [this, func, function_name, defaultValue](inja::Arguments & args) -> bool
@@ -126,23 +126,23 @@ void ContextIMP::RegistBoolFunctionWithOneStringParameter(char const* function_n
 
 void ContextIMP::regist_template_enginer_common_functions()
 {
-    RegistStringFunctionWithOneStringParameter("_PARAMETER_", &Self::parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_PARAMETER_", &Self::is_exists_parameter);
+    regist_string_function_with_oneS_string_parameter("_PARAMETER_", &Self::parameter);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_PARAMETER_", &Self::is_exists_parameter);
 
-    RegistStringFunctionWithOneStringParameter("_HEADER_", &Self::header);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_HEADER_", &Self::is_exists_header);
+    regist_string_function_with_oneS_string_parameter("_HEADER_", &Self::header);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_HEADER_", &Self::is_exists_header);
 
-    RegistStringFunctionWithOneStringParameter("_URL_PARAMETER_", &Self::url_parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_URL_PARAMETER_", &Self::is_exists_url_parameter);
+    regist_string_function_with_oneS_string_parameter("_URL_PARAMETER_", &Self::url_parameter);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_URL_PARAMETER_", &Self::is_exists_url_parameter);
 
-    RegistStringFunctionWithOneStringParameter("_PATH_PARAMETER_", &Self::path_parameter);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_PATH_PARAMETER_", &Self::is_exists_path_parameter);
+    regist_string_function_with_oneS_string_parameter("_PATH_PARAMETER_", &Self::path_parameter);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_PATH_PARAMETER_", &Self::is_exists_path_parameter);
 
-    RegistStringFunctionWithOneStringParameter("_FORM_DATA_", &Self::form_data);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_FORM_DATA_", &Self::is_exists_form_data);
+    regist_string_function_with_oneS_string_parameter("_FORM_DATA_", &Self::form_data);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_FORM_DATA_", &Self::is_exists_form_data);
 
-    RegistStringFunctionWithOneStringParameter("_COOKIE_", &Self::cookie);
-    RegistBoolFunctionWithOneStringParameter("_IS_EXISTS_COOKIE_", &Self::is_exists_cookie);
+    regist_string_function_with_oneS_string_parameter("_COOKIE_", &Self::cookie);
+    regist_bool_function_with_one_string_parameter("_IS_EXISTS_COOKIE_", &Self::is_exists_cookie);
 }
 
 Request const& ContextIMP::Req() const
@@ -321,22 +321,27 @@ void ContextIMP::render_on_template(std::string const& templ_name, Template cons
 ContextIMP& ContextIMP::Render()
 {
     Json& page_data = ModelData();
-    return (page_data.is_null()) ? this->RenderWithoutData() : this->RenderWithData(page_data);
+    return (page_data.is_null()) ? this->RenderWithoutData() : this->render_with_data(page_data);
+}
+
+ContextIMP& ContextIMP::Render(Json const& data)
+{
+    return render_with_data(data);
 }
 
 ContextIMP& ContextIMP::Render(std::string const& template_name, Json const& data)
 {
     if (!data.is_null())
     {
-        return RenderWithData(template_name, data);
+        return render_with_data(template_name, data);
     }
 
     Json& page_data = ModelData();
     return (page_data.is_null()) ?
-           RenderWithoutData(template_name) : RenderWithData(template_name, page_data);
+           RenderWithoutData(template_name) : render_with_data(template_name, page_data);
 }
 
-ContextIMP& ContextIMP::RenderWithData(http_status status, Json const& data)
+ContextIMP& ContextIMP::render_with_data(http_status status, Json const& data)
 {
     std::string template_name = std::to_string(static_cast<int>(status));
 
@@ -352,7 +357,7 @@ ContextIMP& ContextIMP::RenderWithData(http_status status, Json const& data)
     return *this;
 }
 
-ContextIMP& ContextIMP::RenderWithData(std::string const& template_name, Json const& data)
+ContextIMP& ContextIMP::render_with_data(std::string const& template_name, Json const& data)
 {
     auto templ = App().GetTemplates().Get(template_name);
 
@@ -407,7 +412,7 @@ std::string ContextIMP::auto_match_template()
     return template_name;
 }
 
-ContextIMP& ContextIMP::RenderWithData(Json const& data)
+ContextIMP& ContextIMP::render_with_data(Json const& data)
 {
     if (!_template_name.empty()) // explicit template name
     {

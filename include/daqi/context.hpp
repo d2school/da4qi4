@@ -179,60 +179,57 @@ public:
     void InitRequestPathParameter(std::string const& value);
 public:
     ContextIMP& Render();
+    ContextIMP& Render(Json const& data);
     ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson);
+    ContextIMP& Render(http_status status, Json const& data);
 
-    ContextIMP& RenderWithData(http_status status, Json const& data);
-    ContextIMP& RenderWithData(std::string const& template_name, Json const& data);
-    ContextIMP& RenderWithData(Json const& data);
-
-public:
     ContextIMP& RenderWithoutData(http_status status)
     {
-        return RenderWithData(status, theNullJson);
+        return render_with_data(status, theNullJson);
     }
     ContextIMP& RenderWithoutData(std::string const& template_name)
     {
-        return RenderWithData(template_name, theNullJson);
+        return render_with_data(template_name, theNullJson);
     }
     ContextIMP& RenderWithoutData()
     {
-        return RenderWithData(theNullJson);
+        return render_with_data(theNullJson);
     }
 
 public:
     ContextIMP& RenderNofound(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_NOT_FOUND, data);
+        return render_with_data(HTTP_STATUS_NOT_FOUND, data);
     }
 
     ContextIMP& RenderBadRequest(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_BAD_REQUEST, data);
+        return render_with_data(HTTP_STATUS_BAD_REQUEST, data);
     }
 
     ContextIMP& RenderUnauthorized(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_UNAUTHORIZED, data);
+        return render_with_data(HTTP_STATUS_UNAUTHORIZED, data);
     }
 
     ContextIMP& RenderForbidden(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_FORBIDDEN, data);
+        return render_with_data(HTTP_STATUS_FORBIDDEN, data);
     }
 
     ContextIMP& RenderNotImplemented(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_NOT_IMPLEMENTED, data);
+        return render_with_data(HTTP_STATUS_NOT_IMPLEMENTED, data);
     }
 
     ContextIMP& RenderServiceUnavailable(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
+        return render_with_data(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
     }
 
     ContextIMP& RenderInternalServerError(Json const& data = theNullJson)
     {
-        return RenderWithData(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+        return render_with_data(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
     }
 
 public:
@@ -264,6 +261,11 @@ public:
     void StopChunkedResponse();
 
 private:
+    ContextIMP& render_with_data(http_status status, Json const& data);
+    ContextIMP& render_with_data(std::string const& template_name, Json const& data);
+    ContextIMP& render_with_data(Json const& data);
+
+private:
     void do_intercepter_on_req_dir();
     void do_intercepter_on_res_dir();
 
@@ -281,14 +283,14 @@ private:
 private:
     using Self = ContextIMP;
     typedef std::string const& (Self::*PSSFun)(std::string const&) const;
-    void RegistStringFunctionWithOneStringParameter(char const* function_name,
-                                                    PSSFun func,
-                                                    std::string defaultValue = Utilities::theEmptyString
-                                                   );
+    void regist_string_function_with_oneS_string_parameter(char const* function_name,
+                                                           PSSFun func,
+                                                           std::string defaultValue = Utilities::theEmptyString
+                                                          );
 
     typedef bool (Self::*PBSFun)(std::string const&) const;
-    void RegistBoolFunctionWithOneStringParameter(char const* function_name,
-                                                  PBSFun func, bool defaultValue = false);
+    void regist_bool_function_with_one_string_parameter(char const* function_name,
+                                                        PBSFun func, bool defaultValue = false);
 
 private:
     void render_on_template(std::string const& templ_name, Template const& templ, Json const& data, http_status status);

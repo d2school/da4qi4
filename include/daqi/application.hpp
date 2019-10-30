@@ -153,6 +153,16 @@ public:
         return *this;
     }
 
+    Application& SetTemporaryRoot(std::string const& root_temporary)
+    {
+        if (!IsRuning())
+        {
+            _root_temporary = root_temporary;
+        }
+
+        return *this;
+    }
+
     Application& SetDefaultCharset(std::string const& charset)
     {
         if (!IsRuning())

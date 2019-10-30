@@ -1,4 +1,4 @@
-# Install script for directory: /home/zhuangyan/projects/CPP/da4qi4/daqi
+# Install script for directory: /home/zhuangyan/Projects/CPP/da4qi4
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/zhuangyan/projects/CPP/da4qi4/daqi/nlohmann_json/cmake_install.cmake")
+  include("/home/zhuangyan/Projects/CPP/da4qi4/nlohmann_json/cmake_install.cmake")
 
 endif()
 
@@ -51,5 +51,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/zhuangyan/projects/CPP/da4qi4/daqi/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/zhuangyan/Projects/CPP/da4qi4/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
