@@ -7,7 +7,7 @@
 使用成熟的，广泛应用（最好有大公司参与）的开源项目作为框架基础组成部件。
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
-- HTTP 基础协议解析： Node.JS / http-parser， 纯C语言  [nodejs/http-parser](https://github.com/nodejs/http-parser)  （Node.JS底层周款）
+- HTTP 基础协议解析： Node.JS / http-parser， 纯C语言  [nodejs/http-parser](https://github.com/nodejs/http-parser) 
 - HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
 - 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （预计进入C++标准库）
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github 上搜索JSON出来的第一个)
