@@ -1,3 +1,52 @@
+# 零、几个原则
+## 0.1 自己的狗粮自己吃
+官网 [第2学堂 www.d2school.com](http://www.d2school.com) 后台使用 da4qi4作为Web Server开发。（nginx + da4qi4 + redis + mysql）。 
+
+## 0.2 站在巨人的肩膀上
+
+克制一切自己开发的冲动。相反，关键组件只使用成熟的，广泛应用的，最好有大公司参与的。
+
+da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
+- HTTP 基础协议解析： Node.JS / http-parser， 纯C语言  [nodejs/http-parser](https://github.com/nodejs/http-parser)  （Node.JS底层周款）
+- HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
+- 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （预计进入C++标准库）
+- JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github 上搜索JSON出来的第一个)
+- 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司将它绑定到 Node.JS）
+- 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
+- Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js的单线程异步访问redis专门优化（实现无无锁访问）。 ，da4qi4默认使用redis缓存session等信息，以优先支持负载均衡下的节点无状态横向扩展。
+- TLS/加密： OpenSSL
+
+数据库访问方式不作绑定，建议使用 Oracle 官方 C++ Connector。
+
+## 0.3 易用优于性能
+
+使用C++开发，基于异步框架，目的就是为了有一个较好的原生性能起点，开发者不要过于费心性能。框架易用性设计高于性能设计。
+暂时仅与 Tomcat 做了一个比较。由于Tomcat似乎是“Per Connection Per Thread”，所以这个对比非常“胜之不武”；但考虑到Tomcat曾经被广泛使用，所以和它对比的数据反倒更容易让读者知道da4qi4框架的性能基准。
+
+ **基准测试环境：** 
+- ubuntu 18.04 
+- 4核心8线程 、8G内存
+- 测试工具： Jmeter
+- 测试工具和服务端运行于同一机器（显然会影响服务端性能，不过本次测试重点是做相对性的对比）
+- 后台无业务，不访问数据库，简单返回数百字节
+- 不走nginx等Web Server的反向代理
+
+**Tomcat 运行配置**
+- JVM 1.8G 内存
+- 最大线程数：10000
+- 最大连接数：20000
+- 最大等待队列长度 200
+
+ _对 Tomcat不算熟，因此以上配置基本照着网上的相关测试指南设置，有不合理之处，望指正。_ 
+
+| -  | 并发数 | 平均响应（ms） | 响应时间中位数  | 99% 用户响应时间 |最小响应 |最大响应|错误率|吞吐量(s)|每秒接收字节(KB）|
+|--- |  ---   | ---            | ---             | ---              | ---     | ---    | ---  | ---     | ---             |
+|tomcat| 1000 |  350 | 337     |  872   |  1   |  879   |  0   | 886.7 | 273  |
+|da4qi4| 1000 |  1   | 1       |  27    |  0   |  24    |  0   | 1233  | 286.6|
+
+后续会给出与其他Web Server的更多对比。但总体上，da4qi4 的当前阶段开发，基本不会以极端性能提升作为目标。
+
+
 # 一、快速了解
 
 ## 1.1 一个空转的Web Server
