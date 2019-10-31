@@ -4,7 +4,7 @@
 
 ## 0.2 站在巨人的肩膀上
 
-克制一切自己开发的冲动。相反，关键组件只使用成熟的，广泛应用的，最好有大公司参与的。
+使用成熟的，广泛应用（最好有大公司参与）的开源项目作为框架基础组成部件。
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 - HTTP 基础协议解析： Node.JS / http-parser， 纯C语言  [nodejs/http-parser](https://github.com/nodejs/http-parser)  （Node.JS底层周款）
