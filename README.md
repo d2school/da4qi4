@@ -552,7 +552,7 @@ cmake -D_DAQI_TARGET_TYPE_=SHARED_LIB -DCMAKE_BUILD_TYPE=Release ../da4qi4/
 * 如果希望生成静态库版本，请将“SHARED_LIB”替换为“STATIC_LIB”;
 * 更多编译目标设置，请到本项目官网“www.d2school.com”
 
-一切正常的看，将看到终端上输出“Generating done”等字样。其中更多内容中，包含有boost库的版本号、库所在路径，以及一行“/~BUILD DAQI AS SHARED LIB/~”字样以指示大器的编译形式（SHARED LIB)。
+一切正常的看，将看到终端上输出“Generating done”等字样。其中更多内容中，包含有boost库的版本号、库所在路径，以及一行“\~BUILD DAQI AS SHARED LIB\~”字样以指示大器的编译形式（SHARED LIB)。
 
 3. 开始编译
 
