@@ -1,4 +1,7 @@
+[TOC]
+
 # 零、几个原则
+
 ## 0.1 自己的狗粮自己吃
 官网 [第2学堂 www.d2school.com](http://www.d2school.com) 后台使用 da4qi4作为Web Server开发。（nginx + da4qi4 + redis + mysql）。 
 
@@ -376,3 +379,217 @@ int main()
 
 8. ……
 
+
+
+# 二、如何构建
+
+## 2.1 基于生产环境构建
+
+大器 当前支持在Linux下环境编译。
+
+为方便构建，大器的相关构建工具及外部信赖库，与“阿里云”（“腾讯云”、“华为云”、“七牛云”等国内云计算商类似）的Ubuntu 服务器版本保持基本同步。
+
+因此，如果你有一台2019年或更新的云服务器，那么在其上构建大器，则所需的软件、信赖库等，只要Ubuntu仓库中存在，均只需使用“apt”指令从云厂商为该版本的Ubuntu提供的软件仓库拉取即可。当前仅“iconv”库需要手动下载编译。
+
+当前国内各云计算提供商，均提供 Ubuntu Server 版本为 18.04 LTS 版本。以下内容均以 Ubuntu 18.04  为例，考虑日常开发不会直接使用Server版，因此严格讲，以下内容均假设系统环境为 Ubuntu  18.04 桌面版。
+
+
+
+> 小提示-服务器与开发机的区别：
+>
+> 因此也假设你的开发机使用的是Ubuntu 桌面版 18.04 LTS 版本。以下涉及apt指令时，以开发机（桌面版）为例，因为如有需要，均带着“sudo ”前缀。当在服务器（Ubuntu Server）上编译，并且你使用的是默认的root用户，只需去掉 “sudo”前缀即可。例如：
+>
+> 开发机： sudo apt install git
+>
+> 服务器： apt list install git
+
+
+
+##  2.2 准备编译工具
+
+1. 如果未安装或不知道有没有安装（以下简称为“准备”） GCC 编译器：
+
+```shell
+sudo apt install gcc g++
+```
+
+2. 准备 CMake构建套件，请：
+
+```shell
+sudo apt install cmake
+```
+
+## 2.3 准备第三库
+
+1. 准备 boost 开发库：
+
+```shell
+sudo apt install libboost-dev libboost-filesystem libboost-system
+```
+> 小提示-安装全部boost库：
+>
+> boost中需要编译的库，大器只用到上述的“filesytem”和“system”。如果你想一次性安装所有boost库，可以使用：sudo apt  install libboost-dev libboost-all-dev
+
+
+
+
+2. 准备openssl及其开发库：
+
+```shell
+sudo apt install openssl libssl-dev
+```
+
+3. 准备 libiconv 库
+
+我们使用汉字，而汉字有多种编码方案，因此，汉字的编码转换，是开发包括Web应用在内各种软件系统的常见需求。大器框架通过集成iconv库用以实现支持多国语言多种编码的转换功能。
+
+先下载：https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz
+
+在Ubuntu图形界面中，双击该.gz文件，再点击其内.tar文件，解压后得到 “libiconv-1.16”文件夹。在终端进入该文件夹，依次输入以下三行，完成安装：
+
+```shell
+./configure --prefix=/usr/local
+make
+sudo make install
+```
+
+4. 最后，确保生效所安装的动态库在系统中能被找到：
+
+```shell
+sudo ldconfig
+```
+
+
+
+## 2.4 下载大器源代码
+
+通常你应该安装 git 工具，如果没有或不确定，请打开终端（Ctrl + Alt + T），按如下指令安装。
+
+```shell
+sudo apt install git 
+```
+
+然后在本地新建一文件夹，命名为 daqi，打开终端进入该目录，执行如下指令，以从github上克隆大器项目（此站服务器在国外，较慢，为获得更快速速度，请往下看小提示）：
+
+```shell
+git clone https://github.com/d2school/da4qi4.git
+```
+
+
+
+> 小提示-从国内服务器下载：
+>
+> 做为代替，也可以使用位于国内的的GITEE （开源中国）仓库（速度快很多）。仓库名是“da4qi4_public”：
+>
+> git  clone  https://gitee.com/zhuangyan-stone/da4qi4_public.git
+
+
+
+如果你就是不喜欢使用git，请进入 https://github.com/d2school/da4qi4  或  https://gitee.com/zhuangyan-stone/da4qi4_public，点击“Clone or download”按钮，然后选择“download / 下载”，得到 zip 压缩文件后，再于本地解压至前述的“daqi4”目录下。
+
+
+
+无论从哪个仓库中克隆，还是手工下载解压，最终，你**将在前述的“daqi”目录下，得到一个子目录“da4qi4”**。大器项目的代码位于后者内，其内你应该能看到“src”、“include”等多个子目录。
+
+
+
+> 如有余力，建议在以上两个网站均为本开源项目打个星 
+
+
+
+## 2.5  编译“大器”库
+
+**重要：以下假设大器源代码位于“daqi/da4qi4”目录下。**
+
+1. 准备构建目录
+
+请在“daqi”之下（和“da4qi4”平级）的位置，新建一目录，名为“build”：
+
+```shell
+mkdir build
+```
+
+进入该当目录：
+
+```shell
+cd build
+```
+
+2. 执行CMake
+
+``` shell
+cmake -D_DAQI_TARGET_TYPE_=SHARED_LIB -DCMAKE_BUILD_TYPE=Release ../da4qi4/
+```
+
+将生成目标为“发行版（Release）”的大器“动态库（SHARED_LIB）”。
+
+* 如果希望生成调试版本，请将“Release”替换为“Debug”;
+* 如果希望生成静态库版本，请将“SHARED_LIB”替换为“STATIC_LIB”;
+* 更多编译目标设置，请到本项目官网“www.d2school.com”
+
+一切正常的看，将看到终端上输出“Generating done”等字样。其中更多内容中，包含有boost库的版本号、库所在路径，以及一行“~BUILD DAQI AS SHARED LIB~”字样以指示大器的编译形式（SHARED LIB)。3. 
+
+3. 开始编译
+
+```shell
+make
+```
+
+> 小提示：并行编译
+>
+> 如果你的电脑拥有多核CPU，并且内存足够大（至少8G），可以按如下方式并行编译（其中 -j 后面的数字，指明并行编译的核数，以下以四核数例）：
+>
+> make -j4 
+
+
+
+完成make之后，以上过程将在build目录内，得到“libda4qi4.so”；
+
+如果是调试版，将得到 “libda4qi4_d.so”。如果是静态库，则扩展为“.a”。
+
+
+
+## 2.6 在你的项目中使用 da4qi4库
+
+现在，你可以使用你熟悉IDE（Code::Blocks、Qt Creator、CodeLite等）中，构建你的项目，然后以类型使用其它开发库的方式，添加大器的库文件（就是前一步构建所得的.so或.a文件），及大器的头文件。
+
+* 大器库文件目录：即前面的“.../daqi/build”。（建议另外建一目录，将.so或.a文件复制过去。）；
+* 大器头文件目录：即前面的“.../daqi/da4qi4/include”。
+
+现在，你可以从之前“1.1 一个空转的Web Server”重新看起。
+
+
+
+# 三、运行时外部配套系统
+
+## 3.1 运行时依赖说明
+
+一个Web系统常用到缓存系统和数据库系统。大器框架对二者依赖情况如下：
+
+* 完全不依赖数据库；
+* 简单例子不依赖缓存系统，但一旦需要用到Web 系统常见的“会话/SESSION”功能，则需要依赖redis缓存库。
+
+## 3.2 Redis的安装
+
+显然，这已经不是本开源项目的自己的说明内容。不过，反正在Ubuntu Linux下安装Redis就一行话：
+
+```C++
+sudo apt install redis-server
+```
+
+这不仅会安装redis服务，而且会顺便在本机redis的命令行客户端，可以如下运行：
+
+``` shell
+redis-cli
+```
+* 有关如何在你写的大器Web Server中实现SESSION，请参看本项目官网www.d2school.com 相关（免费视频）课程；
+*  有关Redis的学习，请关注www.d2school.com 课程。
+
+
+## 3.3 数据库
+
+* 可以使用 mysql 官方的 MySQL C++ Connector；
+* 新人强烈推荐： 相对传统的C++封装 ： [MySQL++](https://tangentsoft.com/mysqlpp/home) （注：欢迎关注《白话 C++》下册，有详细的 MySQL 数据库及 MySQL++使用的章节；
+* 新人推荐： [CppDB](http://cppcms.com/sql/cppdb/) 
+* 到 [github](https://github.com)上，搜索 “MySQL C++”，你将找到大量国内或国外的MySQL C++连接库；
+* 有经验的C++程序员推荐：[sqlpp11](https://github.com/rbock/sqlpp11)
