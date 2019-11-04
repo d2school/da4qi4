@@ -426,7 +426,7 @@ int main()
 >
 > 开发机： sudo apt install git
 >
-> 服务器： apt list install git
+> 服务器： apt install git
 
 
 
