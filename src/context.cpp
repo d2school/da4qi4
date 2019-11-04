@@ -169,7 +169,11 @@ Application const& ContextIMP::App() const
 
 IOC& ContextIMP::IOContext()
 {
+#ifdef HAS_IO_CONTEXT
     return _cnt->GetSocket().get_executor().context();
+#else
+    return _cnt->GetSocket().get_io_service();
+#endif
 }
 
 void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
@@ -359,6 +363,11 @@ ContextIMP& ContextIMP::render_with_data(http_status status, Json const& data)
 
 ContextIMP& ContextIMP::render_with_data(std::string const& template_name, Json const& data)
 {
+    if (template_name.empty())
+    {
+        return render_with_data(data);
+    }
+
     auto templ = App().GetTemplates().Get(template_name);
 
     if (!templ)

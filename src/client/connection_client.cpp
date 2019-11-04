@@ -340,6 +340,9 @@ errorcode Connection::do_resolver()
         return ec;
     }
 
+
+#ifdef HAS_RESOLVER_RESULT
+
     if (results.empty())
     {
         _error = Error::on_resolver;
@@ -350,6 +353,20 @@ errorcode Connection::do_resolver()
         this->_server_endpoint = *results.cbegin();
     }
 
+#else
+
+    if (results == Tcp::resolver::iterator())
+    {
+        _error = Error::on_resolver;
+        _error_msg = "Resolver host address got a empty results.";
+    }
+    else
+    {
+        this->_server_endpoint = *results;
+    }
+
+#endif
+
     return ec;
 }
 
@@ -358,7 +375,7 @@ void Connection::do_resolver(NotifyFunction notify)
     Utilities::from_host(_server
                          , (_service.empty() ? default_http_services[_with_ssl ? 1 : 0] : _service)
                          , _resolver
-                         , [this, notify](errorcode const & ec, Tcp::resolver::results_type results)
+                         , [this, notify](errorcode const & ec, ResolverResultT results)
     {
         if (ec)
         {
@@ -367,6 +384,8 @@ void Connection::do_resolver(NotifyFunction notify)
             notify(ec);
             return;
         }
+
+#ifdef HAS_RESOLVER_RESULT
 
         if (results.empty())
         {
@@ -377,6 +396,18 @@ void Connection::do_resolver(NotifyFunction notify)
         }
 
         this->_server_endpoint = *results.cbegin();
+#else
+
+        if (results == Tcp::resolver::iterator())
+        {
+            _error = Error::on_resolver;
+            _error_msg = "Resolver host address got a empty results.";
+            notify(ec);
+            return;
+        }
+
+        this->_server_endpoint = *results;
+#endif
         this->do_connect(notify);
     });
 }

@@ -5,6 +5,8 @@
 #include <ctime>
 #include <codecvt>
 
+#include <sstream>
+
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>

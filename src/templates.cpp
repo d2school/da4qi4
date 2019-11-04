@@ -86,10 +86,12 @@ bool Templates::try_load_template(TemplatesEnv& env
 
 bool is_ignored(fs::path const& path)
 {
-    return (!path.string().empty() &&
-            (path.string().find("/.") != std::string::npos
-             || path.string().find("/_") != std::string::npos
-             || path.string().find(".deprecated.") != std::string::npos));
+    std::string const& path_s = path.string();
+
+    return (path.empty()
+            || path_s.find("/_alternate/") != std::string::npos
+            || path_s.find("/_deprecated/") != std::string::npos
+            || path_s.find(".deprecated.") != std::string::npos);
 }
 
 std::pair<size_t, size_t> Templates::load_templates(std::string const& template_ext

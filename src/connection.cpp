@@ -649,8 +649,13 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
             start_wait_clock = now;
         }
 
-        _socket.get_io_context().post(std::bind(&Connection::do_write_next_chunked_body
-                                                , self, start_wait_clock));
+#ifdef HAS_IO_CONTEXT
+        _socket.get_io_context()
+#else
+        _socket.get_io_service()
+#endif
+        .post(std::bind(&Connection::do_write_next_chunked_body
+                        , self, start_wait_clock));
     }
     else
     {

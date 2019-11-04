@@ -2,6 +2,7 @@
 #define DAQI_SERVER_ENGINE_HPP
 
 #include <memory>
+#include <thread>
 
 #include <list>
 #include <vector>
@@ -9,6 +10,8 @@
 
 #include <boost/asio.hpp>
 #include <boost/noncopyable.hpp>
+
+#include "def/asio_def.hpp"
 
 namespace da4qi4
 {
@@ -27,13 +30,18 @@ public:
         return _io_contexts.size();
     }
 
-    boost::asio::io_context& GetIOContext();
-    std::pair<boost::asio::io_context&, size_t> GetIOContextAndIndex();
-    boost::asio::io_context& GetIOContextByIndex(size_t index);
+    IOC& GetIOContext();
+
+    std::pair<IOC&, size_t> GetIOContextAndIndex();
+    IOC& GetIOContextByIndex(size_t index);
 
 private:
-    using IOContextPtr = std::shared_ptr<boost::asio::io_context>;
-    using IOContextWork = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
+    using IOContextPtr = std::shared_ptr<IOC>;
+#ifdef HAS_IO_CONTEXT
+    using IOContextWork = boost::asio::executor_work_guard<IOC::executor_type>;
+#else
+    using IOContextWork = std::unique_ptr<IOC::work>;
+#endif
 
     std::atomic_bool _stopping;
 

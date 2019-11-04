@@ -1,7 +1,5 @@
 #include "daqi/server_engine.hpp"
 
-#include <thread>
-
 #include "daqi/def/log_def.hpp"
 #include "daqi/def/boost_def.hpp"
 #include "daqi/def/asio_def.hpp"
@@ -23,7 +21,11 @@ IOContextPool::IOContextPool(std::size_t pool_size)
         IOContextPtr ioc(new IOC);
         _io_contexts.push_back(ioc);
 
+#ifdef HAS_IO_CONTEXT
         _work.push_back(boost::asio::make_work_guard(*ioc));
+#else
+        _work.push_back(std::make_unique<IOC::work>(*ioc));
+#endif
     }
 }
 

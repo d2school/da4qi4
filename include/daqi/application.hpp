@@ -89,9 +89,10 @@ public:
     static ApplicationPtr Customize(std::string const& name, std::string const& url
                                     , ApplicationDirectories const& ads)
     {
-        return Customize(name, url
-                         , ads.log_dir, ads.static_dir, ads.template_dir
-                         ,  ads.upload_dir, ads.temporary_dir);
+        return Customize(name,
+                         url, ads.log_dir, ads.static_dir,
+                         ads.template_dir, ads.upload_dir,
+                         ads.temporary_dir);
     }
 
     static ApplicationPtr Abortive();

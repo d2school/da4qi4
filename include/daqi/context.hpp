@@ -180,6 +180,10 @@ public:
 public:
     ContextIMP& Render();
     ContextIMP& Render(Json const& data);
+    ContextIMP& Render(char const* template_name, Json const& data = theNullJson)
+    {
+        return (template_name && *template_name) ? Render(std::string(template_name), data) : Render(data);
+    }
     ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson);
     ContextIMP& Render(http_status status, Json const& data);
 
