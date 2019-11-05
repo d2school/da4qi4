@@ -510,7 +510,7 @@ git clone https://github.com/d2school/da4qi4.git
 
 
 
-如果你就是不喜欢使用git，请进入 https://github.com/d2school/da4qi4  或  https://gitee.com/zhuangyan-stone/da4qi4_public，点击“Clone or download”按钮，然后选择“download / 下载”，得到 zip 压缩文件后，再于本地解压至前述的“daqi4”目录下。
+如果你就是不喜欢使用git，请进入 https://github.com/d2school/da4qi4  或  https://gitee.com/zhuangyan-stone/da4qi4_public  点击“Clone or download”按钮，然后选择“download / 下载”，得到 zip 压缩文件后，再于本地解压至前述的“daqi4”目录下。
 
 
 
