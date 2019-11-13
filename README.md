@@ -456,8 +456,6 @@ sudo apt install libboost-dev libboost-filesystem libboost-system
 > boost中需要编译的库，大器只用到上述的“filesytem”和“system”。如果你想一次性安装所有boost库，可以使用：sudo apt  install libboost-dev libboost-all-dev
 
 
-
-
 2. 准备openssl及其开发库：
 
 ```shell
@@ -483,7 +481,6 @@ sudo make install
 ```shell
 sudo ldconfig
 ```
-
 
 
 ## 2.4 下载大器源代码
@@ -579,8 +576,41 @@ make
 现在，你可以使用你熟悉IDE（Code::Blocks、Qt Creator、CodeLite等）中，构建你的项目，然后以类型使用其它开发库的方式，添加大器的库文件（就是前一步构建所得的.so或.a文件），及大器的头文件。
 
 1. da4qi4库文件。  即前面编译大器库得到的库文件，位于“大器项目所在目录/daqi/build/”下的“.so”或“.a”文件
-2. da4qi4库依赖的文件。 在Linux下，它们是 pthread、ssl、crypto
+2. da4qi4库依赖的文件。 在Linux下，它们是 pthread、ssl、crypto、boost_filesystem、boost_system
 3. da4qi4头文件：“大器项目所在目录/daqi”、“大器项目所在目录/daqi/include”及“大器项目所在目录/nlohmann_json/include/”
+
+下面以CMake的CMakefiles.txt为例：
+｀｀｀cmake
+cmake_minimum_required(VERSION 3.5)
+
+project(hello_daqi LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
+
+# 此处设置大器项目所在目录
+set(_DAQI_PROJECT_PATH_ "你的大器项目所在目录")
+# 此处设置大器项目编译后得到的 .so 文件所在目录
+set(_DAQI_LIBRARY_PATH_ "你的大器项目动态库所在目录")
+
+include_directories(${_DAQI_PROJECT_PATH_})
+include_directories(${_DAQI_PROJECT_PATH_}/include)
+include_directories(${_DAQI_PROJECT_PATH_}/nlohmann_json/include/)
+
+find_package(Boost 1.65.0 REQUIRED COMPONENTS filesystem system)
+link_directories(${_DAQI_LIBRARY_PATH_})
+
+link_libraries(da4qi4)
+
+link_libraries(pthread)
+link_libraries(ssl)
+link_libraries(crypto)
+link_libraries(boost_filesystem)
+link_libraries(boost_system)
+
+add_executable(hello_daqi main.cpp)
+```
 
 现在，你可以从之前“1.1 一个空转的Web Server”重新看起。
 
