@@ -580,7 +580,7 @@ make
 3. da4qi4头文件：“大器项目所在目录/daqi”、“大器项目所在目录/daqi/include”及“大器项目所在目录/nlohmann_json/include/”
 
 下面以CMake的CMakefiles.txt为例：
-｀｀｀cmake
+```cmake
 cmake_minimum_required(VERSION 3.5)
 
 project(hello_daqi LANGUAGES CXX)
