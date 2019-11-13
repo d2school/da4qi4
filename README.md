@@ -578,9 +578,9 @@ make
 
 现在，你可以使用你熟悉IDE（Code::Blocks、Qt Creator、CodeLite等）中，构建你的项目，然后以类型使用其它开发库的方式，添加大器的库文件（就是前一步构建所得的.so或.a文件），及大器的头文件。
 
-1 da4qi4库文件。  即前面编译大器库得到的库文件，位于“大器项目所在目录/daqi/build/”下的“.so”或“.a”文件
-2 da4qi4库依赖的文件。 在Linux下，它们是 pthread、ssl、crypto
-3 da4qi4头文件：“大器项目所在目录/daqi”、“大器项目所在目录/daqi/include”及“大器项目所在目录/nlohmann_json/include/”
+1. da4qi4库文件。  即前面编译大器库得到的库文件，位于“大器项目所在目录/daqi/build/”下的“.so”或“.a”文件
+2. da4qi4库依赖的文件。 在Linux下，它们是 pthread、ssl、crypto
+3. da4qi4头文件：“大器项目所在目录/daqi”、“大器项目所在目录/daqi/include”及“大器项目所在目录/nlohmann_json/include/”
 
 现在，你可以从之前“1.1 一个空转的Web Server”重新看起。
 
