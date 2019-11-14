@@ -34,6 +34,7 @@
 
 官网 [第2学堂 www.d2school.com](http://www.d2school.com) 后台使用 da4qi4作为Web Server开发。（nginx + da4qi4 + redis + mysql）。 
 给一个在手机上运行的网站效果：
+
 ![第2学堂手机版](https://images.gitee.com/uploads/images/2019/1114/123659_60286a85_1463463.png "手机屏幕截图.png")
 
 丑，但这只和我的美感太差有关，和后台使用什么Web框架一分钱关系都没有。
