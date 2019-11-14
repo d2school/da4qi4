@@ -32,6 +32,8 @@
 ## 0.1 自己的狗粮自己吃
 
 官网 [第2学堂 www.d2school.com](http://www.d2school.com) 后台使用 da4qi4作为Web Server开发。（nginx + da4qi4 + redis + mysql）。 
+给一个在手机上运行的网站效果（丑，但这只和我的美感太差有关，和后台使用什么Web框架一分钱关系都没有）：
+![第2学堂手机版](https://images.gitee.com/uploads/images/2019/1114/123659_60286a85_1463463.png "手机屏幕截图.png")
 
 ## 0.2 紧抱牛人的大腿
 
@@ -39,17 +41,17 @@
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 
-- HTTP 基础协议解析： Node.JS / http-parser， 纯C语言  [nodejs/http-parser](https://github.com/nodejs/http-parser) 
+- HTTP 基础协议解析：Node.JS的底层C组件 Node.JS / http-parser， [nodejs/http-parser](https://github.com/nodejs/http-parser) 
 - HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
-- 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （预计进入C++标准库）
-- JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github 上搜索JSON出来的第一个)
-- 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司将它绑定到 Node.JS）
+- 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （预计进入C++ 2x标准库）
+- JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
+- 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
 - 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
 - Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 ，da4qi4默认使用redis缓存session等信息，以优先支持负载均衡下的节点无状态横向扩展。
 - TLS/加密： OpenSSL
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存支持）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
-数据库访问方式不作绑定。用户可使用 Oracle 官方 C++ Connector，或MySQL++或，详见“三、运行时外部配套系统](#三运行时外部配套系统)”。
+注：不绑定数据库访问方式。用户可使用 Oracle 官方 C++ Connector，或MySQL++或，详见“三、运行时外部配套系统](#三运行时外部配套系统)”。
 
 ## 0.3 易用优于性能
 
@@ -82,6 +84,8 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 | tomcat | 1000 | 350      | 337         | 872            | 1        | 879      | 0   | 886.7  | 273        |
 | da4qi4 | 1000 | 1        | 1           | 20             | 0        | 24       | 0   | 1233   | 286.6      |
 
+> 有性能测试经验的人，应该能知道表中“da4qi4”的平均响应时长等数据，出现1毫秒的情况，这基本是因当前测试数据远远喂饱受测对象的表现。
+
 另，官网 www.d2school.com 一度以 1M带度、1核CPU、1G 内存的一台服务器作为运行环境（即：同时还运行MySQL、redis服务）；后因线上编译太慢，做了有限的升级。
 
 后续会给出与其他Web Server的更多对比。但总体上，da4qi4 的当前阶段开发，基本不会以极端性能提升作为目标。
@@ -94,7 +98,7 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 
 ## 1.1 一个空转的Web Server
 
-像所有的C++程序，我们至少需要一个C++文件，假设名字还是熟悉的“main.cpp”，在本例中，它的内容如下：
+我们需要一个C++文件，假设名为“main.cpp”，内容如下：
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -108,7 +112,7 @@ int main()
 }
 ```
 
-不到10行代码，我们创建了一个空转的，似乎不干活的Web Server。虽然被污蔑为不干活，但其实个Web Server是在正常运行中，它之所以表现成不干活，只是因为它要忠于创建它的主人，也就是我们（程序员）：我们没有指示它如何响应，所以它对所有的请求，都只能回应一句：“Not Found”（没错，就是404）。
+不到10行代码，我们创建了一个空转的，似乎不干活的Web Server。
 
 编译、运行，然后在浏览器地址栏输入：http://127.0.0.1:4098 ，而后回车，浏览器将显示一个页面，上面写着：
 
@@ -117,6 +121,8 @@ Not Found
 ```
 
 > 小提示：代码中的“Supply(4098)”调用，如果不提供4098这个入参，那么Web Server将在HTTP默认的80端口监听。我们使用4098是考虑到在许多程序员的开发电脑上，80端口可能已经被别的应用占用了。
+
+虽然说它“不干活”，但其实这个Web Server在合符逻辑地正常运行中：你没有为它指定任何操作绑定，所以对它的任何访问，都返回“Not Found”（没错，就是404）。
 
 ## 1.2 Hello World!
 
@@ -206,7 +212,7 @@ int main()
 
 Server代表一个Web 服务端，但同一个Web Server系统很可能可分成多个不同的人群。
 
-比如写一个在线商城，第一类用户，也是主要的用户，当然就是来商城在线购物的买家，第二类用户则是卖家和商城的管理员。这种区别，也可以称作是：一个服务端，多个应用。在大器框架中，应用以Application表达，
+> 举例：比如写一个在线商城，第一类用户，也是主要的用户，当然就是来商城在线购物的买家，第二类用户则是卖家和商城的管理员。这种区别，也可以称作是：一个服务端，多个应用。在大器框架中，应用以Application表达。
 
 就当前而言，还不到演示一个Server上挂接多个Application的复杂案例，那我们为什么要开始介绍Application呢？Application才是负责应后台行为的主要实现者。在前面的例子中，虽然没有在代码中虽然只看到Server，但背后是由Server帮我们创建一个默认的 Application 对象，然后依靠该默认对象以实现演示中的相关功能。
 
@@ -220,9 +226,9 @@ using namespace da4qi4;
 int main()
 {
     auto svc = Server::Supply(4098);
-    auto web_app = Application::Customize("web", "/", "./log");
+    auto app = Application::Customize("web", "/", "./log");
 
-    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
         std::string html 
@@ -231,14 +237,14 @@ int main()
         ctx->Pass();
     });
 
-    svc->Mount(web_app);
+    svc->Mount(app);
     svc->Run();
 }
 ```
 
 发生的变化：使用Aplication类的静态成员函数，定制（Customize）了一个应用，例中命名为web_app；然后改用它来添加前端以GET方法访问网站根URL路径时的处理方法。最后在svc运行之前，需要先将该应用挂接（Mount）上去。
 
-这段代码和前面没有显式引入Application的代码，功能一致，输出效果也一致。但为什么我们一定要引入Application呢？除了前述的，为将来一个Server对应多个Application做准备之外，从设计及运维上讲，还有一个目的：让Server和Application各背责任。Application负责较为高层的逻辑，重点是具体的某类业务，而Server则负责服务器较基础的逻辑，重点是网络方面的功能。下一小节将要讲到日志，正好是二者分工的一个典型体现。
+这段代码和前面没有显式引入Application的代码，功能一致，输出效果也一致。但为什么我们一定要引入Application呢？除了前述的，为将来一个Server对应多个Application做准备之外，从设计及运维上讲，还有一个目的：让Server和Application各背责任。 **Application负责较为高层的逻辑，重点是具体的某类业务，而Server则负责服务器较基础的逻辑，重点是网络方面的功能** 。下一小节将要讲到日志，正好是二者分工的一个典型体现。
 
 ## 1.5 运行日志
 
@@ -270,7 +276,7 @@ int main()
     }
 
     auto svc = Server::Supply(4098);
-    log::Server()->info("准备web应用中……");
+    log::Server()->info("准备web应用中……"); 
 
     auto web_app = Application::Customize("web", "/", "./log");
 
@@ -290,6 +296,12 @@ int main()
 > 小提示：为方便演示，上面代码暂时使用绝对路径以指定服务层日志文件的存储位置，实际项目通常以相对路径，或读取外部配置的方式以方便部署。
 
 一旦“InitServerLogger()”调用成功，并且设置低于INFO的日志输出级别（例中为DEBUG级别，见该函数的第2个入参：log::Level::debug），框架中有关服务层的许多日志，就会打印到屏幕（控制台）上及相应的日志文件里。
+
+下面是运行日志截图示例。
+
+![输入图片说明](https://images.gitee.com/uploads/images/2019/1114/123346_2e261b35_1463463.jpeg "da4qi4运行日志界面")
+
+当然，当程序运行在服务器上，它会被配置成在后台运行，没有界面，日志被重定向到文件。
 
 ## 1.6 HTML 模板
 
