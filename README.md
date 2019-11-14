@@ -657,3 +657,6 @@ redis-cli
 * 新人推荐： [CppDB](http://cppcms.com/sql/cppdb/) 
 * 到 [github](https://github.com)上，搜索 “MySQL C++”，你将找到大量国内或国外的MySQL C++连接库；
 * 有经验的C++程序员推荐：[sqlpp11](https://github.com/rbock/sqlpp11)
+
+更多课程（视频课程、文字课程），请到 [第2学堂](https://www.d2school.com)查看。
+谢谢。
