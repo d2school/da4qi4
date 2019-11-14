@@ -284,9 +284,9 @@ int main()
     auto svc = Server::Supply(4098);
     log::Server()->info("准备web应用中……"); 
 
-    auto web_app = Application::Customize("web", "/", "./log");
+    auto app = Application::Customize("web", "/", "./log");
 
-    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
         std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
@@ -294,7 +294,7 @@ int main()
         ctx->Pass();
     });
 
-    svc->Mount(web_app);
+    svc->Mount(app);
     svc->Run();
 }
 ```
@@ -326,11 +326,17 @@ int main()
 </head>
 <body>
     <h1>你好，{=name=}！</h1>
+    <p>您正在使用的浏览器： {=_HEADER_("User-Agent")=}</p>
+    <p>您正在通过该网址访问本站：{=_HEADER_("Host")=}</p>
 </body>
 </html>
 ```
 
-“你好，”后面的特定格式{=name=}，将会被程序的模板解析引擎识别，并填写上运行时的提供的name的值。使用模板后，现在用于产生的网页内容的完整C++代码如下：
+“你好，”后面的特定格式{=name=}，将会被程序的模板解析引擎识别，并填写上运行时的提供的name的值。
+
+> _HEADER_()是框架内置的函数，获得当前HTTP请求的报头数据项。在本例中无实际作用，仅用于演示一种常用的页面调试方法。
+
+使用模板后，现在用于产生的网页内容的完整C++代码如下：
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -352,28 +358,26 @@ int main()
     auto svc = Server::Supply(4098);
     log::Server()->info("准备web应用中……"); //纯粹是为了演示日志……
 
-    auto web_app = Application::Customize("web", "/",
-                                          www_root + "logs/",
-                                          www_root + "static/",
-                                          www_root + "view/",
-                                          www_root + "upload/");
+    auto app = Application::Customize("web", "/",
+                                          www_root + "logs/", www_root + "static/",
+                                          www_root + "view/", www_root + "upload/");
 
     //初始化web应用日志
-    if (!web_app->Init(Application::ActualLogger::yes, log::Level::debug))
+    if (!app->Init(Application::ActualLogger::yes, log::Level::debug))
     {
         log::Server()->critical("Init application {} fail.", web_app->GetName()); 
         return -2;
     }
 
     //添加请求处理
-    web_app->AddHandler(_GET_, "/", [](Context ctx)
+    app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req().GetUrlParameter("name");
         ctx->ModelData()["name"] = name;
         ctx->Render().Pass();
     });
 
-    svc->Mount(web_app);
+    svc->Mount(app);
     svc->Run();
 }
 ```
@@ -387,6 +391,22 @@ int main()
 框架提供的模板引擎，不仅能替换数据，也支持基本的条件判断、循环、自定函数等功能，类似一门“脚本”。
 
 > 小提示：大多数情况下，我们写的C++程序用以高性能地、从各种来源（数据库、缓存、文件、网络等）、以各种花样（同步、异步）获取数据、处理数据。而HTML模板引擎在C++程序中以解释的方式运行，因此正常的做法是不要让一个模板引擎干太复杂的，毕竟，在C++这种“彪形大汉”的语言面，它就是个小孩子。
+
+最后，如果一个页面仅仅是修改一些样式，比如把某些字体从黑色改成红色，那么我们就不应该重启Web Server（更无需重新编译），实现对模板的“热加载”。为达成这一效果，需要在“svc->Run()”之前添加一行代码：
+
+```C++
+...
+int main()
+{ 
+   ...
+
+   svc->Mount(app);
+   svc->EnableDetectTemplates(3); //3秒，实际部署时，建议设置为一个较大秒数，比如 15 * 60 
+   svc->Run();
+}
+
+```
+
 
 ## 1.7 更多
 
@@ -444,7 +464,7 @@ int main()
 
 ## 2.1 基于生产环境构建
 
-大器 当前支持在Linux下环境编译。
+大器 当前支持在Linux下环境编译。（因为我的服务端程序基本都在linux下，不过试验一下如何在Windows下编译。方便学习，但不推荐实用）
 
 为方便构建，大器的相关构建工具及外部信赖库，与“阿里云”（“腾讯云”、“华为云”、“七牛云”等国内云计算商类似）的Ubuntu 服务器版本保持基本同步。
 
@@ -465,7 +485,7 @@ int main()
 1. 如果未安装或不知道有没有安装（以下简称为“准备”） GCC 编译器：
 
 ```shell
-sudo apt install gcc g++
+sudo apt install build-essential
 ```
 
 2. 准备 CMake构建套件，请：
@@ -484,7 +504,7 @@ sudo apt install libboost-dev libboost-filesystem libboost-system
 
 > 小提示-安装全部boost库：
 > 
-> boost中需要编译的库，大器只用到上述的“filesytem”和“system”。如果你想一次性安装所有boost库，可以使用：sudo apt  install libboost-dev libboost-all-dev
+> boost中需要编译的库，大器只用到上述的“filesytem”和“system”。如果你想一次性安装所有boost库，可以使用：sudo apt install libboost-dev libboost-all-dev
 
 2. 准备openssl及其开发库：
 
@@ -520,21 +540,19 @@ sudo ldconfig
 sudo apt install git 
 ```
 
-然后在本地新建一文件夹，命名为 daqi，打开终端进入该目录，执行如下指令，以从github上克隆大器项目（此站服务器在国外，较慢，为获得更快速速度，请往下看小提示）：
+然后在本地新建一文件夹，假设命名为 daqi，打开终端进入该目录，从github克隆代码：
 
 ```shell
 git clone https://github.com/d2school/da4qi4.git
 ```
 
-> 小提示-从国内服务器下载：
-> 
-> 做为代替，也可以使用位于国内的的GITEE （开源中国）仓库（速度快很多）。仓库名是“da4qi4_public”：
-> 
-> git  clone  https://gitee.com/zhuangyan-stone/da4qi4_public.git
+或者从国内的gitee克隆代码（速度比较快）：
 
-> 另：如果你就是不喜欢使用git，请进入 https://github.com/d2school/da4qi4  或  https://gitee.com/zhuangyan-stone/da4qi4_public  点击“Clone or download”按钮，然后选择“download / 下载”，得到 zip 压缩文件后，再于本地解压至前述的“daqi4”目录下。
+```shell
+git  clone  https://gitee.com/zhuangyan-stone/da4qi4_public.git
+```
 
-无论从哪个仓库中克隆，还是手工下载解压，最终，你**将在前述的“daqi”目录下，得到一个子目录“da4qi4”**。大器项目的代码位于后者内，其内你应该能看到“src”、“include”等多个子目录。
+最终，你**将在前述的“daqi”目录下，得到一个子目录“da4qi4”(也可能是别的，看git源)**。大器项目的代码位于后者内，其内你应该能看到“src”、“include”等多个子目录。
 
 > 如有余力，建议在以上两个网站均为本开源项目打个星 。
 
