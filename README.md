@@ -51,7 +51,7 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
 - 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
 - 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
-- Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 ，da4qi4默认使用redis缓存session等信息，以优先支持负载均衡下的节点无状态横向扩展。
+- Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 da4qi4默认使用redis缓存session等信息(以优先支持负载均衡下的节点无状态横向扩展)。
 - TLS/SSL/数据加密： OpenSSL (虽然在全世界范围内出过血……但不用它还能用谁呢？)
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存逻辑）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
