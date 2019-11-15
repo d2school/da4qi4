@@ -106,6 +106,16 @@ public:
                && InitPathes() && InitTemplates();
     }
 
+    bool Init(std::string const& log_root, log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
+              size_t max_log_file_count = 9)
+    {
+        return InitLogger(log_root, level, max_log_file_size_kb, max_log_file_count)
+               && InitPathes() && InitTemplates();
+    }
+
+    bool InitLogger(std::string const& log_root, log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
+                    size_t max_log_file_count = 9);
+
     bool InitLogger(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
                     size_t max_log_file_count = 9);
     bool InitPathes();
