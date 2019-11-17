@@ -52,7 +52,7 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 - 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
 - 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
 - Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 da4qi4默认使用redis缓存session等信息(以优先支持负载均衡下的节点无状态横向扩展)。
-- TLS/SSL/数据加密： OpenSSL (虽然在全世界范围内出过血……但不用它还能用谁呢？)
+- TLS/SSL/数据加密： OpenSSL
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存逻辑）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
 注：
@@ -451,7 +451,7 @@ int main()
 
 6. 模板文件更新检测及热加载
 
-7. HTTP 客户端组件（已基于此实现微信扫码登录、阿里云短信的C++SDK，见下）
+7. HTTP/HTTPS 客户端组件（已基于此实现微信扫码登录、阿里云短信的C++SDK，见下）
 
 8. POST响应支持
 
@@ -459,17 +459,15 @@ int main()
 
 10. 访问限流
 
-11. HTTPS
+11. JSON
 
-12. JSON
+12. 纯数据输出的API接口，与前端AJAX配合
 
-13. 纯数据输出的API接口，与前端AJAX配合
+13. 框架全方式集成：(a) 基于源代码集成、(b) 基于动态库集成、(c) 基于静态库集成
 
-14. 框架全方式集成：(a) 基于源代码集成、(b) 基于动态库集成、(c) 基于静态库集成
+14. 常用编码转换（UTF-8、UCS、GBK、GB18030）
 
-15. 常用编码转换（UTF-8、UCS、GBK、GB18030）
-
-16. ……
+15. ……
 
 ### 1.7.2 框架外围可供集成的工具
 
