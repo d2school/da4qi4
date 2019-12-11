@@ -195,7 +195,7 @@ using namespace da4qi4;
 void hello(Context ctx)
 {
     ctx->Res().ReplyOk("Hello World!");
-    ctx->Pass();     
+    ctx->Pass();
 }
 
 int main()
@@ -239,8 +239,7 @@ int main()
     svc->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html = "<html><body><h1>Hello " 
-                            + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
@@ -278,8 +277,7 @@ int main()
     app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html 
-             = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
@@ -324,8 +322,7 @@ int main()
     app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html = "<html><body><h1>Hello " 
-                            + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
@@ -384,8 +381,7 @@ using namespace da4qi4;
 
 int main()
 {
-    log::InitServerLogger("你希望/服务日志文件/要存储的/目录/"
-                            , log::Level::debug));
+    log::InitServerLogger("你希望/服务日志文件/要存储的/目录/", log::Level::debug));
 
     auto svc = Server::Supply(4098);
     log::Server()->info("服务已成功加载.");
@@ -393,8 +389,8 @@ int main()
     auto app = svc->DefaultApp();
 
     //新增的两行：
-    app->SetTemplateRoot("你的/网页模板/目录/");    //模板文件根目录
-    app->InitTemplates();         //加载并将模板文件“编译成” 字节码
+    app->SetTemplateRoot("你的/网页模板/目录/"); //模板文件根目录
+    app->InitTemplates(); //加载并将模板文件“编译成” 字节码
 
     app->InitLogger("你希望/当前应用的/要存储的/目录/");
 
@@ -465,8 +461,8 @@ void add(Context ctx)
 
     //第三步：核心核心核心业务逻辑：加法计算
     int c = na + nb;
-    
-    //第四步：把结果按模板指定的名字"c"，设置到“Model”数据中：
+
+    //第四步：把结果按模板指定的名字"c"，设置到“Model”数据中：
     ctx->ModelData()["c"] = c;
    
     //最后一步：渲染，并把最终页面数据传回浏览器： （即：输出结果 = 模板 + 数据）
@@ -535,7 +531,7 @@ int main()
 - 二来，后台什么日志记录也没有，对系统的维护人员来说，也不友好。
 
 
-很简单，对add的业务逻辑加上异常处理，出现异常时，向客户回复一句相对友好点的内容，并且留下应用日志即可。以下是完整代码：
+很简单，对add的业务逻辑加上异常处理，出现异常时，向客户回复一句相对友好点的内容，并且留下应用日志即可。以下是关注异常后的add函数：
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -558,14 +554,11 @@ void add(Context ctx)
     }
    catch(std::exception const& e)
    {
-        ctx->Logger()->warn("hand add exception. {}. {}. {}."
-                    , a, b, e.what());
-                    
-        ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") 
-                                + e.what();
+        ctx->Logger()->warn("hand add exception. {}. {}. {}.", a, b, e.what());                    
+        ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.what();
    }
 
-   ctx->Render().Pass();  //Render 是动词：渲染
+   ctx->Render().Pass();
 }
 ```
 
