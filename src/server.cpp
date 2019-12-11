@@ -53,7 +53,8 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
 
         if (!ssl_opts->certificate_chain_file.empty())
         {
-            _ssl_ctx->use_certificate_chain_file(ssl_opts->certificate_chain_file);
+            //            _ssl_ctx->use_certificate_chain_file(ssl_opts->certificate_chain_file);
+            _ssl_ctx->use_certificate_file(ssl_opts->certificate_chain_file, ssl_opts->private_key_file_format);
         }
 
         if (!ssl_opts->private_key_file.empty())
