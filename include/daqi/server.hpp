@@ -42,7 +42,9 @@ public:
 
         explicit SSLOptions(OnNeedSSLPassword&& password_callback)
             : options(boost::asio::ssl::context::default_workarounds
-                      | boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3)
+                      | boost::asio::ssl::context::no_sslv2
+                      | boost::asio::ssl::context::no_sslv3
+                      | boost::asio::ssl::context::no_tlsv1)
             , private_key_type(PrivateKeyType::normal), private_key_file_format(SSLContextBase::pem)
             , will_verify_client(false)
             , on_need_password(std::forward<OnNeedSSLPassword>(password_callback))
