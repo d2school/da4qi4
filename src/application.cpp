@@ -505,7 +505,7 @@ bool Application::InitTemplates(std::string const& template_ext)
 
 bool Application::AddIntercepter(Intercepter::Handler intercepter)
 {
-    if (!IsRuning())
+    if (IsRuning())
     {
         _logger->warn("Add intercepter fail. application is running.");
         return false;
