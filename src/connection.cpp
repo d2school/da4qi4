@@ -25,8 +25,51 @@ Socket::~Socket()
 
 }
 
+void Socket::async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read)
+{
+    _socket.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+}
+
+void Socket::async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote)
+{
+    boost::asio::async_write(_socket, write_buffer, std::move(on_wrote));
+}
+
+void Socket::async_write(ChunkedBuffer const& chunked_buffer, SocketFinishedHandler&& on_wrote)
+{
+    boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
+}
+
+void Socket::close(errorcode& ec)
+{
+    _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
+    _socket.close(ec);
+}
+
 SocketWithSSL::~SocketWithSSL()
 {
+}
+
+void SocketWithSSL::close(errorcode& ec)
+{
+    _stream.lowest_layer().cancel();
+    _stream.shutdown(ec);
+    _stream.next_layer().close(ec);
+}
+
+void SocketWithSSL::async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read)
+{
+    _stream.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+}
+
+void SocketWithSSL::async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote)
+{
+    boost::asio::async_write(_stream, write_buffer, std::move(on_wrote));
+}
+
+void SocketWithSSL::async_write(ChunkedBuffer const& chunked_buffer, SocketFinishedHandler&& on_wrote)
+{
+    boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
 }
 
 } //namespace net_detail
@@ -549,10 +592,10 @@ void Connection::do_handshake()
 
 void Connection::do_read()
 {
-    auto self(this->shared_from_this());
-    _socket_ptr->async_read_some(_buffer
-                                 , [self, this](errorcode ec
-                                                , std::size_t bytes_transferred)
+    auto self(shared_from_this());
+
+    _socket_ptr->async_read_some(_buffer, [self, this](errorcode ec
+                                                       , std::size_t bytes_transferred)
     {
         if (ec)
         {
@@ -625,13 +668,13 @@ void Connection::prepare_response_headers_about_connection()
 void Connection::do_write()
 {
     prepare_response_headers_about_connection();
+
     std::ostream os(&_write_buffer);
     os << _response;
 
     ConnectionPtr self = shared_from_this();
-    boost::asio::async_write(_socket_ptr->get_socket()
-                             , _write_buffer
-                             , [self, this](errorcode const & ec, size_t bytes_transferred)
+
+    _socket_ptr->async_write(_write_buffer, [self, this](errorcode const & ec, size_t bytes_transferred)
     {
         if (ec)
         {
@@ -676,9 +719,7 @@ void Connection::do_write_header_for_chunked()
     os << _response;
 
     ConnectionPtr self = shared_from_this();
-
-    boost::asio::async_write(_socket_ptr->get_socket()
-                             , _write_buffer
+    _socket_ptr->async_write(_write_buffer
                              , [self, this](errorcode const & ec, size_t bytes_transferred)
     {
         if (ec)
@@ -718,18 +759,12 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
             start_wait_clock = now;
         }
 
-#ifdef HAS_IO_CONTEXT
-        _socket_ptr->get_socket().get_io_context()
-#else
-        _socket_ptr->get_socket().get_io_service()
-#endif
-        .post(std::bind(&Connection::do_write_next_chunked_body
-                        , self, start_wait_clock));
+        _socket_ptr->get_ioc().post(std::bind(&Connection::do_write_next_chunked_body
+                                              , self, start_wait_clock));
     }
     else
     {
-        boost::asio::async_write(_socket_ptr->get_socket()
-                                 , boost::asio::buffer(_current_chunked_body_buffer)
+        _socket_ptr->async_write(_current_chunked_body_buffer
                                  , [self](errorcode const & ec, size_t bytes_transferred)
         {
             self->do_write_chunked_body_finished(ec, bytes_transferred);
