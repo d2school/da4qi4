@@ -131,6 +131,7 @@ errorcode SocketWithSSL::sync_write(const char* write_buffer
 
 void SocketWithSSL::close(errorcode& ec)
 {
+    _stream.lowest_layer().cancel();
     _stream.shutdown(ec);
     _stream.next_layer().close(ec);
 }

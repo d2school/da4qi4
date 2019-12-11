@@ -10,9 +10,28 @@
 namespace da4qi4
 {
 
-namespace
-{
 std::string const daqi_HTML_template_ext = ".daqi.HTML";
+std::string const daqi_JSON_template_ext = ".daqi.JSON";
+std::string const daqi_XML_template_ext = ".daqi.XML";
+
+std::string const& get_daqi_HTML_template_ext()
+{
+    return daqi_HTML_template_ext;
+}
+
+std::string const& get_daqi_JSON_template_ext()
+{
+    return daqi_JSON_template_ext;
+}
+
+std::string const& get_daqi_XML_template_ext()
+{
+    return daqi_XML_template_ext;
+}
+
+std::string make_daqi_template_ext(std::string const& ext)
+{
+    return std::string(".daqi") + (ext.empty() ? "" : (ext[0] == '.' ? ext : ("." + ext)));
 }
 
 void init_template_env(inja::Environment& env)
@@ -26,10 +45,10 @@ void init_template_env(inja::Environment& env)
     env.set_element_notation(inja::ElementNotation::Dot);
 }
 
-std::string remove_template_ext(std::string const& fn)
+std::string remove_template_ext(std::string const& fn, std::string const& ext)
 {
-    return (Utilities::EndsWith(fn, daqi_HTML_template_ext)) ?
-           fn.substr(0, fn.length() - daqi_HTML_template_ext.length()) : fn;
+    return (Utilities::EndsWith(fn, ext)) ?
+           fn.substr(0, fn.length() - ext.length()) : fn;
 }
 
 bool is_include_dir(fs::path const& path)
@@ -68,7 +87,7 @@ bool Templates::try_load_template(TemplatesEnv& env
         }
 
         _app_logger->info("Template load success. \"{}\". {}.",
-                          remove_template_ext(template_filename), key);
+                          remove_template_ext(template_filename, _template_ext), key);
         return true;
     }
     catch (std::exception const& e)
@@ -223,7 +242,7 @@ bool Templates::Preload(log::LoggerPtr app_logger)
 
     try
     {
-        auto counts = load_templates(daqi_HTML_template_ext, Utilities::theEmptyString);
+        auto counts = load_templates(_template_ext, Utilities::theEmptyString);
         _loaded_time = std::time(nullptr);
         app_logger->info("Templates loaded. {} success, {} fail.", counts.first, counts.second);
 
@@ -353,7 +372,7 @@ Templates::TemplateUpdateAction Templates::check_exists_template()
 
 bool Templates::ReloadIfFindNew()
 {
-    auto r = check_new_template(daqi_HTML_template_ext, Utilities::theEmptyString);
+    auto r = check_new_template(_template_ext, Utilities::theEmptyString);
 
     if (r == TemplateUpdateAction::none)
     {

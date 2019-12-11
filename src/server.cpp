@@ -20,12 +20,14 @@ namespace da4qi4
 
 int const _first_idle_interval_seconds_ = 10;            //10 seconds
 
-Server::Server(Tcp::endpoint endpoint, size_t thread_count)
-    : _idle_interval_seconds(_first_idle_interval_seconds_)
+Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ssl_opts)
+    : _withssl(ssl_opts != nullptr ? WithSSL::yes : WithSSL::no)
+    , _idle_interval_seconds(_first_idle_interval_seconds_)
     , _running(false), _stopping(false)
     , _ioc_pool(thread_count)
     , _acceptor(_ioc_pool.GetIOContext())
     , _signals(_ioc_pool.GetIOContext())
+    , _ssl_ctx(!ssl_opts ? nullptr : new boost::asio::ssl::context(boost::asio::ssl::context::sslv23))
     , _idle_running(false)
     , _detect_templates(false)
     , _idle_timer(_ioc_pool.GetIOContext())
@@ -38,6 +40,35 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
 #endif
     _signals.async_wait(std::bind(&Server::do_stop, this));
 
+    if (_ssl_ctx)
+    {
+        assert(_withssl == WithSSL::yes);
+
+        _ssl_ctx->set_options(ssl_opts->options);
+
+        _ssl_ctx->set_password_callback(ssl_opts->on_need_password);
+
+        if (!ssl_opts->certificate_chain_file.empty())
+        {
+            _ssl_ctx->use_certificate_chain_file(ssl_opts->certificate_chain_file);
+        }
+
+        if (!ssl_opts->private_key_file.empty())
+        {
+            _ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+        }
+
+        if (!ssl_opts->tmp_dh_file.empty())
+        {
+            _ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_dh_file);
+        }
+
+        if (ssl_opts->will_verify_client)
+        {
+            _ssl_ctx->set_verify_mode(SSLContextBase::verify_peer | SSLContextBase::verify_fail_if_no_peer_cert);
+        }
+    }
+
     _acceptor.open(endpoint.protocol());
     _acceptor.set_option(Tcp::acceptor::reuse_address(true));
     _acceptor.bind(endpoint);
@@ -46,8 +77,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count)
     log::Server()->info("Supping on {}:{}, {} thread(s).",
                         endpoint.address().to_string()
                         , endpoint.port()
-                        , _ioc_pool.Size()
-                       );
+                        , _ioc_pool.Size());
 }
 
 Server::Ptr Server::Supply(unsigned short port, size_t thread_count)
@@ -68,6 +98,27 @@ Server::Ptr Server::Supply(std::string const& host, unsigned short port)
 Server::Ptr Server::Supply(unsigned short port)
 {
     return Ptr(new Server({Tcp::v4(), port}, 0));
+}
+
+Server::Ptr Server::SupplyWithSSL(Server::SSLOptions const& ssl_opt, unsigned short port, size_t thread_count)
+{
+    return Ptr(new Server({Tcp::v4(), port}, thread_count, &ssl_opt));
+}
+
+Server::Ptr Server::SupplyWithSSL(Server::SSLOptions const& ssl_opt
+                                  , std::string const& host, unsigned short port, size_t thread_count)
+{
+    return Ptr(new Server(Utilities::make_endpoint(host, port), thread_count, &ssl_opt));
+}
+
+Server::Ptr Server::SupplyWithSSL(Server::SSLOptions const& ssl_opt, std::string const& host, unsigned short port)
+{
+    return Ptr(new Server(Utilities::make_endpoint(host, port), 0, &ssl_opt));
+}
+
+Server::Ptr Server::SupplyWithSSL(Server::SSLOptions const& ssl_opt, unsigned short port)
+{
+    return Ptr(new Server({Tcp::v4(), port}, 0, &ssl_opt));
 }
 
 Server::~Server()
@@ -271,7 +322,10 @@ void Server::do_accept()
 {
     auto ioc_ctx = _ioc_pool.GetIOContextAndIndex();
 
-    ConnectionPtr cnt = Connection::Create(ioc_ctx.first /* ioc */, ioc_ctx.second /* index */);
+    ConnectionPtr cnt =
+                _withssl == WithSSL::no
+                ? Connection::Create(ioc_ctx.first, ioc_ctx.second)
+                : Connection::Create(ioc_ctx.first, ioc_ctx.second, *_ssl_ctx);
 
     _acceptor.async_accept(cnt->GetSocket()
                            , [this, cnt](errorcode ec)
@@ -287,7 +341,7 @@ void Server::do_accept()
         }
         else
         {
-            cnt->StartRead();
+            cnt->Start();
         }
 
         do_accept();

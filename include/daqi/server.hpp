@@ -3,6 +3,8 @@
 
 #include <atomic>
 #include <list>
+#include <string>
+#include <functional>
 
 #include <boost/asio/deadline_timer.hpp>
 
@@ -19,23 +21,123 @@ extern int const _detect_templates_interval_seconds_;
 
 class Server
 {
-    Server(Tcp::endpoint endpoint, size_t thread_count);
+public:
+    enum class WithSSL {no, yes};
+
+    using OnNeedSSLPassword = std::function <std::string(std::size_t max_length
+                                                         , SSLContextBase::password_purpose purpose)>;
+    struct SSLOptions
+    {
+        explicit SSLOptions()
+            : options(boost::asio::ssl::context::default_workarounds
+                      | boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3)
+            , certificate_file_with_encryption(CertificateWithEncryption::no)
+            , private_key_file_format(SSLContextBase::pem), will_verify_client(false)
+            , on_need_password(nullptr)
+        {
+        }
+
+        explicit SSLOptions(OnNeedSSLPassword&& password_callback)
+            : options(boost::asio::ssl::context::default_workarounds
+                      | boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3)
+            , certificate_file_with_encryption(CertificateWithEncryption::no)
+            , private_key_file_format(SSLContextBase::pem), will_verify_client(false)
+            , on_need_password(std::forward<OnNeedSSLPassword>(password_callback))
+        {
+        }
+
+        SSLOptions(SSLContextBase::options options, OnNeedSSLPassword&& password_callback)
+            : options(options)
+            , private_key_file_format(SSLContextBase::pem)
+            , on_need_password(std::forward<OnNeedSSLPassword>(password_callback))
+        {
+        }
+
+        void EnableSSLV3()
+        {
+            options &= ~boost::asio::ssl::context::no_sslv3;
+        }
+
+        void EnableVerifyClient()
+        {
+            will_verify_client = true;
+        }
+
+        void DisableVerifyClient()
+        {
+            will_verify_client = false;
+        }
+
+        enum class CertificateWithEncryption {no, yes};
+
+        void InitFiles(std::string certificate_chain_file
+                       , std::string private_key_file
+                       , std::string tmp_dh_file = ""
+                       , SSLContextBase::file_format private_key_file_format = SSLContextBase::pem
+                       , CertificateWithEncryption certificate_file_with_encryption = CertificateWithEncryption::no)
+        {
+            this->certificate_chain_file = std::move(certificate_chain_file);   //.pem
+            this->private_key_file = std::move(private_key_file);               //.key
+            this->private_key_file_format = private_key_file_format;
+
+            this->tmp_dh_file = std::move(tmp_dh_file);
+
+            if (!tmp_dh_file.empty())
+            {
+                options |= SSLContextBase::single_dh_use;
+            }
+
+            this->certificate_file_with_encryption = certificate_file_with_encryption;
+        }
+
+        SSLContextBase::options options;
+
+        std::string certificate_chain_file;
+
+        CertificateWithEncryption certificate_file_with_encryption;
+
+        std::string private_key_file;
+        std::string tmp_dh_file;
+
+        SSLContextBase::file_format private_key_file_format;
+        bool will_verify_client;
+
+        OnNeedSSLPassword on_need_password;
+    };
+
+private:
+    Server(Tcp::endpoint endpoint, size_t thread_count, SSLOptions const* ssl_opts = nullptr);
+
 public:
     using IdleFunction = std::function<void (void)>;
 
     using Ptr = std::unique_ptr<Server>;
 
-    static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count);
     static Ptr Supply(unsigned short port, size_t thread_count);
+    static Ptr Supply(std::string const& host, unsigned short port, size_t thread_count);
 
     static Ptr Supply(std::string const& host, unsigned short port);
     static Ptr Supply(unsigned short port = 80);
+
+
+    static Ptr SupplyWithSSL(SSLOptions const& ssl_opt, unsigned short port, size_t thread_count);
+    static Ptr SupplyWithSSL(SSLOptions const& ssl_opt
+                             , std::string const& host, unsigned short port, size_t thread_count);
+
+    static Ptr SupplyWithSSL(SSLOptions const& ssl_opt, std::string const& host, unsigned short port);
+    static Ptr SupplyWithSSL(SSLOptions const& ssl_opt, unsigned short port = 443);
 
     ~Server();
 
     IOContextPool* GetIOContextPool()
     {
         return &_ioc_pool;
+    }
+
+public:
+    bool IsWithSSL() const
+    {
+        return _withssl == WithSSL::yes;
     }
 public:
     void Run();
@@ -121,6 +223,7 @@ private:
     void stop_idle_timer();
 
 private:
+    WithSSL _withssl;
     int _idle_interval_seconds;
 
 private:
@@ -130,6 +233,7 @@ private:
     IOContextPool _ioc_pool;
     Tcp::acceptor _acceptor;
     boost::asio::signal_set _signals;
+    std::unique_ptr<boost::asio::ssl::context> _ssl_ctx;
 
     std::atomic_bool _idle_running;
 

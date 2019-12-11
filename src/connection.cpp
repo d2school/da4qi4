@@ -13,8 +13,36 @@
 namespace da4qi4
 {
 
+namespace net_detail
+{
+
+SocketBase::~SocketBase()
+{
+}
+
+Socket::~Socket()
+{
+
+}
+
+SocketWithSSL::~SocketWithSSL()
+{
+}
+
+} //namespace net_detail
+
+
 Connection::Connection(IOC& ioc, size_t ioc_index)
-    : _socket(ioc), _ioc_index(ioc_index), _parser(new http_parser)
+    : _with_ssl(false), _socket_ptr(new net_detail::Socket(ioc))
+    , _ioc_index(ioc_index), _parser(new http_parser)
+{
+    this->init_parser();
+    this->init_parser_setting();
+}
+
+Connection::Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx)
+    : _with_ssl(true), _socket_ptr(new net_detail::SocketWithSSL(ioc, ssl_ctx))
+    , _ioc_index(ioc_index), _parser(new http_parser)
 {
     this->init_parser();
     this->init_parser_setting();
@@ -24,6 +52,7 @@ Connection::~Connection()
 {
     delete _parser;
     this->free_multipart_parser();
+    delete _socket_ptr;
 }
 
 ApplicationPtr Connection::GetApplication()
@@ -47,6 +76,17 @@ void Connection::init_parser_setting()
     _parser_setting.on_header_value = &Connection::on_header_value;
     _parser_setting.on_url = &Connection::on_url;
     _parser_setting.on_body = &Connection::on_body;
+}
+
+void Connection::Start()
+{
+    if (!_with_ssl)
+    {
+        StartRead();
+        return;
+    }
+
+    this->do_handshake();
 }
 
 void Connection::StartRead()
@@ -475,7 +515,7 @@ void Connection::free_multipart_parser(mp_free_flag flag)
 void Connection::do_close()
 {
     errorcode ec;
-    _socket.close(ec);
+    _socket_ptr->close(ec);
 
     if (ec)
     {
@@ -483,15 +523,44 @@ void Connection::do_close()
     }
 }
 
-void Connection::do_read()
+void Connection::do_handshake()
 {
+    assert(this->_with_ssl);
+
+    auto socket_withssl = dynamic_cast<net_detail::SocketWithSSL*>(_socket_ptr);
+    assert(socket_withssl != nullptr);
+
+    auto& stream = socket_withssl->get_stream();
+
     auto self(this->shared_from_this());
-    _socket.async_read_some(boost::asio::buffer(_buffer)
-                            , [self, this](boost::system::error_code ec
-                                           , std::size_t bytes_transferred)
+
+    stream.async_handshake(boost::asio::ssl::stream_base::server
+                           , [self](errorcode const & ec)
     {
         if (ec)
         {
+            log::Server()->error("Socket handshake for SSL fail. {}", ec.message());
+            return;
+        }
+
+        self->StartRead();
+    });
+}
+
+void Connection::do_read()
+{
+    auto self(this->shared_from_this());
+    _socket_ptr->async_read_some(_buffer
+                                 , [self, this](boost::system::error_code ec
+                                                , std::size_t bytes_transferred)
+    {
+        if (ec)
+        {
+            if (ec != boost::asio::error::eof)
+            {
+                log::Server()->error("Client connection closed not graceful. {}", ec.message());
+            }
+
             return;
         }
 
@@ -560,7 +629,7 @@ void Connection::do_write()
     os << _response;
 
     ConnectionPtr self = shared_from_this();
-    boost::asio::async_write(_socket
+    boost::asio::async_write(_socket_ptr->get_socket()
                              , _write_buffer
                              , [self, this](errorcode const & ec, size_t bytes_transferred)
     {
@@ -608,7 +677,7 @@ void Connection::do_write_header_for_chunked()
 
     ConnectionPtr self = shared_from_this();
 
-    boost::asio::async_write(_socket
+    boost::asio::async_write(_socket_ptr->get_socket()
                              , _write_buffer
                              , [self, this](errorcode const & ec, size_t bytes_transferred)
     {
@@ -650,16 +719,17 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
         }
 
 #ifdef HAS_IO_CONTEXT
-        _socket.get_io_context()
+        _socket_ptr->get_socket().get_io_context()
 #else
-        _socket.get_io_service()
+        _socket_ptr->get_socket().get_io_service()
 #endif
         .post(std::bind(&Connection::do_write_next_chunked_body
                         , self, start_wait_clock));
     }
     else
     {
-        boost::asio::async_write(_socket, boost::asio::buffer(_current_chunked_body_buffer)
+        boost::asio::async_write(_socket_ptr->get_socket()
+                                 , boost::asio::buffer(_current_chunked_body_buffer)
                                  , [self](errorcode const & ec, size_t bytes_transferred)
         {
             self->do_write_chunked_body_finished(ec, bytes_transferred);

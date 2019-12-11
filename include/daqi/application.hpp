@@ -35,11 +35,21 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
-struct ApplicationDirectories
+struct ApplicationLocalDiskSetting
 {
+    ApplicationLocalDiskSetting()
+        : template_ext(get_daqi_HTML_template_ext())
+    {}
+
+    ApplicationLocalDiskSetting(ApplicationLocalDiskSetting const&) = default;
+    ApplicationLocalDiskSetting(ApplicationLocalDiskSetting&&) = default;
+
     std::string log_dir;
     std::string static_dir;
+
     std::string template_dir;
+    std::string template_ext;
+
     std::string temporary_dir;
     std::string upload_dir;
 };
@@ -60,6 +70,7 @@ private:
                 , fs::path const& root_template
                 , fs::path const& root_upload
                 , fs::path const& root_temporary
+                , std::string const& template_ext
                );
 public:
     static ApplicationPtr Default()
@@ -78,38 +89,41 @@ public:
                                     , fs::path const& root_static = ""
                                     , fs::path const& root_template = ""
                                     , fs::path const& root_upload = ""
-                                    , fs::path const& root_temporary = "")
+                                    , fs::path const& root_temporary = ""
+                                    , std::string const& template_ext = get_daqi_HTML_template_ext())
     {
         return ApplicationPtr(new Application(name,
                                               root_url, root_log, root_static,
                                               root_template, root_upload,
-                                              root_temporary));
+                                              root_temporary, template_ext));
     }
 
     static ApplicationPtr Customize(std::string const& name, std::string const& url
-                                    , ApplicationDirectories const& ads)
+                                    , ApplicationLocalDiskSetting const& ads)
     {
         return Customize(name,
                          url, ads.log_dir, ads.static_dir,
                          ads.template_dir, ads.upload_dir,
-                         ads.temporary_dir);
+                         ads.temporary_dir, ads.template_ext);
     }
 
     static ApplicationPtr Abortive();
 
     ~Application();
 
-    bool Init(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
-              size_t max_log_file_count = 9)
+    bool Init(log::Level level = log::Level::info,
+              size_t max_log_file_size_kb = 5 * 1024,
+              size_t max_log_file_count = 9,
+              std::string const& template_ext = "")
     {
         return InitLogger(level, max_log_file_size_kb, max_log_file_count)
-               && InitPathes() && InitTemplates();
+               && InitPathes() && InitTemplates(template_ext);
     }
 
     bool InitLogger(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
                     size_t max_log_file_count = 9);
     bool InitPathes();
-    bool InitTemplates();
+    bool InitTemplates(std::string const& template_ext = "");
 
 #ifdef NDEBUG
     bool IsAbortive() const
@@ -149,6 +163,16 @@ public:
         if (!IsRuning())
         {
             _root_template = root_template;
+        }
+
+        return *this;
+    }
+
+    Application& SetTemplateExt(std::string const& template_ext)
+    {
+        if (!IsRuning() && _template_ext != template_ext)
+        {
+            _template_ext = template_ext;
         }
 
         return *this;
@@ -219,10 +243,16 @@ public:
         return _root_upload;
     }
 
+    std::string const& GetTempateExt() const
+    {
+        return _template_ext;
+    }
+
     bool IsEnable() const
     {
         return !_disabled;
     }
+
     void Disable();
     void Enable();
 
@@ -349,6 +379,7 @@ private:
     fs::path _root_template;
     fs::path _root_upload;
     fs::path _root_temporary;
+    std::string _template_ext;
 
     size_t _upload_max_size_limit_kb = 1 * 1024 * 1024;
 

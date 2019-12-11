@@ -270,6 +270,7 @@ Application::Application(std::string const& name)
     : _name(name)
     , _default_charset("utf-8")
     , _root_url("/")
+    , _template_ext(get_daqi_HTML_template_ext())
 {
     default_init();
 }
@@ -280,7 +281,8 @@ Application::Application(std::string const& name
                          , fs::path const& root_static
                          , fs::path const& root_template
                          , fs::path const& root_upload
-                         , fs::path const& root_temporary)
+                         , fs::path const& root_temporary
+                         , std::string const& template_ext)
     : _name(name)
     , _root_url(root_url)
     , _root_log(root_log)
@@ -288,7 +290,8 @@ Application::Application(std::string const& name
     , _root_template(root_template)
     , _root_upload(root_upload)
     , _root_temporary(root_temporary)
-    , _templates(root_template.native(), root_url)
+    , _template_ext(template_ext)
+    , _templates(root_template.native(), root_url, template_ext)
 
 {
     this->InitPathes();
@@ -337,7 +340,7 @@ void Application::default_init_pathes()
 
 void Application::default_init_templates()
 {
-    _templates.InitPathes(_root_template.native(), "/");
+    _templates.InitPathes(_root_template.native(), "/", get_daqi_HTML_template_ext());
 }
 
 bool Application::InitLogger(log::Level level
@@ -462,7 +465,7 @@ bool Application::InitPathes()
     return false;
 }
 
-bool Application::InitTemplates()
+bool Application::InitTemplates(std::string const& template_ext)
 {
     assert(!IsRuning());
     assert(_logger != nullptr);
@@ -476,8 +479,18 @@ bool Application::InitTemplates()
 
 #endif
 
-    _templates.InitPathes(_root_template.native(), _root_url);
-    return _templates.Preload(_logger);
+    if (!template_ext.empty())
+    {
+        _template_ext = template_ext;
+    }
+
+    if (!_template_ext.empty())
+    {
+        _templates.InitPathes(_root_template.native(), _root_url, _template_ext);
+        return _templates.Preload(_logger);
+    }
+
+    return true;
 }
 
 bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h, std::string const& t)

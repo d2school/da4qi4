@@ -2,6 +2,7 @@
 #define DAQI_ASIO_DEF_HPP
 
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 
 namespace da4qi4
 {
@@ -24,6 +25,8 @@ using Tcp = boost::asio::ip::tcp;
 #else
     typedef Tcp::resolver::iterator ResolverResultT;
 #endif
+
+typedef boost::asio::ssl::context_base SSLContextBase;
 
 }
 

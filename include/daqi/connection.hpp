@@ -2,6 +2,7 @@
 #define DAQI_CONNECTION_HPP
 
 #include <memory>
+#include <boost/asio/ssl/stream.hpp>
 
 #include "http-parser/http_parser.h"
 #include "multipart-parser/multipart_parser.h"
@@ -17,14 +18,104 @@ namespace da4qi4
 
 class Application;
 
+namespace net_detail
+{
+
+using ReadBuffer = std::array<char, 1024 * 4>;
+
+struct SocketBase
+{
+    virtual ~SocketBase();
+    virtual void async_read_some(ReadBuffer&
+                                 , std::function<void (errorcode const&, std::size_t)>) = 0;
+    virtual void close(errorcode& ec) = 0;
+
+    virtual Tcp::socket& get_socket() = 0;
+};
+
+struct Socket : SocketBase
+{
+    Socket(IOC& ioc)
+        : _socket(ioc)
+    {
+    }
+
+    ~Socket() override;
+
+    Tcp::socket& get_socket() override
+    {
+        return _socket;
+    }
+
+    void async_read_some(ReadBuffer& read_buffer,
+                         std::function<void (errorcode const&, std::size_t)> on_read) override
+    {
+        _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
+    }
+
+    void close(errorcode& ec) override
+    {
+        _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
+        _socket.close(ec);
+    }
+
+private:
+    Tcp::socket _socket;
+};
+
+struct SocketWithSSL : SocketBase
+{
+    SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
+        : _stream(ioc, ssl_ctx)
+    {
+    }
+
+    ~SocketWithSSL() override;
+
+    Tcp::socket& get_socket() override
+    {
+        return _stream.next_layer();
+    }
+
+    void async_read_some(ReadBuffer& read_buffer,
+                         std::function<void (errorcode const&, std::size_t)> on_read) override
+    {
+        _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
+    }
+
+    void close(errorcode& ec) override
+    {
+        _stream.lowest_layer().cancel();
+        _stream.shutdown(ec);
+        _stream.next_layer().close(ec);
+    }
+
+    boost::asio::ssl::stream<Tcp::socket>& get_stream()
+    {
+        return _stream;
+    }
+
+private:
+    boost::asio::ssl::stream<Tcp::socket> _stream;
+};
+
+} //namespace net_detail
+
 class Connection
     : public std::enable_shared_from_this<Connection>
 {
     explicit Connection(IOC& ioc, size_t ioc_index);
+    explicit Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx);
+
 public:
     static ConnectionPtr Create(IOC& ioc, size_t ioc_index)
     {
         return ConnectionPtr(new Connection(ioc, ioc_index));
+    }
+
+    static ConnectionPtr Create(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx)
+    {
+        return ConnectionPtr(new Connection(ioc, ioc_index, ssl_ctx));
     }
 
     Connection(const Connection&) = delete;
@@ -33,6 +124,7 @@ public:
     ~Connection();
 
 public:
+    void Start();
     void StartRead();
     void StartWrite();
     void Stop();
@@ -70,10 +162,17 @@ public:
 public:
     Tcp::socket& GetSocket()
     {
-        return _socket;
+        return _socket_ptr->get_socket();
+    }
+
+    bool IsWithSSL() const
+    {
+        return _with_ssl;
     }
 
 private:
+    void do_handshake();
+
     void do_read();
     void do_write();
     void do_close();
@@ -129,9 +228,11 @@ private:
     void reset();
 
 private:
-    Tcp::socket _socket;
+    bool _with_ssl;
+    net_detail::SocketBase* _socket_ptr;
+
     size_t _ioc_index;
-    std::array<char, 1024 * 4> _buffer;
+    net_detail::ReadBuffer _buffer;
 
 private:
     http_parser* _parser;

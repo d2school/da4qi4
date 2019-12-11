@@ -11,7 +11,14 @@
 
 namespace da4qi4
 {
+
 void init_template_env(inja::Environment& env);
+
+std::string const& get_daqi_HTML_template_ext();
+std::string const& get_daqi_JSON_template_ext();
+std::string const& get_daqi_XML_template_ext();
+
+std::string make_daqi_template_ext(std::string const& ext);
 
 using TemplatesEnv = inja::Environment;
 
@@ -19,16 +26,18 @@ class Templates
 {
 public:
     Templates() = default;
+    Templates(Templates const&) = default;
 
-    Templates(std::string const& template_root, std::string const& app_url_root)
-        : _root(template_root), _app_prefix(app_url_root)
+    Templates(std::string const& template_root, std::string const& app_url_root, std::string const& template_ext)
+        : _root(template_root), _app_prefix(app_url_root), _template_ext(template_ext)
     {
     }
 
-    void InitPathes(std::string const& template_root, std::string const& app_url_root)
+    void InitPathes(std::string const& template_root, std::string const& app_url_root, std::string const& template_ext)
     {
         _root = template_root;
         _app_prefix = app_url_root;
+        _template_ext = template_ext;
     }
 
     bool Preload(log::LoggerPtr app_logger);
@@ -95,7 +104,7 @@ private:
     std::unordered_map<std::string, Item> _templates;
     std::unordered_map<std::string, Item> _includes_templates;
 
-    std::string _root, _app_prefix;
+    std::string _root, _app_prefix, _template_ext;
 };
 
 } //namesapce da4qi4
