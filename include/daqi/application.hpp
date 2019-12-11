@@ -35,14 +35,14 @@ struct UploadFileSaveOptions
     std::set<std::string, Utilities::IgnoreCaseCompare> extensions;
 };
 
-struct ApplicationLocalDiskSetting
+struct AppLocalDiskSetting
 {
-    ApplicationLocalDiskSetting()
+    AppLocalDiskSetting()
         : template_ext(get_daqi_HTML_template_ext())
     {}
 
-    ApplicationLocalDiskSetting(ApplicationLocalDiskSetting const&) = default;
-    ApplicationLocalDiskSetting(ApplicationLocalDiskSetting&&) = default;
+    AppLocalDiskSetting(AppLocalDiskSetting const&) = default;
+    AppLocalDiskSetting(AppLocalDiskSetting&&) = default;
 
     std::string log_dir;
     std::string static_dir;
@@ -52,6 +52,23 @@ struct ApplicationLocalDiskSetting
 
     std::string temporary_dir;
     std::string upload_dir;
+};
+
+struct AppLoggerSetting
+{
+    static log::Level const  default_log_level = log::Level::info;
+    static std::size_t const default_max_log_file_size_kb = 5 * 1024;
+    static std::size_t const default_max_log_file_count = 9;
+
+    AppLoggerSetting()
+        : level(default_log_level),
+          max_log_file_size_kb(default_max_log_file_size_kb),
+          max_log_file_count(default_max_log_file_count)
+    {}
+
+    log::Level level;
+    size_t max_log_file_size_kb;
+    size_t max_log_file_count;
 };
 
 class Application;
@@ -99,7 +116,7 @@ public:
     }
 
     static ApplicationPtr Customize(std::string const& name, std::string const& url
-                                    , ApplicationLocalDiskSetting const& ads)
+                                    , AppLocalDiskSetting const& ads)
     {
         return Customize(name,
                          url, ads.log_dir, ads.static_dir,
@@ -111,27 +128,51 @@ public:
 
     ~Application();
 
-    bool Init(log::Level level = log::Level::info,
-              size_t max_log_file_size_kb = 5 * 1024,
-              size_t max_log_file_count = 9,
+    bool Init(AppLoggerSetting const& logger_setting, std::string const& template_ext = "")
+    {
+        return Init(logger_setting.level
+                    , logger_setting.max_log_file_size_kb, logger_setting.max_log_file_count, template_ext);
+    }
+
+    bool Init(log::Level level = AppLoggerSetting::default_log_level,
+              size_t max_log_file_size_kb = AppLoggerSetting::default_max_log_file_size_kb,
+              size_t max_log_file_count = AppLoggerSetting::default_max_log_file_count,
               std::string const& template_ext = "")
     {
         return InitLogger(level, max_log_file_size_kb, max_log_file_count)
-               && InitPathes() && InitTemplates(template_ext);
+               && InitPathes()
+               && InitTemplates(template_ext);
     }
 
-    bool Init(std::string const& log_root, log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
-              size_t max_log_file_count = 9)
+    bool Init(std::string const& log_root, log::Level level = AppLoggerSetting::default_log_level,
+              size_t max_log_file_size_kb = AppLoggerSetting::default_max_log_file_size_kb,
+              size_t max_log_file_count = AppLoggerSetting::default_max_log_file_count)
     {
         return InitLogger(log_root, level, max_log_file_size_kb, max_log_file_count)
                && InitPathes() && InitTemplates();
     }
 
-    bool InitLogger(std::string const& log_root, log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
-                    size_t max_log_file_count = 9);
+    bool InitLogger(std::string const& log_root, AppLoggerSetting const& logger_setting)
+    {
+        return InitLogger(log_root
+                          , logger_setting.level, logger_setting.max_log_file_size_kb
+                          , logger_setting.max_log_file_count);
+    }
 
-    bool InitLogger(log::Level level = log::Level::info, size_t max_log_file_size_kb = 5 * 1024,
-                    size_t max_log_file_count = 9);
+    bool InitLogger(std::string const& log_root,
+                    log::Level level = AppLoggerSetting::default_log_level,
+                    size_t max_log_file_size_kb = AppLoggerSetting::default_max_log_file_size_kb,
+                    size_t max_log_file_count = AppLoggerSetting::default_max_log_file_count);
+
+    bool InitLogger(AppLoggerSetting const& logger_setting)
+    {
+        return InitLogger(logger_setting.level, logger_setting.max_log_file_size_kb, logger_setting.max_log_file_count);
+    }
+
+    bool InitLogger(log::Level level = AppLoggerSetting::default_log_level,
+                    size_t max_log_file_size_kb = AppLoggerSetting::default_max_log_file_size_kb,
+                    size_t max_log_file_count = AppLoggerSetting::default_max_log_file_count);
+
     bool InitPathes();
     bool InitTemplates(std::string const& template_ext = "");
 
@@ -308,11 +349,6 @@ public:
 public:
     bool AddHandler(HandlerMethod m, std::string const& url, Handler h, std::string const& t = "")
     {
-        if (IsRuning())
-        {
-            return false;
-        }
-
         return AddHandler(m, router_equals(url), h, t);
     }
 
@@ -322,11 +358,6 @@ public:
 
     bool AddHandler(HandlerMethods ms, std::string const& url, Handler h, std::string const& t = "")
     {
-        if (IsRuning())
-        {
-            return false;
-        }
-
         return AddHandler(ms, router_equals(url), h, t);
     }
     bool AddHandler(HandlerMethods ms, router_equals e, Handler h, std::string const& t = "");
@@ -341,13 +372,7 @@ public:
                         , std::string const& t = "");
 
 public:
-    void AddIntercepter(Intercepter::Handler intercepter)
-    {
-        if (!IsRuning())
-        {
-            _intercepters.push_back(intercepter);
-        }
-    }
+    bool AddIntercepter(Intercepter::Handler intercepter);
 
     std::pair<Intercepter::ChainIterator, Intercepter::ChainIterator>
     GetIntercepterChainRange()

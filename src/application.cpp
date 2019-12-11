@@ -343,7 +343,8 @@ void Application::default_init_templates()
     _templates.InitPathes(_root_template.native(), "/", get_daqi_HTML_template_ext());
 }
 
-bool Application::InitLogger(std::string const& log_root, log::Level level, size_t max_log_file_size_kb, size_t max_log_file_count)
+bool Application::InitLogger(std::string const& log_root, log::Level level, size_t max_log_file_size_kb,
+                             size_t max_log_file_count)
 {
     if (_root_log != log_root)
     {
@@ -502,11 +503,23 @@ bool Application::InitTemplates(std::string const& template_ext)
     return true;
 }
 
+bool Application::AddIntercepter(Intercepter::Handler intercepter)
+{
+    if (!IsRuning())
+    {
+        _logger->warn("Add intercepter fail. application is running.");
+        return false;
+    }
+
+    _intercepters.push_back(intercepter);
+    return true;
+}
+
 bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h, std::string const& t)
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add equals-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -516,7 +529,7 @@ bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h, std::s
 
     if (!_equalRouter.Add(r, m, h, t, error))
     {
-        _logger->error("Add router {} fail. {}", r.s, error);
+        _logger->error("Add equals-router {} fail. {}.", r.s, error);
         return false;
     }
 
@@ -527,7 +540,7 @@ bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h, std::s
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add starts-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -537,7 +550,7 @@ bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h, std::s
 
     if (!_startwithsRouter.Add(r, m, h, t, error))
     {
-        _logger->error("Add starts router {} fail. {}", r.s, t, error);
+        _logger->error("Add starts-router {} fail. {}.", r.s, t, error);
         return false;
     }
 
@@ -548,7 +561,7 @@ bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h, std::st
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add regex-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -558,7 +571,7 @@ bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h, std::st
 
     if (!_regexRouter.Add(r, m, h, t, error))
     {
-        _logger->error("Add regex router {} fail. {}", r.s, error);
+        _logger->error("Add regex-router {} fail. {}.", r.s, error);
         return false;
     }
 
@@ -569,7 +582,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h, std:
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add euqals-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -579,7 +592,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h, std:
 
     if (!_equalRouter.Add(r, ms, h, t, error))
     {
-        _logger->error("Add equals router {} fail. {}", r.s, error);
+        _logger->error("Add equals-router {} fail. {}.", r.s, error);
         return false;
     }
 
@@ -590,7 +603,7 @@ bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h, std:
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add starts-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -600,7 +613,7 @@ bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h, std:
 
     if (!_startwithsRouter.Add(r, ms, h, t, error))
     {
-        _logger->error("Add starts router {} fail. {}", r.s, error);
+        _logger->error("Add starts router {} fail. {}.", r.s, error);
         return false;
     }
 
@@ -611,7 +624,7 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h, std::
 {
     if (IsRuning())
     {
-        _logger->warn("Add router {} fail. application is running.");
+        _logger->warn("Add regex-router {} fail. application is running.", r.s);
         return false;
     }
 
@@ -621,7 +634,7 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h, std::
 
     if (!_regexRouter.Add(r, ms, h, t, error))
     {
-        _logger->error("Add regex router {} fail. {}", r.s, error);
+        _logger->error("Add regex-router {} fail. {}.", r.s, error);
         return false;
     }
 
@@ -703,7 +716,7 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
 
     if (!rr.error.empty())
     {
-        _logger->warn("Match equals router for {} exception. {}", url, rr.error);
+        _logger->warn("Match equals-router for {} exception. {}.", url, rr.error);
     }
 
     if (rr.handler)
@@ -716,7 +729,7 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
 
     if (!srr.error.empty())
     {
-        _logger->warn("Match starts router for {} exception. {}", url, srr.error);
+        _logger->warn("Match starts-router for {} exception. {}.", url, srr.error);
     }
 
     if (srr.handler)
@@ -732,7 +745,7 @@ Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& u
 
     if (!rrr.error.empty())
     {
-        _logger->warn("Match regex router for {} exception. {}", url, rrr.error);
+        _logger->warn("Match regex-router for {} exception. {}.", url, rrr.error);
     }
 
     if (rrr.handler)

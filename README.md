@@ -1,16 +1,16 @@
 - [零、几个原则](#零几个原则)
   * [0.1 自己的狗粮自己吃](#01-自己的狗粮自己吃)
-  * [0.2 牛人的大腿抱真香](#02-牛人的大腿抱真香)
+  * [0.2 坚持抱牛人大腿不放](#02-坚持抱牛人大腿不放)
   * [0.3 易用优于性能](#03-易用优于性能)
   * [0.4 简单胜过炫技](#04-简单胜过炫技)
-  * [0.5 生产第一，自嗨顺便](#05-生产第一自嗨顺便)
+  * [0.5 紧跟国内生产环境](#05-紧跟国内生产环境)
 - [一、快速了解](#一快速了解)
   * [1.1 一个空转的Web Server](#11-一个空转的web-server)
   * [1.2 Hello World!](#12-hello-world)
     + [1.2.1 针对指定URL的响应](#121-针对指定url的响应)
     + [1.2.2 返回HTML](#122-返回html)
   * [1.3 处理请求](#13-处理请求)
-  * [1.4 引入“Application”](#14-引入application)
+  * [1.4 引入Application](#14-引入application)
   * [1.5 运行日志](#15-运行日志)
   * [1.6 HTML 模板](#16-html模板)
   * [1.7 更多](#17-更多)
@@ -37,25 +37,28 @@
 
 ![第2学堂手机版](https://images.gitee.com/uploads/images/2019/1114/123659_60286a85_1463463.png "手机屏幕截图.png")
 
-丑，但这只和我的美感太差有关，和后台使用什么Web框架一分钱关系都没有。
+样式丑，但这只和差劲的UI师，也就是我的美感有关，和后台使用什么Web框架没有关系。
 
-## 0.2 牛人的大腿抱真香
+## 0.2 坚持抱牛人大腿不放
 
-使用成熟的，广泛应用（最好有大公司参与）的开源项目作为框架基础组成部件。
+相比其它语言，C++的Web框架有，但不多；同样相比其它语言，用来组装、支撑一个Web框架应用的底层组件，C/C++多得要 ”溢出来了“（因为许多其它语言的底层组件，最终也来自C/C++）。
 
-da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
+所以，如果造WEB框架是造一辆车，但我想尽量使用成熟的、已经被广泛应用的、如果有大公司参与则视为加分项的，当然是开源免费的的各类基础组件，作为这辆车的关键组成。造一辆引擎源于C++语言的强劲汽车，但不重新造轮子。
+
+da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
 - HTTP 基础协议解析：Node.JS的底层C组件 Node.JS / http-parser， [nodejs/http-parser](https://github.com/nodejs/http-parser) 
 - HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
-- 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （预计进入C++ 2x标准库）
+- 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （可能进入C++2x标准库）
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
-- 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
-- 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
+- 日志： [splogs](https://github.com/gabime/spdlog) 高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
+- 模板引擎： [inja](https://github.com/pantor/inja) 模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，名气不大，但能和nlohmann-json完美配合实现C++内嵌的动态数据结构，加上我为它解决过bug，比较熟悉、放心。
+- TLS/SSL/数据加密： [OpenSSL](https://www.openssl.org/) 全世界都在用，虽然“出过血”……但仍然是最可信的组件
 - Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 da4qi4默认使用redis缓存session等信息(以优先支持负载均衡下的节点无状态横向扩展)。
-- TLS/SSL/数据加密： OpenSSL (虽然在全世界范围内出过血……但不用它还能用谁呢？)
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存逻辑）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
 注：
+
 1. 框架未绑定数据库访问方式。用户可使用 Oracle 官方 C++ Connector，或MySQL++，或 [三、运行时外部配套系统](#三运行时外部配套系统)提及的各类数据库连接器；
 2. 框架自身使用 redis 作为默认的（可跨进程的）SESSION支持。上层应用可选用框架的redis接口，也可以使用自己喜欢、 顺手 的redis C++客户端。
 
@@ -98,15 +101,18 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 
 ## 0.4 简单胜过炫技
 
-这点没什么好说的，一个C++程序员走上工作岗位后必须拥有的基本素养：用你的能力把系统写简单，而不是把系统写复杂以证明你的能力。把系统做简单够用。克制把系统做复杂的冲动。
+众所周知C++语言很难，非常适于C++程序员“炫技”；所以有一票C++开源项目虽然技术上很优秀，但却很容易吓跑普通的C++程序员。比如，超爱用“模板元”……da4qi4 的代码强烈克制了这种“炫技”冲动，尽量代码看上去毫无技巧，特别是对外接口，遵循KISS原则，不会让你产生任何“惊奇”（头回看到程序员把无技可炫写得这么清新脱俗？）。
 
-## 0.5 生产第一，自嗨顺便
-作者自嗨的话，应该什么都用最新最酷最炫……但要用于生产，除了简单，还要稳定、便捷。所以d只要有你一台Ubuntu 18.04 的服务器（国内云服务器提供商都可提供），就可以简单几行指令准备好da4qi4的开发及部署环境。
+不管怎样，在C++所大范围支持的“面向过程”、“基于对象”、“面向对象”和“泛型”等编程模式中，你只需熟悉“面向过程”，并且会一点“基于对象”，就可以放心地用这个库。
 
+## 0.5 紧跟国内生产环境
 
-> 学习用云服务器推荐（利益关系：我没收广告费）学生或24岁以下的年轻人的话，推荐云腾讯云按一月10元的钱买台1核、2G、1M的服务器……[腾讯云+校园](https://cloud.tencent.com/act/campus?from=11419)……。年轻大了，就先[阿里云](https://www.aliyun.com/)吧，暂没看到有优惠活动。1核、1G、1M一年要510.84元……我在用……心痛。
+用哪个版本的C++？用哪个版本的boost库？用哪个版本的OpenSSL？用哪个版本的CMake？
 
- 
+就一个标准：当前国内主要云计算提供商，已经提供哪些现成的版本，我们就用那个版本——这意味着你几乎只需编译好你写的代码可以完成在线构建、部署了。不用编译boost、不用编译OpenSSL、不用下载编译新版的CMake……
+
+[阿里云](https://cn.aliyun.com/)、[腾讯云](https://cloud.tencent.com/)、[百度云](https://cloud.baidu.com/)、[华为云](https://www.huaweicloud.com/)、[七牛云](https://www.qiniu.com/)……无论哪家，只要你在上面申请一台Ubuntu 18.04 （或更高版本）的服务器，简单向行指令就能在线编译、部署好，让它成为一台跑着“大器 INSIDE”的WEB 服务器，为你的用户提供网站服务。对服务器配置的最低要求是：4G内存、1M带宽、1核CPU。
+
 # 一、快速了解
 
 ## 1.1 一个空转的Web Server
@@ -135,11 +141,11 @@ Not Found
 
 > 小提示：代码中的“Supply(4098)”调用，如果不提供4098这个入参，那么Web Server将在HTTP默认的80端口监听。我们使用4098是考虑到在许多程序员的开发电脑上，80端口可能已经被别的应用占用了。
 
-虽然说它“不干活”，但其实这个Web Server在合符逻辑地正常运行中：你没有为它指定任何操作绑定，所以对它的任何访问，都返回“Not Found”（没错，就是404）。
+虽然说它“不干活”，但其实这个Web Server在合符逻辑地正常运行中：我们没有为它配备任何资源或响应操作、，所以对它的任何访问，都返回404页面：“Not Found”。
 
 ## 1.2 Hello World!
 
-不管访问什么都回一句“Not Found”这令人沮丧。接下来实现这么一个功能：当访问网站的根路径时，它能答应一声：“Hello World!”。
+接下来实现这么一个功能：当访问网站的根路径时，它能响应：“Hello World!”。
 
 ### 1.2.1 针对指定URL的响应
 
@@ -172,7 +178,7 @@ int main()
 
 3. 匿名的lambda表达式。
 
-三个入参以及方法名合起来表达一个意思：如果用户以GET方法访问网站的根路径，框架就调用lambda 表达式以做出响应。
+三个入参以及方法名合起来表达：如果用户以GET方法访问网站的根路径，框架就调用lambda表达式以做出响应。
 
 编译、运行。现在用浏览器访问 http://127.0.0.1:4098 ，将看到：
 
@@ -182,7 +188,7 @@ Hello World!
 
 ### 1.2.2 返回HTML
 
-以上代码返回给浏览器纯文本内容，接下来，应该来返回HTML格式的内容。出于演示目的，我们干了一件有“恶臭”的事：直接在代码中写HTML字符串。放心，后面很快会演示正常的做法：使用静态文件，或者基于网页模板文件来定制网页的页面内容；但现在，让我们来修改第11行代码调用ReplyOK()函数的入参，原来是“Hello World!”，现在将它改成一串HTML：
+以上代码返回给浏览器纯文本内容，接下来，应该来返回HTML格式的内容。出于演示目的，我们干了一件有“恶臭”的事：直接在代码中写HTML字符串。后面很快会演示正常的做法：使用静态文件，或者基于网页模板文件来定制网页的页面内容；但现在，让我们来修改第11行代码调用ReplyOK()函数的入参，原来是“Hello World!”，现在将它改成一串HTML：
 
 ```c++
 ……
@@ -208,7 +214,8 @@ int main()
     svc->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " 
+                            + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
@@ -217,13 +224,11 @@ int main()
 }
 ```
 
-> 重要： 这里为方便演示，全部用 lambda 表达式，但实际系统不可能把所有代码都放在main()函数中写。所以肯定是一个个函数——用函数也不丢人，记住：[0.5 生产第一，自嗨顺便](#05-生产第一自嗨顺便) 。
+> 重要： 这里为方便演示，全部用 lambda 表达式，但实际系统不可能把所有代码都放在main()函数中写。所以肯定是一个个函数。用编程语言中最最基础的函数并不丢人，因为，我们要的是实用，而不是非在代码秀一下“我会lambda哦！”。（参看：[0.4 简单胜过炫技](#04-简单胜过炫技)）
 
 编译、运行。通过浏览器访问 “http://127.0.0.1:4098/?name=Tom” ，将得到带有HTML格式控制的 “Hello Tom!”。
 
-> 小提示：试试看将“Tom”改为汉字，比如“张三”，通常你的浏览器会在“Hello ”后面显示成一团乱码；这不是大器框架的问题，这是我们手工写的那段html内容不够规范。
-
-## 1.4 引入“Application”
+## 1.4 引入Application
 
 Server代表一个Web 服务端，但同一个Web Server系统很可能可分成多个不同的人群。
 
@@ -231,7 +236,7 @@ Server代表一个Web 服务端，但同一个Web Server系统很可能可分成
 
 就当前而言，还不到演示一个Server上挂接多个Application的复杂案例，那我们为什么要开始介绍Application呢？Application才是负责应后台行为的主要实现者。在前面的例子中，虽然没有在代码中虽然只看到Server，但背后是由Server帮我们创建一个默认的 Application 对象，然后依靠该默认对象以实现演示中的相关功能。
 
-现在我们要做的是：显式创建一个Application对象，并代替Server对象来实前面最后一个例子的功能。
+下面我们就通过“Server | 服务”对象，取出这个“Application | 应用”，并代替前者实现前面最后一个例子的功能。
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -241,8 +246,8 @@ using namespace da4qi4;
 int main()
 {
     auto svc = Server::Supply(4098);
-    auto app = Application::Customize("web", "/", "./log");
 
+    auto app = svc->DefaultApp(); //取出自动生成的默认应用对象
     app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
@@ -252,30 +257,23 @@ int main()
         ctx->Pass();
     });
 
-    svc->Mount(app);
     svc->Run();
 }
 ```
 
-发生的变化：使用Aplication类的静态成员函数，定制（Customize）了一个应用，例中命名为web_app；然后改用它来添加前端以GET方法访问网站根URL路径时的处理方法。最后在svc运行之前，需要先将该应用挂接（Mount）上去。
-
-这段代码和前面没有显式引入Application的代码，功能一致，输出效果也一致。但为什么我们一定要引入Application呢？除了前述的，为将来一个Server对应多个Application做准备之外，从设计及运维上讲，还有一个目的：让Server和Application各背责任。 **Application负责较为高层的逻辑，重点是具体的某类业务，而Server则负责服务器较基础的逻辑，重点是网络方面的功能** 。下一小节将要讲到日志，正好是二者分工的一个典型体现。
+除了“AddHandler()”的实施对象以前是svc，现在是“app”以外，基本没有什么变化。代码和前面没有显式引入Application之前功能一致。但为什么我们一定要引入Application呢？除了前述的，为将来一个Server对应多个Application做准备之外，从设计及运维上讲，还有一个目的：让Server和Application各背责任。 **Application负责较为高层的逻辑，重点是具体的某类业务，而Server则负责服务器较基础的逻辑，重点是网络方面的功能** 。下一小节将要讲到日志，正好是二者分工的一个典型体现。
 
 ## 1.5 运行日志
 
-一个Web Server在运行时，当然容易遇到或产生各种问题。这时候后台能够输出、存储运行时的各种日志是大有必要的功能。
+一个Web Server在运行时，当然容易遇到或产生各种问题。这时候后台能够输出、存储运行时的各种日志是大有必要的功能。并且，最最重要的是，如果你写一个服务端程序，运行大半年没有什么屏幕输出，看起来实在是“不够专业”，很有可能会影响你的工资收入……
 
 结合前面所说的Server与Application的分工。日志在归集上就被分成两大部分：服务日志和应用日志。
 
-- 服务层日志：记录底层网络、相关的周边运行支撑环境(缓存/Redis、数据库/MySQL)等基础设施的运行状态。
+- 服务层日志：全局唯一，记录底层网络、相关的周边运行支撑环境(缓存/Redis、数据库/MySQL)等基础设施的运行状态。
 
-- 应用层日志：记录具体应用的运行日志。
+- 应用层日志：每个应用都对应一个日志记录器，记录该应用的运行日志。
 
-其中，相对底层的Server日志全局唯一，由框架自动创建；而应用层日志自然是每个应用对应一套日志。程序可以为服务层和应用层日志创建不同的日志策略。事实上，如果有多个应用，那自然可以为每个应用定制不同的日志策略。
-
-在前面例子中，服务层日志对象已经存在，只是我们没有主动配置它，也没有主动使用它记录日志。而唯一的应用web_app则采用默认的日记策略：即没有日志。没错，应用允许不记录日志。
-
-为了使用服务层日志，我们需要在程序启动后，服务还未创建时，就初始化服务层的日志对象，这样才有机会记录服务创建过程中的日志（比如最常见的，服务端口被占用的问题）。假设初始化日志这一步都失败，记录失败信息的人，肯定不能是日志对象，只能是我们熟悉的std::cerr或std::cout对象。
+其中，相对底层的Server日志由框架自动创建；而应用层日志自然是每个应用对应一套日志。程序可以为服务层和应用层日志创建不同的日志策略。事实上，如果有多个应用，那自然可以为每个应用定制不同的日志策略。如果不主动为某个应用创建日志记录器，则该应用只管全速运行，不输出任何日志——听起很酷，但你不应该对自己写的代码这么有信心。
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -284,39 +282,41 @@ using namespace da4qi4;
 
 int main()
 {
-    if (!log::InitServerLogger("/home/zhuangyan/Projects/CPP/daqi_demo/www/logs", log::Level::debug))
-    {
-        std::cerr << "Create server logger fail." << std::endl;
-        return -1;
-    }
+    //初始化服务日志，需指定日志文件要存在哪里？以及日志记录的最低级别
+    log::InitServerLogger("你希望/服务日志文件/要存储的/目录/" 
+                        , log::Level::debug));        
 
     auto svc = Server::Supply(4098);
-    log::Server()->info("准备web应用中……"); 
+    log::Server()->info("服务已成功加载.");          //强行输出一条服务日志
 
-    auto app = Application::Customize("web", "/", "./log");
+    auto app = svc->DefaultApp();
+
+    //再来初始化应用日志
+    app->InitLogger("你希望/当前应用的/要存储的/目录/");  
 
     app->AddHandler(_GET_, "/", [](Context ctx)
     {
         std::string name = ctx->Req("name");
-        std::string html = "<html><body><h1>Hello " + name + "!</h1></body></html>";
+        std::string html = "<html><body><h1>Hello " 
+                            + name + "!</h1></body></html>";
         ctx->Res().ReplyOk(html);
         ctx->Pass();
     });
 
-    svc->Mount(app);
-    svc->Run();
+    svc->Run();    
+    log::Server()->info("再见！");                  //强行再输出一条服务日志
 }
 ```
 
-> 小提示：为方便演示，上面代码暂时使用绝对路径以指定服务层日志文件的存储位置，实际项目通常以相对路径，或读取外部配置的方式以方便部署。
+所有日志功能都在“log::”名字空间之下。以上日志配置不仅会将信息输出到终端（控制台），也会自动输出指定目录下的文件中，服务日志和各应用日志是独立的文件。文件带有默认的最大尺寸和最大个数限制。实际在linux服务器上运行时，程序通常在后台运行并将本次运行的屏幕输出重定向到某个文件。
 
-一旦“InitServerLogger()”调用成功，并且设置低于INFO的日志输出级别（例中为DEBUG级别，见该函数的第2个入参：log::Level::debug），框架中有关服务层的许多日志，就会打印到屏幕（控制台）上及相应的日志文件里。
+日志的输出控制，支持常见的：跟踪(trace)、调试(debug)、信息(info)、警告(warn)、错误(err)、致命错误(critical)等级别。例中对“app->InitLogger()” 使用默认级别：info。
 
 下面是运行日志截图示例。
 
 ![输入图片说明](https://images.gitee.com/uploads/images/2019/1114/123346_2e261b35_1463463.jpeg "da4qi4运行日志界面")
 
-当然，当程序运行在服务器上，它会被配置成在后台运行，没有界面，日志被重定向到文件。
+看起来有点像个后台程序，可以申请领导过来视察你的工作成果了。
 
 ## 1.6 HTML 模板
 
@@ -334,18 +334,21 @@ int main()
     <meta content="text/html; charset=UTF-8">
 </head>
 <body>
-    <h1>你好，{=name=}！</h1>
+    <h1>你好，{=_URL_PARAMETER_("name")=} ！</h1>
     <p>您正在使用的浏览器： {=_HEADER_("User-Agent")=}</p>
     <p>您正在通过该网址访问本站：{=_HEADER_("Host")=}</p>
 </body>
 </html>
 ```
 
-“你好，”后面的特定格式{=name=}，将会被程序的模板解析引擎识别，并填写上运行时的提供的name的值。
+“你好，”后面的特定格式{=_URL_PARAMETER_("name")=} ，将会被程序的模板解析引擎识别，并填写上运行时的提供的name的值。
 
-> \_HEADER\_()是框架内置的函数，获得当前HTTP请求的报头数据项。在本例中无实际作用，仅用于演示一种常用的页面调试方法。
+解释：
 
-使用模板后，现在用于产生的网页内容的完整C++代码如下：
+- \_URL_PARAMETER\_() 是网页模板脚本内置提供的一个函数，它将自动得取浏览器地址栏输入URL后，所带的参数。
+- \_HEADER\_() 同样是网页模板脚本内置的一个函数，用以获得当前HTTP请求的报头数据项。在本例中无实际业务作用，常用于辅助页面调试。
+
+假设这个文件被存放在 “你的/网页模板/目录”。下面代码中的 “app->SetTemplateRoot()”将用到这个目录的路径。
 
 ```C++
 #include "daqi/da4qi4.hpp"
@@ -354,67 +357,209 @@ using namespace da4qi4;
 
 int main()
 {
-    //网站根目录 （同样，我们暂使用绝对路径）
-    std::string www_root = "/home/zhuangyan/Projects/CPP/daqi_demo/www/";
-
-    //初始化服务层日志
-    if (!log::InitServerLogger(www_root + "logs", log::Level::debug))
-    {
-        std::cerr << "Create server logger fail." << std::endl;
-        return -1;
-    }
+    log::InitServerLogger("你希望/服务日志文件/要存储的/目录/"
+                            , log::Level::debug));
 
     auto svc = Server::Supply(4098);
-    log::Server()->info("准备web应用中……"); //纯粹是为了演示日志……
+    log::Server()->info("服务已成功加载.");
 
-    auto app = Application::Customize("web", "/",
-                                          www_root + "logs/", www_root + "static/",
-                                          www_root + "view/", www_root + "upload/");
+    auto app = svc->DefaultApp();
 
-    //初始化web应用日志
-    if (!app->Init(Application::ActualLogger::yes, log::Level::debug))
-    {
-        log::Server()->critical("Init application {} fail.", web_app->GetName()); 
-        return -2;
-    }
+    //新增的两行：
+    app->SetTemplateRoot("你的/网页模板/目录/");    //模板文件根目录
+    app->InitTemplates();         //加载并将模板文件“编译成” 字节码
 
-    //添加请求处理
-    app->AddHandler(_GET_, "/", [](Context ctx)
-    {
-        std::string name = ctx->Req().GetUrlParameter("name");
-        ctx->ModelData()["name"] = name;
-        ctx->Render().Pass();
-    });
+    app->InitLogger("你希望/当前应用的/要存储的/目录/");
 
-    svc->Mount(app);
+    //下面这行让sever定时检测模板文件的变动（包括新增）
+    svc->EnableDetectTemplates(5); //5秒，实际项目请设置较大间隔，如10分钟
+    
+    svc->Run();
+    log::Server()->info("再见！");
+}
+```
+
+现在，假设使用火狐浏览器访问URL并带上“name”参数：http://127.0.0.1:4098?name=大器da4qi4 ，将得到以下HTML内容：
+
+```html
+<h1>你好，大器da4qi4 ！</h1>
+<p>您正在使用的浏览器：Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0 </p>
+<p>您正在通过该网址访问本站：127.0.0.1:4098</p>
+```
+
+> 小提示：“为什么代码更短了？” 你应该注意到，基于模板响应后，代码原有“AddHandler()” 都不见了。因为这个例子没有实质业务逻辑：用户访问一个URL地址，并且带参数，服务依据事先定义的模板样式，将这个参数原样展现出来……实际业务系统当然不可能这么简单（否则要我们后端程序员干什么？），但是，当我们在快速搭建一个系统时，在初始开发过程中，这种情况非常常见，不需要修改源代码，不需要重启服务程序，就能直接看到新增或修改的网页内容，带给我们很大的方便。
+
+框架提供的模板引擎，不仅能替换数据，也支持基本的条件判断、循环、自定函数等功能，类似一门“脚本”。
+
+> 重要：多数情况下我们写C++程序用以高性能地、从各种来源（数据库、缓存、文件、网络等）、以各种花样（同步、异步）获取数据、处理数据。而HTML模板引擎在C++程序中以解释的方式运行，因此正常的做法是不要让一个模板引擎干太复杂的，毕竟，在C++这种 “彪形大汉”的语言面，页面模板引擎“语言”无论在功能还是性能上，都只能算是一个小孩子。
+
+接下来，我们应该有一个带业务逻辑的例子。这个业务逻辑非常的复杂，并且严重信赖于CPU的计算速度……我们要做一个加法器。用户在浏览器地址栏输入:
+
+```html
+http://127.0.0.1:4098/add?a=1&b=2
+```
+
+浏览器将显示a+b的结果。显然，业务逻辑就是计算两个整数相加，我们的强大的，计算力过剩的C++语言终于可以派上用场。
+
+
+
+首先，准备一个用于显示加法结果的页面模板，文件名为 “add.daqi.HTML”：
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <title>加法</title>
+    <meta content="text/html; charset=UTF-8">
+</head>
+<body>
+    <p>
+       {=c=} 
+    </p>
+</body>
+</html>
+```
+
+重点在 “{=c=}”身上。 {==} 仍然用来标识一个可变内容，但其内不再是一个内置函数，而是一个普通的变量名称：c。为此我们在C++代码中要做的事变成两件：一是计算 a 加 b的和，二是将和以 c 为名字，填入模板对应位置。
+
+
+
+然后需要一个add的自由函数：
+
+```C++
+void add(Context ctx)
+{
+    //第一步：取得用户输入的参数 a 和 b:
+    std::string a = ctx->Req().GetUrlParameter("a");
+    std::string b = ctx->Req().GetUrlParameter("b");
+
+    //第二步：把字符串转换为整数:
+    int na = std::stoi(a);  //stoi 是 C++11新标中的字符串转换整数的函数
+    int nb = std::stoi(b);
+
+    //第三步：核心核心核心业务逻辑：加法计算
+    int c = na + nb;
+    
+    //第四步：把结果按模板指定的名字"c"，设置到“Model”数据中：
+    ctx->ModelData()["c"] = c;
+   
+    //最后一步：渲染，并把最终页面数据传回浏览器： （即：输出结果 = 模板 + 数据）
+    ctx->Render().Pass();  //Render 是动词：渲染
+}
+```
+
+暂时为了简化，我们不写日志、不作错误处理，现在，除了add函数的内部实现外，完整的main.cpp文件内容是：
+
+```C++
+#include "daqi/da4qi4.hpp"
+
+using namespace da4qi4;
+
+void add(Context ctx)
+{ 
+      /* 实现见上 */
+}
+
+int main()
+{
+    auto svc = Server::Supply("127.0.0.1", 4098);
+    auto app = svc->DefaultApp(); 
+    
+    app->SetTemplateRoot("你的/网页模板/目录/"); 
+    app->InitTemplates();
+    
+    //AddHandler 又回来了：
+    app->AddHandler(_GET_, "/add", add);
+
+    svc->EnableDetectTemplates(5);
     svc->Run();
 }
 ```
 
-由于我们所写的模板文件正确地指定了相关编码，所以现在如果访问 http://127.0.0.1:4098?name=大器da4qi4 。将得到带有HTML格式的：
+如前所述通过浏览器访问  .../add?a=1&b=2 ，将看一个简单的3。
 
+客户说这也太不人性化了，好歹显示一个 “1 + 2 = 3” 啊！ 太好了，我们正好借此演示如何不修改代码，不重启服务程序就达成目标。
+
+
+需要修改的是模板文件：“add.daqi.HTML”：
+
+```html
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <title>加法</title>
+    <meta content="text/html; charset=UTF-8">
+</head>
+<body>
+    <p>
+        <!-- 展示内容类似：1 + 2 = 3  -->
+        {=_URL_PARAMETER_("a")=}  +  {=_URL_PARAMETER_("b")=} = {=c=} 
+    </p>
+</body>
+</html>
 ```
-你好，大器da4qi4！
-```
 
-框架提供的模板引擎，不仅能替换数据，也支持基本的条件判断、循环、自定函数等功能，类似一门“脚本”。
+修改、保存，5秒过后再访问，就看到新成果了。
 
-> 小提示：大多数情况下，我们写的C++程序用以高性能地、从各种来源（数据库、缓存、文件、网络等）、以各种花样（同步、异步）获取数据、处理数据。而HTML模板引擎在C++程序中以解释的方式运行，因此正常的做法是不要让一个模板引擎干太复杂的，毕竟，在C++这种“彪形大汉”的语言面，它就是个小孩子。
 
-最后，如果一个页面仅仅是修改一些样式，比如把某些字体从黑色改成红色，那么我们就不应该重启Web Server（更无需重新编译），实现对模板的“热加载”。为达成这一效果，需要在“svc->Run()”之前添加一行代码：
+很多人担心C++写的程序容易出错，并且一出错就直接挂掉——上面程序，如果用户无意有意或干脆就是恶意搞破坏，输入 “.../add?a=A&b=BBBB”……会怎样呢？ add 函数中的 “std::stoi()” 调用可能抛出异常？不管怎样，请放心，程序并不会挂掉，它会继续运行，只是：
+
+- 一来、用户只会看到一个典型的HTTP 500 错误 “Internal Server Error  ”  (即：服务内部错误),这对用户来说，不太友好。
+
+- 二来，后台什么日志记录也没有，对系统的维护人员来说，也不友好。
+
+
+
+很简单，对add的业务逻辑加上异常处理，出现异常时，向客户回复一句相对友好点的内容，并且留下应用日志即可。以下是完整代码：
 
 ```C++
-...
-int main()
-{ 
-   ...
+#include "daqi/da4qi4.hpp"
 
-   svc->Mount(app);
-   svc->EnableDetectTemplates(3); //3秒，实际部署时，建议设置为一个较大秒数，比如 15 * 60 
-   svc->Run();
+using namespace da4qi4;
+
+void add(Context ctx)
+{
+    try
+    {
+        std::string a = ctx->Req().GetUrlParameter("a");
+        std::string b = ctx->Req().GetUrlParameter("b");
+
+        int na = std::stoi(a); 
+        int nb = std::stoi(b);
+
+        int c = na + nb;
+        
+        ctx->ModelData()["c"] = c;
+    }
+   catch(std::exception const& e)
+   {
+        ctx->Logger()->warn("hand add exception. {}. {}. {}."
+                    , a, b, e.what());
+                    
+        ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") 
+                                + e.what();
+   }
+
+   ctx->Render().Pass();  //Render 是动词：渲染    
 }
-
 ```
+
+关键在异常处理。第一行是：
+
+```C++
+ctx->Logger()->warn("hand add exception. {}. {}. {}.", a, b, e.what());
+```
+
+三个重点：
+
+- 一是如何通过上下文（Context）得到当前应用的日志记录器：ctx->Logger()。它实际上是 ctx->App().GetLogger() 的简写。
+
+- 二是得益于“spdlog”的语法，记日志就这么简单：要显示三个信息：a、b和异常，就在前面的格式字符串中，写上三个 {} ，最终就可以在日志中看到一行完整的内容。
+
+- 三是我们使用“warn()”，而不是“error()”，这体现了服务程序在此刻的淡定内心：不就是用户输入错误嘛？有什么因结什么果。用户输入错误，就返回给他一行出错信息。何事慌张？警告而已。
+
+
+> main() 函数中如何初始化日志，已经演示过，不再给出代码。
 
 
 ## 1.7 更多
@@ -469,25 +614,26 @@ int main()
 
 7. ……
 
+
 # 二、如何构建
 
 ## 2.1 基于生产环境构建
 
-大器 当前支持在Linux下环境编译。（因为我的服务端程序基本都在linux下，不过试验一下如何在Windows下编译。方便学习，但不推荐实用）
+尽管使用的组件都支持跨平台，但大器当前仅支持在Linux下环境编译；大多数实际项目的服务，都运行在Linux下。
 
-为方便构建，大器的相关构建工具及外部信赖库，与“阿里云”（“腾讯云”、“华为云”、“七牛云”等国内云计算商类似）的Ubuntu 服务器版本保持基本同步。
+> Web 服务端部署在Linux上，这是有原因的： (1) 前述的外围组件：nginx、mysql、redis 在Linux下安装都是一行命令的事，远比Windows方便。(2) 如果你使用当前非常流行的Docker，更是如此。 (3) 事实上Web 端的开源大杀器都是先提供Linux版，然后再考虑出Windows版，甚至有官方拒绝出Windows版（比如Redis 作者就“无情”地拒绝了微软提供的，将Redis变成也可以在Windows执行的补丁包）。
 
-因此，如果你有一台2019年或更新的云服务器，那么在其上构建大器，则所需的软件、信赖库等，只要Ubuntu仓库中存在，均只需使用“apt”指令从云厂商为该版本的Ubuntu提供的软件仓库拉取即可。当前仅“iconv”库需要手动下载编译。
+大器框架同样会在后续某个时间，提供Windows版本。
 
-当前国内各云计算提供商，均提供 Ubuntu Server 版本为 18.04 LTS 版本。以下内容均以 Ubuntu 18.04  为例，考虑日常开发不会直接使用Server版，因此严格讲，以下内容均假设系统环境为 Ubuntu  18.04 桌面版。
+当前国内各云计算提供商，均提供 Ubuntu Server 版本为 18.04 LTS 版本。如“[0.5 紧跟国内生产环境](#05-紧跟国内生产环境)” 小节所述，你有一台2019年或更新的Ubuntu云服务器，那么在其上构建大器，则所需的软件、依赖库等，暂时只有一个用于中文编码转换的 iconv 库，需要手动下载编译之外，其它的都可以从Ubuntu 软件仓库中获取。
+
+以下内容均以 Ubuntu 18.04  为例，考虑日常开发不会直接使用Server版，因此严格讲，以下内容均假设系统环境为 Ubuntu 18.04 桌面版。
 
 > 小提示-服务器与开发机的区别：
 > 
-> 因此也假设你的开发机使用的是Ubuntu 桌面版 18.04 LTS 版本。以下涉及apt指令时，以开发机（桌面版）为例，因为如有需要，均带着“sudo ”前缀。当在服务器（Ubuntu Server）上编译，并且你使用的是默认的root用户，只需去掉 “sudo”前缀即可。例如：
-> 
-> 开发机： sudo apt install git
-> 
-> 服务器： apt install git
+> 开发机（桌面版）为安装组件时，需临时提升用户权限，即相关指令前面多出个“sudo ”。如果是在服务版的Ubuntu操作，默认就是拥有更高管理权限的根用户，因此不需要该指令。例如：
+> 开发机：sudo apt install git
+> 服务器：apt install git
 
 ## 2.2 准备编译工具
 
@@ -510,10 +656,6 @@ sudo apt install cmake
 ```shell
 sudo apt install libboost-dev libboost-filesystem libboost-system
 ```
-
-> 小提示-安装全部boost库：
-> 
-> boost中需要编译的库，大器只用到上述的“filesytem”和“system”。如果你想一次性安装所有boost库，可以使用：sudo apt install libboost-dev libboost-all-dev
 
 2. 准备openssl及其开发库：
 
@@ -563,7 +705,7 @@ git  clone  https://gitee.com/zhuangyan-stone/da4qi4_public.git
 
 最终，你**将在前述的“daqi”目录下，得到一个子目录“da4qi4”(也可能是别的，看git源)**。大器项目的代码位于后者内，其内你应该能看到“src”、“include”等多个子目录。
 
-> 如有余力，建议在以上两个网站均为本开源项目打个星 。
+> 感谢你看到这里。如有余力，建议在以上两个网站均为本开源项目打个星 。
 
 ## 2.5 编译“大器”库
 
@@ -604,14 +746,12 @@ make
 ```
 
 > 小提示：并行编译
-> 
 > 如果你的电脑拥有多核CPU，并且内存足够大（至少8G），可以按如下方式并行编译（其中 -j 后面的数字，指明并行编译的核数，以下以四核数例）：
-> 
 > make -j4 
 
-完成make之后，以上过程将在build目录内，得到“libda4qi4.so”；
+完成make之后，以上过程将在build目录内，得到“libda4qi4.so”；如果是调试版，将得到 “libda4qi4_d.so”。 如果是静态库，则相应的扩展名为 “.a”。
 
-如果是调试版，将得到 “libda4qi4_d.so”。如果是静态库，则扩展为“.a”。
+以上工作都是一次性的，以后你再使用da4qi4开发新项目，都从下面的步骤开始。
 
 ## 2.6 在你的项目中使用 da4qi4库
 
@@ -655,7 +795,7 @@ link_libraries(boost_system)
 add_executable(hello_daqi main.cpp)
 ```
 
-现在，你可以从之前“1.1 一个空转的Web Server”重新看起。
+现在你可以从之前 [1.1 一个空转的Web Server](#11-一个空转的web-server) 重新看起。
 
 # 三、运行时外部配套系统
 
@@ -674,11 +814,7 @@ add_executable(hello_daqi main.cpp)
 sudo apt install redis-server
 ```
 
-这不仅会安装redis服务，而且会顺便在本机redis的命令行客户端，可以如下运行：
-
-```shell
-redis-cli
-```
+这不仅会安装redis服务，而且会顺便在本机redis的命令行客户端 redis-cli。
 
 * 有关如何在你写的大器Web Server中实现SESSION，请参看本项目官网www.d2school.com 相关（免费视频）课程；
 * 有关Redis的学习，请关注www.d2school.com 课程。
