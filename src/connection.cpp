@@ -551,7 +551,7 @@ void Connection::do_read()
 {
     auto self(this->shared_from_this());
     _socket_ptr->async_read_some(_buffer
-                                 , [self, this](boost::system::error_code ec
+                                 , [self, this](errorcode ec
                                                 , std::size_t bytes_transferred)
     {
         if (ec)
@@ -737,8 +737,7 @@ void Connection::do_write_next_chunked_body(std::clock_t start_wait_clock)
     }
 }
 
-void Connection::do_write_chunked_body_finished(boost::system::error_code const& ec
-                                                , size_t bytes_transferred)
+void Connection::do_write_chunked_body_finished(errorcode const& ec, size_t bytes_transferred)
 {
     if (ec)
     {

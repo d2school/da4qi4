@@ -58,7 +58,14 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
 
         if (!ssl_opts->private_key_file.empty())
         {
-            _ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+            if (ssl_opts->private_key_type == SSLOptions::PrivateKeyType::RSA)
+            {
+                _ssl_ctx->use_rsa_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+            }
+            else
+            {
+                _ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+            }
         }
 
         if (!ssl_opts->tmp_DiffieHellman_file.empty())

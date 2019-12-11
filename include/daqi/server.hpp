@@ -28,28 +28,36 @@ public:
                                                          , SSLContextBase::password_purpose purpose)>;
     struct SSLOptions
     {
+        enum class PrivateKeyType  {normal, RSA};
+
         explicit SSLOptions()
             : options(boost::asio::ssl::context::default_workarounds
                       | boost::asio::ssl::context::no_sslv2
                       | boost::asio::ssl::context::no_sslv3
                       | boost::asio::ssl::context::no_tlsv1)
-            , certificate_file_with_encryption(CertificateWithEncryption::no)
-            , private_key_file_format(SSLContextBase::pem), will_verify_client(false)
-            , on_need_password(nullptr)
+            , private_key_type(PrivateKeyType::normal), private_key_file_format(SSLContextBase::pem)
+            , will_verify_client(false), on_need_password(nullptr)
         {
         }
 
         explicit SSLOptions(OnNeedSSLPassword&& password_callback)
             : options(boost::asio::ssl::context::default_workarounds
                       | boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3)
-            , certificate_file_with_encryption(CertificateWithEncryption::no)
-            , private_key_file_format(SSLContextBase::pem), will_verify_client(false)
+            , private_key_type(PrivateKeyType::normal), private_key_file_format(SSLContextBase::pem)
+            , will_verify_client(false)
             , on_need_password(std::forward<OnNeedSSLPassword>(password_callback))
+        {
+        }
+
+        SSLOptions(SSLContextBase::options options)
+            : options(options)
+            , private_key_file_format(SSLContextBase::pem)
         {
         }
 
         SSLOptions(SSLContextBase::options options, OnNeedSSLPassword&& password_callback)
             : options(options)
+            , private_key_type(PrivateKeyType::normal)
             , private_key_file_format(SSLContextBase::pem)
             , on_need_password(std::forward<OnNeedSSLPassword>(password_callback))
         {
@@ -75,38 +83,35 @@ public:
             will_verify_client = false;
         }
 
-        enum class CertificateWithEncryption {no, yes};
-
         void InitFiles(std::string certificate_chain_file
                        , std::string private_key_file
+                       , PrivateKeyType private_key_type = PrivateKeyType::normal
                        , std::string tmp_DiffieHellman_file = ""
-                       , SSLContextBase::file_format private_key_file_format = SSLContextBase::pem
-                       , CertificateWithEncryption certificate_file_with_encryption = CertificateWithEncryption::no)
+                       , SSLContextBase::file_format private_key_file_format = SSLContextBase::pem)
         {
             this->certificate_chain_file = std::move(certificate_chain_file);   //.pem
-            this->private_key_file = std::move(private_key_file);               //.key
-            this->private_key_file_format = private_key_file_format;
 
-            this->tmp_DiffieHellman_file = std::move(tmp_DiffieHellman_file);
+            this->private_key_file = std::move(private_key_file);               //.key
+            this->private_key_type = private_key_type;                          //is RSA private key?
+            this->private_key_file_format = private_key_file_format;
 
             if (!tmp_DiffieHellman_file.empty())
             {
+                this->tmp_DiffieHellman_file = std::move(tmp_DiffieHellman_file);
                 options |= SSLContextBase::single_dh_use;
             }
-
-            this->certificate_file_with_encryption = certificate_file_with_encryption;
         }
 
         SSLContextBase::options options;
 
         std::string certificate_chain_file;
 
-        CertificateWithEncryption certificate_file_with_encryption;
-
         std::string private_key_file;
+        PrivateKeyType private_key_type;
+        SSLContextBase::file_format private_key_file_format;
+
         std::string tmp_DiffieHellman_file;
 
-        SSLContextBase::file_format private_key_file_format;
         bool will_verify_client;
 
         OnNeedSSLPassword on_need_password;
