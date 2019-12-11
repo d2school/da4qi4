@@ -46,7 +46,10 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
 
         _ssl_ctx->set_options(ssl_opts->options);
 
-        _ssl_ctx->set_password_callback(ssl_opts->on_need_password);
+        if (ssl_opts->on_need_password)
+        {
+            _ssl_ctx->set_password_callback(ssl_opts->on_need_password);
+        }
 
         if (!ssl_opts->certificate_chain_file.empty())
         {
@@ -63,7 +66,11 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
             _ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_dh_file);
         }
 
-        if (ssl_opts->will_verify_client)
+        if (!ssl_opts->will_verify_client)
+        {
+            _ssl_ctx->set_verify_mode(SSLContextBase::verify_none);
+        }
+        else
         {
             _ssl_ctx->set_verify_mode(SSLContextBase::verify_peer | SSLContextBase::verify_fail_if_no_peer_cert);
         }

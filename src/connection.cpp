@@ -543,6 +543,8 @@ void Connection::do_handshake()
             return;
         }
 
+        log::Server()->debug("Socket handshake for SSL finished.");
+
         self->StartRead();
     });
 }
