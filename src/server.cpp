@@ -27,7 +27,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
     , _ioc_pool(thread_count)
     , _acceptor(_ioc_pool.GetIOContext())
     , _signals(_ioc_pool.GetIOContext())
-    , _ssl_ctx(!ssl_opts ? nullptr : new boost::asio::ssl::context(boost::asio::ssl::context::tlsv12_server))
+    , _ssl_ctx(!ssl_opts ? nullptr : new boost::asio::ssl::context(boost::asio::ssl::context::tls_server))
     , _idle_running(false)
     , _detect_templates(false)
     , _idle_timer(_ioc_pool.GetIOContext())

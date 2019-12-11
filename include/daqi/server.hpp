@@ -30,7 +30,9 @@ public:
     {
         explicit SSLOptions()
             : options(boost::asio::ssl::context::default_workarounds
-                      | boost::asio::ssl::context::no_sslv2 | boost::asio::ssl::context::no_sslv3)
+                      | boost::asio::ssl::context::no_sslv2
+                      | boost::asio::ssl::context::no_sslv3
+                      | boost::asio::ssl::context::no_tlsv1)
             , certificate_file_with_encryption(CertificateWithEncryption::no)
             , private_key_file_format(SSLContextBase::pem), will_verify_client(false)
             , on_need_password(nullptr)
@@ -56,6 +58,11 @@ public:
         void EnableSSLV3()
         {
             options &= ~boost::asio::ssl::context::no_sslv3;
+        }
+
+        void EnableTLSV1()
+        {
+            options &= ~boost::asio::ssl::context::no_tlsv1;
         }
 
         void EnableVerifyClient()
