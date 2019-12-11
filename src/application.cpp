@@ -343,8 +343,17 @@ void Application::default_init_templates()
     _templates.InitPathes(_root_template.native(), "/", get_daqi_HTML_template_ext());
 }
 
-bool Application::InitLogger(log::Level level
-                             , size_t max_log_file_size_kb, size_t max_log_file_count)
+bool Application::InitLogger(std::string const& log_root, log::Level level, size_t max_log_file_size_kb, size_t max_log_file_count)
+{
+    if (_root_log != log_root)
+    {
+        _root_log = log_root;
+    }
+
+    return InitLogger(level, max_log_file_size_kb, max_log_file_count);
+}
+
+bool Application::InitLogger(log::Level level, size_t max_log_file_size_kb, size_t max_log_file_count)
 {
     assert(!IsRuning());
     assert(log::IsNull(_logger));

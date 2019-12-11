@@ -51,13 +51,13 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
 - 日志： [splogs](https://github.com/gabime/spdlog) 一个高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
 - 模板引擎： [inja](https://github.com/pantor/inja) 是模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，和 nlohmann-json 完美配合实现C++内嵌的动态数据结构 
-- Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 ，da4qi4默认使用redis缓存session等信息，以优先支持负载均衡下的节点无状态横向扩展。
+- Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 da4qi4默认使用redis缓存session等信息(以优先支持负载均衡下的节点无状态横向扩展)。
 - TLS/SSL/数据加密： OpenSSL (虽然在全世界范围内出过血……但不用它还能用谁呢？)
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存逻辑）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
 注：
-1. 这里是列表文本不绑定数据库访问方式。用户可使用 Oracle 官方 C++ Connector，或MySQL++或见：[三、运行时外部配套系统](#三运行时外部配套系统)；
-2. 框架自身使用 redis 作为默认的（可跨进程的）SESSION支持。上层应用可选用框架的redis接口，也可以使用自己喜欢我的redis C++客户端。
+1. 框架未绑定数据库访问方式。用户可使用 Oracle 官方 C++ Connector，或MySQL++，或 [三、运行时外部配套系统](#三运行时外部配套系统)提及的各类数据库连接器；
+2. 框架自身使用 redis 作为默认的（可跨进程的）SESSION支持。上层应用可选用框架的redis接口，也可以使用自己喜欢、 顺手 的redis C++客户端。
 
 ## 0.3 易用优于性能
 
@@ -90,7 +90,7 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。其中：
 | tomcat | 1000 | 350      | 337         | 872            | 1        | 879      | 0   | 886.7  | 273        |
 | da4qi4 | 1000 | 1        | 1           | 20             | 0        | 24       | 0   | 1233   | 286.6      |
 
-> 有性能测试经验的人，应该能知道表中“da4qi4”的平均响应时长等数据，出现1毫秒的情况，这基本是因当前测试数据 **喂不饱** 受测对象的表现。
+> 有性能测试经验的人，应该能知道表中“da4qi4”的平均响应时长等数据，出现1毫秒的情况，这基本是因当前测试数据 **喂不饱** 受测对象的表现。但如果把da4qi4“喂饱了”，则用来对比的tomcat会被“喂爆了”，二者相差太大，很难“安排”出一个平衡点。考虑到后面肯定要选择别的对比对象，所以就这样吧。
 
 另，官网 www.d2school.com 一度以 1M带度、1核CPU、1G 内存的一台服务器作为运行环境（即：同时还运行MySQL、redis服务）；后因线上编译太慢，做了有限的升级。
 
