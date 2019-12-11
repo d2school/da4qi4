@@ -61,9 +61,9 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
             _ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
         }
 
-        if (!ssl_opts->tmp_dh_file.empty())
+        if (!ssl_opts->tmp_DiffieHellman_file.empty())
         {
-            _ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_dh_file);
+            _ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_DiffieHellman_file);
         }
 
         if (!ssl_opts->will_verify_client)

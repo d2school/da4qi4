@@ -79,7 +79,7 @@ public:
 
         void InitFiles(std::string certificate_chain_file
                        , std::string private_key_file
-                       , std::string tmp_dh_file = ""
+                       , std::string tmp_DiffieHellman_file = ""
                        , SSLContextBase::file_format private_key_file_format = SSLContextBase::pem
                        , CertificateWithEncryption certificate_file_with_encryption = CertificateWithEncryption::no)
         {
@@ -87,9 +87,9 @@ public:
             this->private_key_file = std::move(private_key_file);               //.key
             this->private_key_file_format = private_key_file_format;
 
-            this->tmp_dh_file = std::move(tmp_dh_file);
+            this->tmp_DiffieHellman_file = std::move(tmp_DiffieHellman_file);
 
-            if (!tmp_dh_file.empty())
+            if (!tmp_DiffieHellman_file.empty())
             {
                 options |= SSLContextBase::single_dh_use;
             }
@@ -104,7 +104,7 @@ public:
         CertificateWithEncryption certificate_file_with_encryption;
 
         std::string private_key_file;
-        std::string tmp_dh_file;
+        std::string tmp_DiffieHellman_file;
 
         SSLContextBase::file_format private_key_file_format;
         bool will_verify_client;
