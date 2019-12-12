@@ -16,68 +16,123 @@ namespace da4qi4
 namespace net_detail
 {
 
-SocketBase::~SocketBase()
+template <typename T>
+IOC& get_io_context_from(T& socket_obj)
 {
+#ifdef HAS_IO_CONTEXT
+    return socket_obj.get_executor().get_io_context();
+#else
+    return socket_obj.get_io_service();
+#endif
 }
 
-Socket::~Socket()
+struct Socket : SocketInterface
 {
+    Socket(IOC& ioc)
+        : _socket(ioc)
+    {
+    }
 
-}
+    ~Socket() override;
 
-void Socket::async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read)
+    void close(errorcode& ec) override
+    {
+        _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
+        _socket.close(ec);
+    }
+
+    IOC& get_ioc() override
+    {
+        return get_io_context_from(_socket);
+    }
+
+    Tcp::socket& get_socket() override
+    {
+        return _socket;
+    }
+
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override
+    {
+        _socket.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+    }
+
+    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback&& on_wrote) override
+    {
+        boost::asio::async_write(_socket, write_buffer, std::move(on_wrote));
+    }
+
+    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback&& on_wrote) override
+    {
+        boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
+    }
+
+private:
+    Tcp::socket _socket;
+};
+
+struct SocketWithSSL : SocketInterface
 {
-    _socket.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
-}
+    SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
+        : _stream(ioc, ssl_ctx)
+    {
+    }
 
-void Socket::async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote)
-{
-    boost::asio::async_write(_socket, write_buffer, std::move(on_wrote));
-}
+    ~SocketWithSSL() override;
 
-void Socket::async_write(ChunkedBuffer const& chunked_buffer, SocketFinishedHandler&& on_wrote)
-{
-    boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
-}
+    void close(errorcode& ec) override
+    {
+        _stream.lowest_layer().cancel();
+        _stream.shutdown(ec);
+        _stream.next_layer().close(ec);
+    }
 
-void Socket::close(errorcode& ec)
-{
-    _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-    _socket.close(ec);
-}
+    IOC& get_ioc() override
+    {
+        return get_io_context_from(_stream);
+    }
 
-SocketWithSSL::~SocketWithSSL()
-{
-}
+    Tcp::socket& get_socket() override
+    {
+        return _stream.next_layer();
+    }
 
-void SocketWithSSL::close(errorcode& ec)
-{
-    _stream.lowest_layer().cancel();
-    _stream.shutdown(ec);
-    _stream.next_layer().close(ec);
-}
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override
+    {
+        _stream.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+    }
 
-void SocketWithSSL::async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read)
-{
-    _stream.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
-}
+    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback&& on_wrote) override
+    {
+        boost::asio::async_write(_stream, write_buffer, std::move(on_wrote));
+    }
 
-void SocketWithSSL::async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote)
-{
-    boost::asio::async_write(_stream, write_buffer, std::move(on_wrote));
-}
+    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback&& on_wrote) override
+    {
+        boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
+    }
 
-void SocketWithSSL::async_write(ChunkedBuffer const& chunked_buffer, SocketFinishedHandler&& on_wrote)
-{
-    boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
-}
+public:
+    boost::asio::ssl::stream<Tcp::socket>& get_stream()
+    {
+        return _stream;
+    }
+
+private:
+    boost::asio::ssl::stream<Tcp::socket> _stream;
+};
+
+SocketInterface::~SocketInterface() {}
+Socket::~Socket() {}
+SocketWithSSL::~SocketWithSSL() {}
 
 } //namespace net_detail
 
 
 Connection::Connection(IOC& ioc, size_t ioc_index)
     : _with_ssl(false), _socket_ptr(new net_detail::Socket(ioc))
-    , _ioc_index(ioc_index), _parser(new http_parser)
+    , _ioc_index(ioc_index)
+    , _parser(new http_parser)
+    , _mp_parser(nullptr, &::multipart_parser_free)
 {
     this->init_parser();
     this->init_parser_setting();
@@ -85,17 +140,12 @@ Connection::Connection(IOC& ioc, size_t ioc_index)
 
 Connection::Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx)
     : _with_ssl(true), _socket_ptr(new net_detail::SocketWithSSL(ioc, ssl_ctx))
-    , _ioc_index(ioc_index), _parser(new http_parser)
+    , _ioc_index(ioc_index)
+    , _parser(new http_parser)
+    , _mp_parser(nullptr, &::multipart_parser_free)
 {
     this->init_parser();
     this->init_parser_setting();
-}
-
-Connection::~Connection()
-{
-    delete _parser;
-    this->free_multipart_parser();
-    delete _socket_ptr;
 }
 
 ApplicationPtr Connection::GetApplication()
@@ -105,13 +155,14 @@ ApplicationPtr Connection::GetApplication()
 
 void Connection::init_parser()
 {
-    http_parser_init(_parser, HTTP_REQUEST);
+    http_parser_init(_parser.get(), HTTP_REQUEST);
     _parser->data = this;
 }
 
 void Connection::init_parser_setting()
 {
     http_parser_settings_init(&_parser_setting);
+
     _parser_setting.on_message_begin = &Connection::on_message_begin;
     _parser_setting.on_message_complete = &Connection::on_message_complete;
     _parser_setting.on_headers_complete = &Connection::on_headers_complete;
@@ -168,7 +219,7 @@ void Connection::update_request_after_header_parsed()
         _request.SetContentLength(_parser->content_length);
     }
 
-    _request.MarkKeepAlive(http_should_keep_alive(_parser));
+    _request.MarkKeepAlive(http_should_keep_alive(_parser.get()));
     _request.MarkUpgrade(_parser->upgrade);
     _request.SetMethod(_parser->method);
     _request.SetVersion(_parser->http_major, _parser->http_minor);
@@ -373,7 +424,7 @@ Connection::MultpartParseStatus Connection::do_multipart_parse()
         return mp_cannot_init;
     }
 
-    size_t parsed_bytes = multipart_parser_execute(_mp_parser, _body_buffer.c_str(), _body_buffer.length());
+    size_t parsed_bytes = multipart_parser_execute(_mp_parser.get(), _body_buffer.c_str(), _body_buffer.length());
 
     if (parsed_bytes != _body_buffer.length())
     {
@@ -519,7 +570,8 @@ void Connection::init_multipart_parser(std::string const& boundary)
     {
         if (!_mp_parser_setting)
         {
-            _mp_parser_setting = new multipart_parser_settings;
+            _mp_parser_setting.reset(new multipart_parser_settings);
+
             _mp_parser_setting->on_part_data_begin = &Connection::on_multipart_data_begin;
             _mp_parser_setting->on_part_data = &Connection::on_multipart_data;
             _mp_parser_setting->on_part_data_end = &Connection::on_multipart_data_end;
@@ -535,8 +587,8 @@ void Connection::init_multipart_parser(std::string const& boundary)
         }
 
         std::string boundary_with_prefix("--" + boundary);
-        _mp_parser = multipart_parser_init(boundary_with_prefix.c_str(), _mp_parser_setting);
-        multipart_parser_set_data(_mp_parser, this);
+        _mp_parser.reset(::multipart_parser_init(boundary_with_prefix.c_str(), _mp_parser_setting.get()));
+        multipart_parser_set_data(_mp_parser.get(), this);
     }
 }
 
@@ -544,14 +596,12 @@ void Connection::free_multipart_parser(mp_free_flag flag)
 {
     if (flag & will_free_mp_setting) //reuse if created
     {
-        delete _mp_parser_setting;
-        _mp_parser_setting = nullptr;
+        _mp_parser_setting.reset();
     }
 
     if (_mp_parser && (flag & will_free_mp_parser))
     {
-        ::multipart_parser_free(_mp_parser);
-        _mp_parser = nullptr;
+        _mp_parser.reset(); //will call ::multipart_parser_free()
     }
 }
 
@@ -570,7 +620,7 @@ void Connection::do_handshake()
 {
     assert(this->_with_ssl);
 
-    auto socket_withssl = dynamic_cast<net_detail::SocketWithSSL*>(_socket_ptr);
+    auto socket_withssl = dynamic_cast<net_detail::SocketWithSSL*>(_socket_ptr.get());
     assert(socket_withssl != nullptr);
 
     auto& stream = socket_withssl->get_stream();
@@ -607,7 +657,7 @@ void Connection::do_read()
             return;
         }
 
-        auto parsed = http_parser_execute(_parser, &_parser_setting, _buffer.data(), bytes_transferred);
+        auto parsed = http_parser_execute(_parser.get(), &_parser_setting, _buffer.data(), bytes_transferred);
 
         if (parsed != bytes_transferred || _parser->http_errno)
         {

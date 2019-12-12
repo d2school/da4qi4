@@ -18,9 +18,54 @@ namespace da4qi4
     int const _detect_templates_interval_seconds_ =  15;  //15 seconds
 #endif
 
+namespace
+{
+
 int const _first_idle_interval_seconds_ = 10;            //10 seconds
 
-Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ssl_opts)
+void init_server_ssl_context(boost::asio::ssl::context* ssl_ctx, Server::SSLOptions const* ssl_opts)
+{
+    assert(ssl_ctx && ssl_opts);
+
+    ssl_ctx->set_options(ssl_opts->options);
+
+    if (ssl_opts->on_need_password)
+    {
+        ssl_ctx->set_password_callback(ssl_opts->on_need_password);
+    }
+
+    if (!ssl_opts->certificate_chain_file.empty())
+    {
+        ssl_ctx->use_certificate_chain_file(ssl_opts->certificate_chain_file);
+    }
+
+    if (!ssl_opts->private_key_file.empty())
+    {
+        if (ssl_opts->private_key_type == Server::SSLOptions::PrivateKeyType::RSA)
+        {
+            ssl_ctx->use_rsa_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+        }
+        else
+        {
+            ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
+        }
+    }
+
+    if (!ssl_opts->tmp_DiffieHellman_file.empty())
+    {
+        ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_DiffieHellman_file);
+    }
+
+    auto verify_mode = (!ssl_opts->will_verify_client)
+                       ? SSLContextBase::verify_none
+                       : (SSLContextBase::verify_peer | SSLContextBase::verify_fail_if_no_peer_cert);
+
+    ssl_ctx->set_verify_mode(verify_mode);
+}
+
+}
+
+Server::Server(Tcp::endpoint endpoint, size_t thread_count, SSLOptions const* ssl_opts)
     : _withssl(ssl_opts != nullptr ? WithSSL::yes : WithSSL::no)
     , _idle_interval_seconds(_first_idle_interval_seconds_)
     , _running(false), _stopping(false)
@@ -43,44 +88,7 @@ Server::Server(Tcp::endpoint endpoint, size_t thread_count, const SSLOptions* ss
     if (_ssl_ctx)
     {
         assert(_withssl == WithSSL::yes);
-
-        _ssl_ctx->set_options(ssl_opts->options);
-
-        if (ssl_opts->on_need_password)
-        {
-            _ssl_ctx->set_password_callback(ssl_opts->on_need_password);
-        }
-
-        if (!ssl_opts->certificate_chain_file.empty())
-        {
-            _ssl_ctx->use_certificate_chain_file(ssl_opts->certificate_chain_file);
-        }
-
-        if (!ssl_opts->private_key_file.empty())
-        {
-            if (ssl_opts->private_key_type == SSLOptions::PrivateKeyType::RSA)
-            {
-                _ssl_ctx->use_rsa_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
-            }
-            else
-            {
-                _ssl_ctx->use_private_key_file(ssl_opts->private_key_file, ssl_opts->private_key_file_format);
-            }
-        }
-
-        if (!ssl_opts->tmp_DiffieHellman_file.empty())
-        {
-            _ssl_ctx->use_tmp_dh_file(ssl_opts->tmp_DiffieHellman_file);
-        }
-
-        if (!ssl_opts->will_verify_client)
-        {
-            _ssl_ctx->set_verify_mode(SSLContextBase::verify_none);
-        }
-        else
-        {
-            _ssl_ctx->set_verify_mode(SSLContextBase::verify_peer | SSLContextBase::verify_fail_if_no_peer_cert);
-        }
+        init_server_ssl_context(_ssl_ctx.get(), ssl_opts);
     }
 
     _acceptor.open(endpoint.protocol());

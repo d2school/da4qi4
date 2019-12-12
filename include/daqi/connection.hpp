@@ -26,93 +26,20 @@ using ReadBuffer = std::array<char, 1024 * 4>;
 using WriteBuffer = boost::asio::streambuf;
 using ChunkedBuffer = std::string;
 
-using SocketFinishedHandler = std::function<void (errorcode const&, std::size_t)>;
+using SocketCompletionCallback = std::function<void (errorcode const&, std::size_t)>;
 
-struct SocketBase
+struct SocketInterface
 {
-    virtual ~SocketBase();
+    virtual ~SocketInterface() = 0;
 
     virtual void close(errorcode& ec) = 0;
 
     virtual IOC& get_ioc() = 0;
     virtual Tcp::socket& get_socket() = 0;
 
-    virtual void async_read_some(ReadBuffer&, SocketFinishedHandler&&) = 0;
-    virtual void async_write(WriteBuffer&, SocketFinishedHandler&&) = 0;
-    virtual void async_write(ChunkedBuffer const&, SocketFinishedHandler&&) = 0;
-};
-
-struct Socket : SocketBase
-{
-    Socket(IOC& ioc)
-        : _socket(ioc)
-    {
-    }
-
-    ~Socket() override;
-
-    void close(errorcode& ec) override;
-
-    IOC& get_ioc() override
-    {
-#ifdef HAS_IO_CONTEXT
-        return _socket.get_executor().get_io_context();
-#else
-        return _socket.get_io_service();
-#endif
-    }
-
-    Tcp::socket& get_socket() override
-    {
-        return _socket;
-    }
-
-    void async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read) override;
-    void async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote) override;
-    void async_write(ChunkedBuffer const& write_buffer, SocketFinishedHandler&& on_wrote) override;
-
-private:
-    Tcp::socket _socket;
-};
-
-struct SocketWithSSL : SocketBase
-{
-    SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
-        : _stream(ioc, ssl_ctx)
-    {
-    }
-
-    ~SocketWithSSL() override;
-
-    void close(errorcode& ec) override;
-
-    IOC& get_ioc() override
-    {
-#ifdef HAS_IO_CONTEXT
-        return _stream.get_executor().get_io_context();
-#else
-        return _stream.get_io_service();
-#endif
-    }
-
-    Tcp::socket& get_socket() override
-    {
-        return _stream.next_layer();
-    }
-
-    void async_read_some(ReadBuffer& read_buffer, SocketFinishedHandler&& on_read) override;
-    void async_write(WriteBuffer& write_buffer, SocketFinishedHandler&& on_wrote) override;
-    void async_write(ChunkedBuffer const& write_buffer, SocketFinishedHandler&& on_wrote) override;
-
-public:
-
-    boost::asio::ssl::stream<Tcp::socket>& get_stream()
-    {
-        return _stream;
-    }
-
-private:
-    boost::asio::ssl::stream<Tcp::socket> _stream;
+    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback&&) = 0;
+    virtual void async_write(WriteBuffer&, SocketCompletionCallback&&) = 0;
+    virtual void async_write(ChunkedBuffer const&, SocketCompletionCallback&&) = 0;
 };
 
 } //namespace net_detail
@@ -136,8 +63,6 @@ public:
 
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
-
-    ~Connection();
 
 public:
     void Start();
@@ -245,12 +170,12 @@ private:
 
 private:
     bool _with_ssl;
-    net_detail::SocketBase* _socket_ptr;
+    std::unique_ptr<net_detail::SocketInterface> _socket_ptr;
 
     size_t _ioc_index;
 
 private:
-    http_parser* _parser;
+    std::unique_ptr<http_parser> _parser;
     http_parser_settings _parser_setting;
 
     std::string  _url_buffer;
@@ -279,8 +204,10 @@ private:
     enum mp_free_flag  {will_free_mp_setting = 1, will_free_mp_parser = 2, will_free_mp_both = 3 };
     void free_multipart_parser(mp_free_flag flag = will_free_mp_both);
 
-    multipart_parser_settings* _mp_parser_setting = nullptr;
-    multipart_parser* _mp_parser = nullptr;
+    std::unique_ptr<multipart_parser_settings> _mp_parser_setting;
+    typedef void (* multipart_parser_deleter_t)(multipart_parser*);
+    std::unique_ptr<multipart_parser, multipart_parser_deleter_t> _mp_parser;
+
     MultiPart _reading_part;
     std::string _reading_part_buffer;
     MultipartParsePart _multipart_parse_part = mp_parse_none;
