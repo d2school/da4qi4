@@ -134,6 +134,13 @@ public:
                     , logger_setting.max_log_file_size_kb, logger_setting.max_log_file_count, template_ext);
     }
 
+    bool Init(log::Level level, std::string const& template_ext)
+    {
+        return Init(level
+                    , AppLoggerSetting::default_max_log_file_size_kb, AppLoggerSetting::default_max_log_file_count
+                    , template_ext);
+    }
+
     bool Init(log::Level level = AppLoggerSetting::default_log_level,
               size_t max_log_file_size_kb = AppLoggerSetting::default_max_log_file_size_kb,
               size_t max_log_file_count = AppLoggerSetting::default_max_log_file_count,
@@ -142,6 +149,12 @@ public:
         return InitLogger(level, max_log_file_size_kb, max_log_file_count)
                && InitPathes()
                && InitTemplates(template_ext);
+    }
+
+    bool Init(std::string const& log_root, log::Level level)
+    {
+        return Init(log_root, level, AppLoggerSetting::default_max_log_file_size_kb
+                    , AppLoggerSetting::default_max_log_file_count);
     }
 
     bool Init(std::string const& log_root, log::Level level = AppLoggerSetting::default_log_level,
@@ -426,7 +439,7 @@ private:
     Intercepter::Chain _intercepters;
 
 private:
-    log::LoggerPtr _logger;
+    log::LoggerPtr _logger = log::Null();
 
 #ifdef NDEBUG
     bool _is_abortive = false;

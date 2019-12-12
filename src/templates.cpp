@@ -191,8 +191,8 @@ std::pair<size_t, size_t> Templates::load_templates(TemplatesEnv& env,
 
                 std::string::size_type len = path.size();
                 std::string::size_type root_len = root.size();
-                std::string mpath = path.native().substr(root_len
-                                                         , len - root_len - template_ext.size());
+                std::string mpath = path.string()./*native().*/
+                                    substr(root_len, len - root_len - template_ext.size());
 
                 if (!mpath.empty())
                 {
@@ -233,6 +233,12 @@ bool Templates::Preload(log::LoggerPtr app_logger)
     if (_app_logger != app_logger)
     {
         _app_logger = app_logger;
+    }
+
+    if (this->_root.empty() || this->_template_ext.empty())
+    {
+        _app_logger->info("Templates is undesired.");
+        return true;
     }
 
     std::lock_guard<std::mutex> _guard_(_m);
@@ -312,7 +318,6 @@ bool Templates::ReloadIfFindUpdate()
     {
         return false;
     }
-
 
     hint_template_updated_found(r);
 

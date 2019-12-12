@@ -35,7 +35,12 @@ public:
 
     void InitPathes(std::string const& template_root, std::string const& app_url_root, std::string const& template_ext)
     {
-        _root = template_root;
+        auto len = template_root.size();
+
+        _root = (len && template_root[len - 1] == '/')
+                ? (template_root.substr(0, template_root.size() - 1))
+                : template_root;
+
         _app_prefix = app_url_root;
         _template_ext = template_ext;
     }
