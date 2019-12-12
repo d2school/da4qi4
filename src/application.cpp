@@ -475,6 +475,11 @@ bool Application::InitPathes()
     return false;
 }
 
+void Application::UndesiredTemplates()
+{
+    _templates.Disable();
+}
+
 bool Application::InitTemplates(std::string const& template_ext)
 {
     assert(!IsRuning());

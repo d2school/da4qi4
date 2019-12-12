@@ -10,10 +10,67 @@ namespace da4qi4
 namespace Client
 {
 
-namespace detail
+namespace net_detail
 {
 
 SocketBase::~SocketBase() {};
+
+struct Socket : SocketBase
+{
+    Socket(IOC& ioc)
+        : _socket(ioc)
+    {
+    }
+
+    ~Socket() override;
+    Tcp::socket& get_socket() override;
+
+    void async_connect(Tcp::endpoint const& ep,
+                       SocketConnectionCompletionCallback&& on_connect) override;
+
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override;
+
+    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback&& on_wrote) override;
+
+    errorcode sync_connect(Tcp::endpoint const& ep) override;
+    errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
+    errorcode sync_write(char const* write_buffer, std::size_t write_buffer_size
+                         , std::size_t& bytes_transferred) override;
+
+    void close(errorcode& ec) override;
+private:
+    Tcp::socket _socket;
+};
+
+struct SocketWithSSL : SocketBase
+{
+    SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
+        : _stream(ioc, ssl_ctx)
+    {
+    }
+
+    ~SocketWithSSL() override;
+
+    Tcp::socket& get_socket() override;
+
+    void async_connect(Tcp::endpoint const& ep,
+                       SocketConnectionCompletionCallback&& on_connect) override;
+
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override;
+
+    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback&& on_wrote) override;
+
+    errorcode sync_connect(Tcp::endpoint const& ep) override;
+    errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
+    errorcode sync_write(char const* write_buffer, std::size_t write_buffer_size
+                         , std::size_t& bytes_transferred) override;
+
+    void close(errorcode& ec) override;
+
+private:
+    boost::asio::ssl::stream<Tcp::socket> _stream;
+};
+
 
 Socket::~Socket()
 {
@@ -25,21 +82,21 @@ Tcp::socket& Socket::get_socket()
 }
 
 void Socket::async_connect(Tcp::endpoint const& ep,
-                           std::function<void (errorcode const& ec)> on_connect)
+                           SocketConnectionCompletionCallback&& on_connect)
 {
-    _socket.async_connect(ep, on_connect);
+    _socket.async_connect(ep, std::move(on_connect));
 }
 
 void Socket::async_read_some(ReadBuffer& read_buffer,
-                             std::function<void (errorcode const&, std::size_t)> on_read)
+                             SocketCompletionCallback&& on_read)
 {
     _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
 void Socket::async_write(char const* write_buffer, std::size_t size,
-                         std::function<void (errorcode const&, std::size_t)> on_write)
+                         SocketCompletionCallback&& on_wrote)
 {
-    boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), on_write);
+    boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), std::move(on_wrote));
 }
 
 errorcode Socket::sync_connect(Tcp::endpoint const& ep)
@@ -77,9 +134,9 @@ SocketWithSSL::~SocketWithSSL()
 }
 
 void SocketWithSSL::async_connect(Tcp::endpoint const& ep,
-                                  std::function<void (errorcode const& ec)> on_connect)
+                                  SocketConnectionCompletionCallback&& on_connect)
 {
-    _stream.lowest_layer().async_connect(ep, [this, ep, on_connect](errorcode const & ec)
+    _stream.lowest_layer().async_connect(ep, [this, ep, &on_connect](errorcode const & ec)
     {
         if (ec)
         {
@@ -93,15 +150,15 @@ void SocketWithSSL::async_connect(Tcp::endpoint const& ep,
 }
 
 void SocketWithSSL::async_read_some(ReadBuffer& read_buffer,
-                                    std::function<void (errorcode const&, std::size_t)> on_read)
+                                    SocketCompletionCallback&& on_read)
 {
     _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
 void SocketWithSSL::async_write(char const*  write_buffer, std::size_t size,
-                                std::function<void (errorcode const&, std::size_t)> on_write)
+                                SocketCompletionCallback&& on_wrote)
 {
-    boost::asio::async_write(_stream, boost::asio::buffer(write_buffer, size), on_write);
+    boost::asio::async_write(_stream, boost::asio::buffer(write_buffer, size), on_wrote);
 }
 
 errorcode SocketWithSSL::sync_connect(Tcp::endpoint const& ep)
@@ -141,7 +198,7 @@ Tcp::socket& SocketWithSSL::get_socket()
     return _stream.next_layer();
 }
 
-} // namespace detail
+} // namespace net_detail
 
 namespace
 {
@@ -153,7 +210,7 @@ std::string port_to_service(unsigned short port)
 
 Connection::Connection(IOC& ioc, std::string const& server)
     : _with_ssl(false), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::Socket(ioc)),
+      _socket_ptr(new net_detail::Socket(ioc)),
       _parser(new http_parser), _server(server),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
@@ -162,7 +219,7 @@ Connection::Connection(IOC& ioc, std::string const& server)
 
 Connection::Connection(IOC& ioc, std::string const& server, std::string const& service)
     : _with_ssl(false), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::Socket(ioc)),
+      _socket_ptr(new net_detail::Socket(ioc)),
       _parser(new http_parser), _server(server), _service(service),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
@@ -171,7 +228,7 @@ Connection::Connection(IOC& ioc, std::string const& server, std::string const& s
 
 Connection::Connection(IOC& ioc, std::string const& server, unsigned short port)
     : _with_ssl(false), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::Socket(ioc)),
+      _socket_ptr(new net_detail::Socket(ioc)),
       _parser(new http_parser), _server(server), _service(port_to_service(port)),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
@@ -180,7 +237,7 @@ Connection::Connection(IOC& ioc, std::string const& server, unsigned short port)
 
 Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, const std::string& server)
     : _with_ssl(true), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::SocketWithSSL(ioc, ctx)),
+      _socket_ptr(new net_detail::SocketWithSSL(ioc, ctx)),
       _parser(new http_parser), _server(server),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
@@ -190,7 +247,7 @@ Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, const std::stri
 Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
                        , const std::string& service)
     : _with_ssl(true), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::SocketWithSSL(ioc, ctx)),
+      _socket_ptr(new net_detail::SocketWithSSL(ioc, ctx)),
       _parser(new http_parser), _server(server), _service(service),
       _method("GET"), _uri("/"), _http_version("1.1")
 {
@@ -200,7 +257,7 @@ Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string con
 Connection::Connection(IOC& ioc, boost::asio::ssl::context& ctx, std::string const& server
                        , unsigned short port)
     : _with_ssl(true), _ioc(ioc), _resolver(ioc),
-      _socket_ptr(new detail::SocketWithSSL(ioc, ctx)),
+      _socket_ptr(new net_detail::SocketWithSSL(ioc, ctx)),
       _parser(new http_parser), _server(server), _service(port_to_service(port)),
       _method("GET"), _uri("/"), _http_version("1.1")
 {

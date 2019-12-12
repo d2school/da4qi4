@@ -188,6 +188,7 @@ public:
 
     bool InitPathes();
     bool InitTemplates(std::string const& template_ext = "");
+    void UndesiredTemplates();
 
 #ifdef NDEBUG
     bool IsAbortive() const

@@ -235,7 +235,7 @@ bool Templates::Preload(log::LoggerPtr app_logger)
         _app_logger = app_logger;
     }
 
-    if (this->_root.empty() || this->_template_ext.empty())
+    if (this->_disabled || this->_root.empty() || this->_template_ext.empty())
     {
         _app_logger->info("Templates is undesired.");
         return true;
@@ -312,6 +312,11 @@ void Templates::hint_template_reload_fail()
 
 bool Templates::ReloadIfFindUpdate()
 {
+    if (this->_disabled)
+    {
+        return true;
+    }
+
     auto r = check_exists_template();
 
     if (r == TemplateUpdateAction::none)
@@ -377,6 +382,11 @@ Templates::TemplateUpdateAction Templates::check_exists_template()
 
 bool Templates::ReloadIfFindNew()
 {
+    if (this->_disabled)
+    {
+        return true;
+    }
+
     auto r = check_new_template(_template_ext, Utilities::theEmptyString);
 
     if (r == TemplateUpdateAction::none)

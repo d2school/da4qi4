@@ -9,12 +9,18 @@
 
 namespace da4qi4
 {
-
 namespace log
 {
 
 using Level = spdlog::level::level_enum;
 using LoggerPtr = std::shared_ptr<spdlog::logger>;
+
+bool InitLogger(std::string const& name
+                , std::string const& server_name
+                , std::string& error
+                , std::string const& log_dir, Level level = Level::info
+                , size_t max_file_size_kb = 5 * 1024
+                , size_t max_file_count = 9);
 
 bool InitServerLogger(std::string const& log_dir, Level level = Level::info,
                       size_t max_file_size_kb = 5 * 1024,

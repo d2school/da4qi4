@@ -40,12 +40,16 @@ bool IsNull(LoggerPtr logger)
     return (logger == nullptr) || (logger == the_null_log);
 }
 
-bool InitServerLogger(const std::string& log_dir, Level level
-                      , size_t max_file_size_kb, size_t max_file_count)
+bool InitLogger(std::string const& name
+                , std::string const& server_name
+                , std::string& error
+                , std::string const& log_dir
+                , Level level
+                , size_t max_file_size_kb, size_t max_file_count)
 {
     try
     {
-        std::string log_filename = log_dir + "server.log";
+        std::string log_filename = log_dir + name + ".log";
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
                                      log_filename, 1024 * max_file_size_kb, max_file_count);
 
@@ -53,21 +57,35 @@ bool InitServerLogger(const std::string& log_dir, Level level
 
         std::vector<spdlog::sink_ptr> sinks {file_sink, console_sink};
 
-        auto server_log = std::make_shared<spdlog::logger>("server"
-                                                           , std::begin(sinks)
-                                                           , std::end(sinks));
-        server_log->set_level(level);
-        spdlog::register_logger(server_log);
+        auto logger = std::make_shared<spdlog::logger>(name
+                                                       , std::begin(sinks)
+                                                       , std::end(sinks));
+        logger->set_level(level);
+        spdlog::register_logger(logger);
 
-        server_log->info("Welcome to {}.", the_daqi_name);
+        logger->info("Welcome to {}.", server_name);
 
         return true;
     }
     catch (std::exception const& e)
     {
-        std::cerr << e.what() << std::endl;
+        error = e.what();
         return false;
     }
+}
+
+bool InitServerLogger(const std::string& log_dir, Level level
+                      , size_t max_file_size_kb, size_t max_file_count)
+{
+    std::string err;
+    bool ok = InitLogger(the_daqi_name, "server", err, log_dir, level, max_file_size_kb, max_file_count);
+
+    if (!ok)
+    {
+        std::cerr << "Init " << the_daqi_name << " logger fail. " << err << " on " << log_dir << std::endl;
+    }
+
+    return ok;
 }
 
 LoggerPtr CreateAppLogger(std::string const& application_name

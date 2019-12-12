@@ -25,13 +25,15 @@ using TemplatesEnv = inja::Environment;
 class Templates
 {
 public:
-    Templates() = default;
+    Templates()
+        : _disabled(false)
+    {}
+
     Templates(Templates const&) = default;
 
     Templates(std::string const& template_root, std::string const& app_url_root, std::string const& template_ext)
-        : _root(template_root), _app_prefix(app_url_root), _template_ext(template_ext)
-    {
-    }
+        : _root(template_root), _app_prefix(app_url_root), _template_ext(template_ext), _disabled(false)
+    {}
 
     void InitPathes(std::string const& template_root, std::string const& app_url_root, std::string const& template_ext)
     {
@@ -57,6 +59,21 @@ public:
     std::string const& GetRoot() const
     {
         return _root;
+    }
+
+    void Enable()
+    {
+        _disabled = false;
+    }
+
+    void Disable()
+    {
+        _disabled = true;
+    }
+
+    bool IsDisabled() const
+    {
+        return _disabled;
     }
 
 private:
@@ -110,6 +127,7 @@ private:
     std::unordered_map<std::string, Item> _includes_templates;
 
     std::string _root, _app_prefix, _template_ext;
+    bool _disabled;
 };
 
 } //namesapce da4qi4
