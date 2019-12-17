@@ -22,6 +22,16 @@ namespace da4qi4
 
 void Url::UnderApplication(std::string const& app_url_root)
 {
+    if (!Utilities::iStartsWith(full, app_url_root))
+    {
+        log::Server()->debug("UnderApplication bad parameter. full-{}. app_url_root-{}.", full, app_url_root);
+    }
+
+    if (!Utilities::iStartsWith(path, app_url_root))
+    {
+        log::Server()->debug("UnderApplication bad parameter. full-{}. app_url_root-{}.", path, app_url_root);
+    }
+
     assert(Utilities::iStartsWith(full, app_url_root));
     assert(Utilities::iStartsWith(path, app_url_root));
 
