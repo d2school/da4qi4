@@ -284,6 +284,11 @@ void Connection::try_init_multipart_parser()
 
 bool Connection::try_route_application()
 {
+    if (!_request.GetUrl().schema.empty() || !_request.GetUrl().host.empty())
+    {
+        return false;
+    }
+
     _app = AppMgr().FindByURL(_request.GetUrl().path);
     return _app != nullptr;
 }
@@ -291,7 +296,8 @@ bool Connection::try_route_application()
 int Connection::on_headers_complete(http_parser* parser)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
-    cnt->update_request_after_header_parsed();
+
+    cnt->update_request_after_header_parsed();  //_url parsed!
 
     cnt->_read_complete = Connection::read_header_complete;
 
@@ -300,6 +306,8 @@ int Connection::on_headers_complete(http_parser* parser)
         cnt->process_app_no_found();
         return -1;
     }
+
+    log::Server()->debug("Host:{}.", cnt->GetRequest().GetHost());
 
     cnt->update_request_url_after_app_resolve();
 

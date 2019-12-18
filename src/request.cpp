@@ -481,6 +481,8 @@ bool Url::Parse(std::string&& url_value)
     }
 
     full = std::move(url_value);
+
+    log::Server()->debug("Url:\nfull-{}\nschema-{}\nhost-{}\npath-{}.\n", full, schema, host, path);
     return !err;
 }
 

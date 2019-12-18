@@ -391,6 +391,12 @@ public:
         return static_cast<http_method>(_method);
     }
 
+    std::string GetHost() const
+    {
+        ICHeaders::const_iterator it = _headers.find("Host");
+        return (it == _headers.cend() ? "" : it->second);
+    }
+
     std::string GetMethodName() const
     {
         return http_method_str(GetMethod());
