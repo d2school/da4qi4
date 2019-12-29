@@ -313,6 +313,9 @@ int Connection::on_headers_complete(http_parser* parser)
 
     if ((cnt->_request.GetContentLength() / 1024) > cnt->_app->GetUpoadMaxSizeLimitKB())
     {
+        log::Server()->debug("{} > {} KB. {}.", cnt->_request.GetContentLength()
+                             , cnt->_app->GetUpoadMaxSizeLimitKB()
+                             , cnt->_app->GetName());
         cnt->process_too_large_size_upload();
         return -1;
     }
