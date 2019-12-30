@@ -51,19 +51,19 @@ struct Socket : SocketInterface
         return _socket;
     }
 
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override
     {
-        _socket.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+        _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
     }
 
-    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback&& on_wrote) override
+    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback on_wrote) override
     {
-        boost::asio::async_write(_socket, write_buffer, std::move(on_wrote));
+        boost::asio::async_write(_socket, write_buffer, on_wrote);
     }
 
-    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback&& on_wrote) override
+    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback on_wrote) override
     {
-        boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
+        boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), on_wrote);
     }
 
 private:
@@ -96,19 +96,19 @@ struct SocketWithSSL : SocketInterface
         return _stream.next_layer();
     }
 
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override
     {
-        _stream.async_read_some(boost::asio::buffer(read_buffer), std::move(on_read));
+        _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
     }
 
-    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback&& on_wrote) override
+    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback on_wrote) override
     {
-        boost::asio::async_write(_stream, write_buffer, std::move(on_wrote));
+        boost::asio::async_write(_stream, write_buffer, on_wrote);
     }
 
-    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback&& on_wrote) override
+    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback on_wrote) override
     {
-        boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), std::move(on_wrote));
+        boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), on_wrote);
     }
 
 public:

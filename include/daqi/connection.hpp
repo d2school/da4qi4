@@ -37,9 +37,9 @@ struct SocketInterface
     virtual IOC& get_ioc() = 0;
     virtual Tcp::socket& get_socket() = 0;
 
-    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback&&) = 0;
-    virtual void async_write(WriteBuffer&, SocketCompletionCallback&&) = 0;
-    virtual void async_write(ChunkedBuffer const&, SocketCompletionCallback&&) = 0;
+    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback) = 0;
+    virtual void async_write(WriteBuffer&, SocketCompletionCallback) = 0;
+    virtual void async_write(ChunkedBuffer const&, SocketCompletionCallback) = 0;
 };
 
 } //namespace net_detail

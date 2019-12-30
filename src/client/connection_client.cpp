@@ -26,11 +26,11 @@ struct Socket : SocketBase
     Tcp::socket& get_socket() override;
 
     void async_connect(Tcp::endpoint const& ep,
-                       SocketConnectionCompletionCallback&& on_connect) override;
+                       SocketConnectionCompletionCallback on_connect) override;
 
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override;
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override;
 
-    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback&& on_wrote) override;
+    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback on_wrote) override;
 
     errorcode sync_connect(Tcp::endpoint const& ep) override;
     errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
@@ -54,11 +54,11 @@ struct SocketWithSSL : SocketBase
     Tcp::socket& get_socket() override;
 
     void async_connect(Tcp::endpoint const& ep,
-                       SocketConnectionCompletionCallback&& on_connect) override;
+                       SocketConnectionCompletionCallback on_connect) override;
 
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback&& on_read) override;
+    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override;
 
-    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback&& on_wrote) override;
+    void async_write(char const* write_buffer, std::size_t size, SocketCompletionCallback on_wrote) override;
 
     errorcode sync_connect(Tcp::endpoint const& ep) override;
     errorcode sync_read_some(ReadBuffer& read_buffer, std::size_t& bytes_transferred) override;
@@ -82,21 +82,21 @@ Tcp::socket& Socket::get_socket()
 }
 
 void Socket::async_connect(Tcp::endpoint const& ep,
-                           SocketConnectionCompletionCallback&& on_connect)
+                           SocketConnectionCompletionCallback on_connect)
 {
-    _socket.async_connect(ep, std::move(on_connect));
+    _socket.async_connect(ep, on_connect);
 }
 
 void Socket::async_read_some(ReadBuffer& read_buffer,
-                             SocketCompletionCallback&& on_read)
+                             SocketCompletionCallback on_read)
 {
     _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
 void Socket::async_write(char const* write_buffer, std::size_t size,
-                         SocketCompletionCallback&& on_wrote)
+                         SocketCompletionCallback on_wrote)
 {
-    boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), std::move(on_wrote));
+    boost::asio::async_write(_socket, boost::asio::buffer(write_buffer, size), on_wrote);
 }
 
 errorcode Socket::sync_connect(Tcp::endpoint const& ep)
@@ -134,9 +134,9 @@ SocketWithSSL::~SocketWithSSL()
 }
 
 void SocketWithSSL::async_connect(Tcp::endpoint const& ep,
-                                  SocketConnectionCompletionCallback&& on_connect)
+                                  SocketConnectionCompletionCallback on_connect)
 {
-    _stream.lowest_layer().async_connect(ep, [this, ep, &on_connect](errorcode const & ec)
+    _stream.lowest_layer().async_connect(ep, [this, on_connect](errorcode const & ec)
     {
         if (ec)
         {
@@ -150,13 +150,13 @@ void SocketWithSSL::async_connect(Tcp::endpoint const& ep,
 }
 
 void SocketWithSSL::async_read_some(ReadBuffer& read_buffer,
-                                    SocketCompletionCallback&& on_read)
+                                    SocketCompletionCallback on_read)
 {
     _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
 }
 
 void SocketWithSSL::async_write(char const*  write_buffer, std::size_t size,
-                                SocketCompletionCallback&& on_wrote)
+                                SocketCompletionCallback on_wrote)
 {
     boost::asio::async_write(_stream, boost::asio::buffer(write_buffer, size), on_wrote);
 }

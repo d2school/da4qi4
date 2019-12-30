@@ -29,11 +29,11 @@ struct SocketBase
 {
     virtual ~SocketBase();
 
-    virtual void async_connect(Tcp::endpoint const&, SocketConnectionCompletionCallback&&) = 0;
+    virtual void async_connect(Tcp::endpoint const&, SocketConnectionCompletionCallback) = 0;
 
-    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback&&) = 0;
+    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback) = 0;
 
-    virtual void async_write(char const*, std::size_t, SocketCompletionCallback&&) = 0;
+    virtual void async_write(char const*, std::size_t, SocketCompletionCallback) = 0;
 
     virtual errorcode sync_connect(Tcp::endpoint const&) = 0;
     virtual errorcode sync_read_some(ReadBuffer&, std::size_t& bytes_transferred) = 0;
@@ -50,7 +50,6 @@ struct SocketBase
 } // namespace net_detail
 
 class Connection final
-    : public std::enable_shared_from_this<Connection>
 {
     Connection(IOC& ioc, std::string const& server);
     Connection(IOC& ioc, std::string const& server, std::string const& service);
@@ -63,7 +62,7 @@ class Connection final
                , unsigned short port);
 
 public:
-    typedef std::shared_ptr<Connection> Ptr;
+    typedef std::unique_ptr<Connection> Ptr;
 
     static Ptr Create(IOC& ioc, std::string const& server)
     {
