@@ -307,13 +307,13 @@ int Connection::on_headers_complete(http_parser* parser)
         return -1;
     }
 
-    log::Server()->debug("Host:{}.", cnt->GetRequest().GetHost());
-
     cnt->update_request_url_after_app_resolve();
 
     if ((cnt->_request.GetContentLength() / 1024) > cnt->_app->GetUpoadMaxSizeLimitKB())
     {
-        log::Server()->debug("{} > {} KB. {}.", cnt->_request.GetContentLength()
+        log::Server()->debug("Host {} : {} > {} KB. {}."
+                             , cnt->GetRequest().GetHost()
+                             , cnt->_request.GetContentLength()
                              , cnt->_app->GetUpoadMaxSizeLimitKB()
                              , cnt->_app->GetName());
         cnt->process_too_large_size_upload();
