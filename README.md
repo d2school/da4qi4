@@ -47,7 +47,7 @@
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
-- HTTP 基础协议解析：[llhttp](https://github.com/nodejs/llhttp)。 Node.JS v12的一个重磅升级，是将内核中的http解析器从（部分参考Nginx的）[nodejs/http-parser](https://github.com/nodejs/http-parser), 升级迁移到 “[llhttp](https://github.com/nodejs/llhttp)” 。按Node.JS官方说法，性能提升156%。从（2020年1月6日起，da4qi4框架底层HTTP解析也升级迁移到llhttp）
+- HTTP 基础协议解析：[Node.JS/llhttp](https://github.com/nodejs/llhttp)。 Node.JS v12的一个重磅升级，是将内核中的http解析器从（部分参考Nginx的）[nodejs/http-parser](https://github.com/nodejs/http-parser), 升级迁移到 “[llhttp](https://github.com/nodejs/llhttp)” 。Node.JS 官方说法解析性能提升156%。从（2020年1月6日起，da4qi4框架底层HTTP解析也由http-parser 升级迁移到 llhttp）
 - HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
 - 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （可能进入C++2x标准库）
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
