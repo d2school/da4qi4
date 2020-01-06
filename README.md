@@ -47,7 +47,7 @@
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
-- HTTP 基础协议解析：Node.JS的底层C组件 Node.JS / http-parser， [nodejs/http-parser](https://github.com/nodejs/http-parser) 
+- HTTP 基础协议解析：[llhttp](https://github.com/nodejs/llhttp)。 Node.JS v12的一个重磅升级，是将内核中的http解析器从（部分参考Nginx的）[nodejs/http-parser](https://github.com/nodejs/http-parser), 升级迁移到 “[llhttp](https://github.com/nodejs/llhttp)” 。按Node.JS官方说法，性能提升156%。从（2020年1月6日起，da4qi4框架底层HTTP解析也升级迁移到llhttp）
 - HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
 - 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （可能进入C++2x标准库）
 - JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
@@ -187,6 +187,7 @@ Hello World!
 ```
 
 作为对比，下面给出同样功能使用自由函数的实现：
+
 ```C++
 #include "daqi/da4qi4.hpp"
 
@@ -205,11 +206,9 @@ int main()
     svc->AddHandler(_GET_, "/",  hello); 
     svc->Run();
 }
-
 ```
 
 为节省代码篇幅，后续演示均使用lambda表达式来表达HTTP的响应操作。实际系统显然不可能将代码全塞在main()函数中，因此平实的自由函数会用得更多。不仅lambda不是必需，实际是连“class/类”都很少使用——这符号Web Server基本的要求：尽量不要带状态；自由函数相比类的成员函数（或称方法），更“天然的”不带状态。
-
 
 ### 1.2.2 返回HTML
 
@@ -396,7 +395,7 @@ int main()
 
     //下面这行让sever定时检测模板文件的变动（包括新增）
     svc->EnableDetectTemplates(5); //5秒，实际项目请设置较大间隔，如10分钟
-    
+
     svc->Run();
     log::Server()->info("再见！");
 }
@@ -424,8 +423,6 @@ http://127.0.0.1:4098/add?a=1&b=2
 
 浏览器将显示a+b的结果。显然，业务逻辑就是计算两个整数相加，我们的强大的，计算力过剩的C++语言终于可以派上用场。
 
-
-
 首先，准备一个用于显示加法结果的页面模板，文件名为 “add.daqi.HTML”：
 
 ```html
@@ -445,7 +442,6 @@ http://127.0.0.1:4098/add?a=1&b=2
 
 重点在 “{=c=}”身上。 {==} 仍然用来标识一个可变内容，但其内不再是一个内置函数，而是一个普通的变量名称：c。为此我们在C++代码中要做的事变成两件：一是计算 a 加 b的和，二是将和以 c 为名字，填入模板对应位置。
 
-
 然后需要一个add的自由函数：
 
 ```C++
@@ -464,7 +460,7 @@ void add(Context ctx)
 
     //第四步：把结果按模板指定的名字"c"，设置到“Model”数据中：
     ctx->ModelData()["c"] = c;
-   
+
     //最后一步：渲染，并把最终页面数据传回浏览器： （即：输出结果 = 模板 + 数据）
     ctx->Render().Pass();  //Render 是动词：渲染
 }
@@ -486,10 +482,10 @@ int main()
 {
     auto svc = Server::Supply("127.0.0.1", 4098);
     auto app = svc->DefaultApp(); 
-    
+
     app->SetTemplateRoot("你的/网页模板/目录/"); 
     app->InitTemplates();
-    
+
     //AddHandler 又回来了：
     app->AddHandler(_GET_, "/add", add);
 
@@ -501,7 +497,6 @@ int main()
 如前所述通过浏览器访问  .../add?a=1&b=2 ，将看一个简单的3。
 
 甲方说这也太不人性化了，好歹显示一个 “1 + 2 = 3” 啊！ 太好了，我们正好借此演示如何不修改代码，不重启服务程序就达成目标。
-
 
 需要修改的是模板文件：“add.daqi.HTML”：
 
@@ -523,13 +518,11 @@ int main()
 
 修改、保存，5秒过后再访问，就看到新成果了。
 
-
 会有人担心C++写的程序容易出错，并且一出错就直接挂掉——上面程序，如果用户无意有意或干脆就是恶意搞破坏，输入 “.../add?a=A&b=BBBB”……会怎样呢？ add 函数中的 “std::stoi()” 调用可能抛出异常？不管怎样，请放心，程序并不会挂掉，它会继续运行，只是：
 
 - 一来、用户只会看到一个典型的HTTP 500 错误 “Internal Server Error  ”  (即：服务内部错误),这对用户来说，不太友好。
 
 - 二来，后台什么日志记录也没有，对系统的维护人员来说，也不友好。
-
 
 很简单，对add的业务逻辑加上异常处理，出现异常时，向客户回复一句相对友好点的内容，并且留下应用日志即可。以下是关注异常后的add函数：
 
@@ -549,7 +542,7 @@ void add(Context ctx)
         int nb = std::stoi(b);
 
         int c = na + nb;
-        
+
         ctx->ModelData()["c"] = c;
     }
    catch(std::exception const& e)
@@ -585,7 +578,6 @@ ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.
 重点在于：赋值操作的右值，是一个字符串。“ModelData”，即“模型数据”在这里指的是即将写往页面模板的数据，和C++的强类型相比，页面上的数据不用太区分类型。所以，“c” 本是a+b之和，按理说是整数类型，但我们却可以往里写入一行字符串，这样，当用户捣乱造成 a + b 无法执行时，他就会看到一行出错信息。
 
 > main() 函数中如何初始化日志，已经演示过，不再给出代码。
-
 
 ## 1.7 更多
 
@@ -636,7 +628,6 @@ ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.
 6. 常用字符串处理
 
 7. ……
-
 
 # 二、如何构建
 
