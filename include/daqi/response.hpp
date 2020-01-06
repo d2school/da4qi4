@@ -7,7 +7,8 @@
 
 #include <mutex>
 
-#include "http-parser/http_parser.h"
+#include "llhttp/llhttp.h"
+#include "llhttp/helper/http_status_def.h"
 
 #include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"

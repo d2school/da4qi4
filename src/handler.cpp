@@ -40,7 +40,7 @@ char const* HandlerMethodName(HandlerMethod hm)
     return "";
 }
 
-HandlerMethod from_http_method(http_method m)
+HandlerMethod from_http_method(llhttp_method_t m)
 {
     switch (m)
     {

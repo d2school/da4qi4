@@ -274,8 +274,8 @@ Connection::~Connection()
 
 void Connection::init()
 {
-    this->init_parser();
     this->init_parser_setting();
+    this->init_parser();
 
     ResetHeaders();
 }
@@ -309,15 +309,9 @@ void Connection::do_close()
     _is_connected = false;
 }
 
-void Connection::init_parser()
-{
-    http_parser_init(_parser, HTTP_RESPONSE);
-    _parser->data = this;
-}
-
 void Connection::init_parser_setting()
 {
-    http_parser_settings_init(&_parser_setting);
+    llhttp_settings_init(&_parser_setting);
 
     _parser_setting.on_message_begin = &Connection::on_message_begin;
     _parser_setting.on_message_complete = &Connection::on_message_complete;
@@ -326,6 +320,12 @@ void Connection::init_parser_setting()
     _parser_setting.on_header_value = &Connection::on_header_value;
     _parser_setting.on_status = &Connection::on_status;
     _parser_setting.on_body = &Connection::on_body;
+}
+
+void Connection::init_parser()
+{
+    llhttp_init(_parser, HTTP_RESPONSE, &_parser_setting);
+    _parser->data = this;
 }
 
 Connection& Connection::SetMethod(std::string const& method, std::string const& uri)
@@ -592,14 +592,13 @@ errorcode Connection::do_read(std::size_t& bytes_transferred)
             return ec;
         }
 
-        auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data()
-                                          , read);
+        auto parsed_errno = llhttp_execute(_parser, _read_buffer.data(), read);
 
-        if (parsed != read || _parser->http_errno)
+        if (parsed_errno != HPE_OK)
         {
             _error = Error::on_read;
-            _error_msg = "Parse response content error. "
-                         + std::to_string(_parser->http_errno) + ".";
+            _error_msg = "Parse response content error. " + std::to_string(parsed_errno) + ". "
+                         + llhttp_errno_name(parsed_errno) + ".";
             return ec;
         }
 
@@ -622,14 +621,13 @@ void Connection::do_read(NotifyFunction notify)
             return;
         }
 
-        auto parsed = http_parser_execute(_parser, &_parser_setting, _read_buffer.data()
-                                          , bytes_transferred);
+        auto parsed_errno = llhttp_execute(_parser, _read_buffer.data(), bytes_transferred);
 
-        if (parsed != bytes_transferred || _parser->http_errno)
+        if (parsed_errno != HPE_OK)
         {
             _error = Error::on_read;
-            _error_msg = "Parse response content error. "
-                         + std::to_string(_parser->http_errno) + ".";
+            _error_msg = "Parse response content error. " + std::to_string(parsed_errno) + ". "
+                         + llhttp_errno_name(parsed_errno) + ".";
 
             notify(ec);
             return;
@@ -676,7 +674,7 @@ int Connection::on_message_begin(http_parser* parser)
     cnt->_read_complete = Connection::read_none_complete;
     cnt->_response_body.clear();
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_message_complete(http_parser* parser)
@@ -684,7 +682,7 @@ int Connection::on_message_complete(http_parser* parser)
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_read_complete = Connection::read_message_complete;
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_header_field(http_parser* parser, char const* at, size_t length)
@@ -698,7 +696,7 @@ int Connection::on_header_field(http_parser* parser, char const* at, size_t leng
         cnt->_reading_header_field.append(at, length);
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_header_value(http_parser* parser, char const* at, size_t length)
@@ -721,14 +719,14 @@ int Connection::on_header_value(http_parser* parser, char const* at, size_t leng
         cnt->_reading_header_part = Connection::header_value_part;
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_status(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_status_buffer.append(at, length);
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_body(http_parser* parser, char const* at, size_t length)
@@ -737,7 +735,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
 
     cnt->_response_body.append(at, length);
 
-    return 0;
+    return HPE_OK;
 }
 
 void Connection::reset()

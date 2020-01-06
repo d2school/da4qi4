@@ -43,19 +43,20 @@ set(JSON_MultipleHeaders ON  CACHE INTERNAL "")
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(nlohmann_json)
 
+add_subdirectory(llhttp)
+
 aux_source_directory(./src/redis-client DAQI_SRC_FILES)
 aux_source_directory(./src/utilities DAQI_SRC_FILES)
 aux_source_directory(./src/def DAQI_SRC_FILES)
 aux_source_directory(./src/intercepters DAQI_SRC_FILES)
 aux_source_directory(./src/client DAQI_SRC_FILES)
 aux_source_directory(./src DAQI_SRC_FILES)
-
-aux_source_directory(./http-parser DAQI_SRC_FILES)
 aux_source_directory(./multipart-parser DAQI_SRC_FILES)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
 
+link_libraries(llhttp)    
 link_libraries(nlohmann_json)
 
 if(_DAQI_TARGET_TYPE_ STREQUAL "DEMO_SERVER")

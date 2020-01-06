@@ -4,7 +4,7 @@
 #include <memory>
 #include <boost/asio/ssl/stream.hpp>
 
-#include "http-parser/http_parser.h"
+#include "llhttp/llhttp.h"
 
 #include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"
@@ -51,6 +51,9 @@ struct SocketBase
 
 class Connection final
 {
+    typedef llhttp_t http_parser;
+    typedef llhttp_settings_t http_parser_settings;
+
     Connection(IOC& ioc, std::string const& server);
     Connection(IOC& ioc, std::string const& server, std::string const& service);
     Connection(IOC& ioc, std::string const& server, unsigned short port);

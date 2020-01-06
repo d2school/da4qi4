@@ -6,7 +6,7 @@
 #include <bitset>
 #include <vector>
 
-#include "http-parser/http_parser.h"
+#include "llhttp/llhttp.h"
 
 #include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"
@@ -386,9 +386,9 @@ public:
         return _url;
     }
 
-    http_method GetMethod() const
+    llhttp_method_t GetMethod() const
     {
-        return static_cast<http_method>(_method);
+        return static_cast<llhttp_method_t>(_method);
     }
 
     std::string GetHost() const
@@ -399,7 +399,7 @@ public:
 
     std::string GetMethodName() const
     {
-        return http_method_str(GetMethod());
+        return llhttp_method_name(GetMethod());
     }
 
     ICHeaders const& GetHeader() const
@@ -445,7 +445,7 @@ public:
 
     bool IsContentLengthProvided() const
     {
-        return (_flags & F_CONTENTLENGTH) != 0;
+        return (_flags & F_CONTENT_LENGTH) != 0;
     }
     uint64_t GetContentLength() const
     {

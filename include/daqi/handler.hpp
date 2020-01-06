@@ -1,7 +1,7 @@
 #ifndef DAQI_HANDLER_HPP
 #define DAQI_HANDLER_HPP
 
-#include "http-parser/http_parser.h"
+#include "llhttp/llhttp.h"
 
 #include "daqi/context.hpp"
 
@@ -28,7 +28,7 @@ extern HandlerMethod _DELETE_, _GET_, _HEAD_, _POST_, _PUT_;
 
 char const* HandlerMethodName(HandlerMethod hm);
 
-HandlerMethod from_http_method(http_method m);
+HandlerMethod from_http_method(llhttp_method_t m);
 
 using HandlerMethodMark = std::bitset<5>;
 

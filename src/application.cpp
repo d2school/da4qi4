@@ -706,7 +706,7 @@ std::vector<UniformRegexItem> Application::GetRegexRouterUniformItems() const
 Handler* Application::find_handler(Context const& ctx, bool& url_exists, bool& unsupport_method
                                    , std::string const& retry_path)
 {
-    HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
+    HandlerMethod m = from_http_method(ctx->Req().GetMethod());
 
     if (m == HandlerMethod::UNSUPPORT)
     {

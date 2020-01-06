@@ -48,7 +48,7 @@ StaticFile& StaticFile::AddDefaultFileNames(std::vector<std::string> const&
 
 void StaticFile::on_request(Context& ctx) const
 {
-    HandlerMethod m = from_http_method(static_cast<http_method>(ctx->Req().GetMethod()));
+    HandlerMethod m = from_http_method(ctx->Req().GetMethod());
 
     if ((m != HandlerMethod::GET))
     {

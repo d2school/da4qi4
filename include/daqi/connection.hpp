@@ -5,7 +5,8 @@
 #include <string>
 #include <boost/asio/ssl/stream.hpp>
 
-#include "http-parser/http_parser.h"
+#include "llhttp/llhttp.h"
+
 #include "multipart-parser/multipart_parser.h"
 
 #include "daqi/def/asio_def.hpp"
@@ -47,6 +48,9 @@ struct SocketInterface
 class Connection
     : public std::enable_shared_from_this<Connection>
 {
+    typedef llhttp_t http_parser;
+    typedef llhttp_settings_t http_parser_settings;
+
     explicit Connection(IOC& ioc, size_t ioc_index);
     explicit Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx);
 

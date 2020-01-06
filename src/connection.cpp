@@ -134,8 +134,8 @@ Connection::Connection(IOC& ioc, size_t ioc_index)
     , _parser(new http_parser)
     , _mp_parser(nullptr, &::multipart_parser_free)
 {
-    this->init_parser();
     this->init_parser_setting();
+    this->init_parser();
 }
 
 Connection::Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ssl_ctx)
@@ -144,8 +144,8 @@ Connection::Connection(IOC& ioc, size_t ioc_index, boost::asio::ssl::context& ss
     , _parser(new http_parser)
     , _mp_parser(nullptr, &::multipart_parser_free)
 {
-    this->init_parser();
     this->init_parser_setting();
+    this->init_parser();
 }
 
 ApplicationPtr Connection::GetApplication()
@@ -155,13 +155,13 @@ ApplicationPtr Connection::GetApplication()
 
 void Connection::init_parser()
 {
-    http_parser_init(_parser.get(), HTTP_REQUEST);
+    llhttp_init(_parser.get(), HTTP_REQUEST, &_parser_setting);
     _parser->data = this;
 }
 
 void Connection::init_parser_setting()
 {
-    http_parser_settings_init(&_parser_setting);
+    llhttp_settings_init(&_parser_setting);
 
     _parser_setting.on_message_begin = &Connection::on_message_begin;
     _parser_setting.on_message_complete = &Connection::on_message_complete;
@@ -214,12 +214,12 @@ void Connection::update_request_after_header_parsed()
 
     _request.SetFlags(_parser->flags);
 
-    if (_parser->flags &  F_CONTENTLENGTH)
+    if (_parser->flags &  F_CONTENT_LENGTH)
     {
         _request.SetContentLength(_parser->content_length);
     }
 
-    _request.MarkKeepAlive(http_should_keep_alive(_parser.get()));
+    _request.MarkKeepAlive(llhttp_should_keep_alive(_parser.get()));
     _request.MarkUpgrade(_parser->upgrade);
     _request.SetMethod(_parser->method);
     _request.SetVersion(_parser->http_major, _parser->http_minor);
@@ -329,7 +329,7 @@ int Connection::on_headers_complete(http_parser* parser)
         cnt->try_init_multipart_parser();
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_message_begin(http_parser* parser)
@@ -668,9 +668,9 @@ void Connection::do_read()
             return;
         }
 
-        auto parsed = http_parser_execute(_parser.get(), &_parser_setting, _buffer.data(), bytes_transferred);
+        auto parsed_errno = llhttp_execute(_parser.get(), _buffer.data(), bytes_transferred);
 
-        if (parsed != bytes_transferred || _parser->http_errno)
+        if (parsed_errno != HPE_OK)
         {
             return;
         }
