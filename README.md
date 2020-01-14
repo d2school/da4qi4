@@ -41,19 +41,15 @@
 
 ## 0.2 坚持抱牛人大腿不放
 
-相比其它语言，C++的Web框架有，但不多；同样相比其它语言，用来组装、支撑一个Web框架应用的底层组件，C/C++多得要 “溢出来了”（因为许多其它语言的底层组件，最终也来自C/C++）。
-
-所以，如果造WEB框架是造一辆车，但我想尽量使用成熟的、已经被广泛应用的、如果有大公司参与则视为加分项的，当然是开源免费的的各类基础组件，作为这辆车的关键组成。造一辆引擎源于C++语言的强劲汽车，但不重新造轮子。
-
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
-- HTTP 基础协议解析：[Node.JS/llhttp](https://github.com/nodejs/llhttp)。 Node.JS v12的一个重磅升级，是将内核中的http解析器从（部分参考Nginx的）[nodejs/http-parser](https://github.com/nodejs/http-parser), 升级迁移到 “[llhttp](https://github.com/nodejs/llhttp)” 。Node.JS 官方说法解析性能提升156%。从（2020年1月6日起，da4qi4框架底层HTTP解析也由http-parser 升级迁移到 llhttp）
-- HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c)
+- HTTP 基础协议解析：[Node.JS/llhttp](https://github.com/nodejs/llhttp)。 一直使用Node.JS底层的HTTP解析器，Node.JS v12 之前是[nodejs/http-parser](https://github.com/nodejs/http-parser)；之后升级迁移到 [llhttp](https://github.com/nodejs/llhttp) 。Node.JS 官方说法解析性能提升156%；
+- HTTP multi-part  : multipart-parsr [multipart-parser-c](https://github.com/iafonov/multipart-parser-c) ；
 - 网络异步框架： C++ boost.asio [boostorg/asio](https://github.com/boostorg/asio) （可能进入C++2x标准库）
-- JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON，所有语言中暂排第一个)
-- 日志： [splogs](https://github.com/gabime/spdlog) 高性能的C++日志库 （微软公司选择将它绑定到 Node.JS 作日志库）
+- JSON  :  [nlohmann-json JSON for Modern C++](https://github.com/nlohmann/json) (github上搜索JSON结果中第一个)；
+- 日志： [splogs](https://github.com/gabime/spdlog) 高性能的C++日志库 (微软公司选择将它绑定到 Node.JS 作日志库)；
 - 模板引擎： [inja](https://github.com/pantor/inja) 模板引擎 [Jinja](https://palletsprojects.com/p/jinja/) 的 C++ 实现版本，名气不大，但能和nlohmann-json完美配合实现C++内嵌的动态数据结构，加上我为它解决过bug，比较熟悉、放心。
-- TLS/SSL/数据加密： [OpenSSL](https://www.openssl.org/) 全世界都在用，虽然“出过血”……但仍然是最可信的组件
+- TLS/SSL/数据加密： [OpenSSL](https://www.openssl.org/) （TLS）；
 - Redis 客户端： 基于[nekipelov/redisclient](https://github.com/nekipelov/redisclient)，为以类node.js访问redis进行专门优化（实现单线程异步访问，去锁）。 da4qi4默认使用redis缓存session等信息(以优先支持负载均衡下的节点无状态横向扩展)。
 - 静态文件服务： da4qi4自身支持静态文件（包括前端缓存逻辑）。实际项目部署建议与nginx配合。由nginx提供更高性能、更安全的接入及提从静态文件服务。
 
@@ -93,7 +89,7 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关�
 | tomcat | 1000 | 350      | 337         | 872            | 1        | 879      | 0   | 886.7  | 273        |
 | da4qi4 | 1000 | 1        | 1           | 20             | 0        | 24       | 0   | 1233   | 286.6      |
 
-> 有性能测试经验的人，应该能知道表中“da4qi4”的平均响应时长等数据，出现1毫秒的情况，这基本是因当前测试数据 **喂不饱** 受测对象的表现。但如果把da4qi4“喂饱了”，则用来对比的tomcat会被“喂爆了”，二者相差太大，很难“安排”出一个平衡点。考虑到后面肯定要选择别的对比对象，所以就这样吧。
+> 
 
 另，官网 www.d2school.com 一度以 1M带度、1核CPU、1G 内存的一台服务器作为运行环境（即：同时还运行MySQL、redis服务）；后因线上编译太慢，做了有限的升级。
 

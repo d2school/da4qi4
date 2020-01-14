@@ -345,6 +345,19 @@ ContextIMP& ContextIMP::Render(std::string const& template_name, Json const& dat
            RenderWithoutData(template_name) : render_with_data(template_name, page_data);
 }
 
+ContextIMP& ContextIMP::Render(std::string const& template_name, http_status status, Json const& data)
+{
+    if (!data.is_null())
+    {
+        return render_with_data(template_name, status, data);
+    }
+
+    Json& page_data = ModelData();
+
+    return (page_data.is_null()) ?
+           RenderWithoutData(template_name, status) : render_with_data(template_name, status, page_data);
+}
+
 ContextIMP& ContextIMP::render_with_data(http_status status, Json const& data)
 {
     std::string template_name = std::to_string(static_cast<int>(status));
@@ -419,6 +432,31 @@ std::string ContextIMP::auto_match_template()
     }
 
     return template_name;
+}
+
+ContextIMP& ContextIMP::render_with_data(std::string const& template_name, http_status status, Json const& data)
+{
+    std::string template_name_use;
+
+    if (template_name.empty())
+    {
+        template_name_use = std::to_string(static_cast<int>(status));
+    }
+    else
+    {
+        template_name_use = template_name;
+    }
+
+    if (auto templ = App().GetTemplates().Get(template_name))
+    {
+        render_on_template(template_name, *templ, data, status);
+    }
+    else
+    {
+        Res().ReplyStatus(status);
+    }
+
+    return *this;
 }
 
 ContextIMP& ContextIMP::render_with_data(Json const& data)

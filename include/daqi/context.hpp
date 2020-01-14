@@ -186,6 +186,7 @@ public:
     }
     ContextIMP& Render(std::string const& template_name, Json const& data = theNullJson);
     ContextIMP& Render(http_status status, Json const& data);
+    ContextIMP& Render(std::string const& template_name, http_status status, Json const& data = theNullJson);
 
     ContextIMP& RenderWithoutData(http_status status)
     {
@@ -194,6 +195,10 @@ public:
     ContextIMP& RenderWithoutData(std::string const& template_name)
     {
         return render_with_data(template_name, theNullJson);
+    }
+    ContextIMP& RenderWithoutData(std::string const& template_name, http_status status)
+    {
+        return render_with_data(template_name, status, theNullJson);
     }
     ContextIMP& RenderWithoutData()
     {
@@ -205,35 +210,91 @@ public:
     {
         return render_with_data(HTTP_STATUS_NOT_FOUND, data);
     }
+    ContextIMP& RenderNofound(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_NOT_FOUND, data);
+    }
+    ContextIMP& RenderNofound(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_NOT_FOUND, data);
+    }
 
     ContextIMP& RenderBadRequest(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_BAD_REQUEST, data);
+    }
+    ContextIMP& RenderBadRequest(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_BAD_REQUEST, data);
+    }
+    ContextIMP& RenderBadRequest(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_BAD_REQUEST, data);
     }
 
     ContextIMP& RenderUnauthorized(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_UNAUTHORIZED, data);
     }
+    ContextIMP& RenderUnauthorized(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_UNAUTHORIZED, data);
+    }
+    ContextIMP& RenderUnauthorized(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_UNAUTHORIZED, data);
+    }
 
     ContextIMP& RenderForbidden(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_FORBIDDEN, data);
+    }
+    ContextIMP& RenderForbidden(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_FORBIDDEN, data);
+    }
+    ContextIMP& RenderForbidden(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_FORBIDDEN, data);
     }
 
     ContextIMP& RenderNotImplemented(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_NOT_IMPLEMENTED, data);
     }
+    ContextIMP& RenderNotImplemented(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_NOT_IMPLEMENTED, data);
+    }
+    ContextIMP& RenderNotImplemented(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_NOT_IMPLEMENTED, data);
+    }
 
     ContextIMP& RenderServiceUnavailable(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_SERVICE_UNAVAILABLE, data);
     }
+    ContextIMP& RenderServiceUnavailable(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_SERVICE_UNAVAILABLE, data);
+    }
+    ContextIMP& RenderServiceUnavailable(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_SERVICE_UNAVAILABLE, data);
+    }
 
     ContextIMP& RenderInternalServerError(Json const& data = theNullJson)
     {
         return render_with_data(HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+    }
+    ContextIMP& RenderInternalServerError(std::string const& template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(template_name, HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
+    }
+    ContextIMP& RenderInternalServerError(char const* const template_name, Json const& data = theNullJson)
+    {
+        return render_with_data(std::string(template_name), HTTP_STATUS_INTERNAL_SERVER_ERROR, data);
     }
 
 public:
@@ -265,6 +326,7 @@ public:
     void StopChunkedResponse();
 
 private:
+    ContextIMP& render_with_data(std::string const& template_name, http_status status, Json const& data);
     ContextIMP& render_with_data(http_status status, Json const& data);
     ContextIMP& render_with_data(std::string const& template_name, Json const& data);
     ContextIMP& render_with_data(Json const& data);
