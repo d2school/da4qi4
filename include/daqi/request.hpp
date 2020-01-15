@@ -8,49 +8,13 @@
 
 #include "llhttp/llhttp.h"
 
-#include "daqi/def/def.hpp"
 #include "daqi/def/boost_def.hpp"
 #include "daqi/utilities/container_utilities.hpp"
 
+#include "daqi/url.hpp"
+
 namespace da4qi4
 {
-
-struct Url
-{
-    std::string full;
-
-    std::string schema;
-    std::string host;
-
-    unsigned short port;
-
-    std::string path;
-    std::string query;
-    std::string fragment;
-    std::string userinfo;
-
-    std::string full_under_app;
-    std::string path_under_app;
-
-    UrlParameters parameters;
-
-    bool Parse(std::string&& url_value);
-    void UnderApplication(std::string const& app_url_root);
-
-    void Clear()
-    {
-        full.clear();
-        schema.clear();
-        host.clear();
-        port = 0;
-        path.clear();
-        query.clear();
-        fragment.clear();
-        userinfo.clear();
-        parameters.clear();
-    }
-};
-
 struct RoutingPathParameters
 {
     RoutingPathParameters() = default;
@@ -381,7 +345,12 @@ public:
         return GetParameter(name);
     }
 
-    Url const& GetUrl() const
+    UrlUnderApp const& GetUrl() const
+    {
+        return _url;
+    }
+
+    UrlUnderApp& GetUrl()
     {
         return _url;
     }
@@ -403,6 +372,11 @@ public:
     }
 
     ICHeaders const& GetHeader() const
+    {
+        return _headers;
+    }
+
+    ICHeaders& GetHeader()
     {
         return _headers;
     }
@@ -575,7 +549,7 @@ private:
 
     std::bitset<6> _addition_flags;
 
-    Url _url;
+    UrlUnderApp _url;
     unsigned int _method = HTTP_GET;
     ICHeaders _headers;
 

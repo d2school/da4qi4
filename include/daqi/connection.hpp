@@ -3,47 +3,20 @@
 
 #include <memory>
 #include <string>
-#include <boost/asio/ssl/stream.hpp>
 
 #include "llhttp/llhttp.h"
-
 #include "multipart-parser/multipart_parser.h"
-
-#include "daqi/def/asio_def.hpp"
 
 #include "daqi/request.hpp"
 #include "daqi/response.hpp"
 #include "daqi/handler.hpp"
 
+#include "daqi/net-detail/net_detail_server.hpp"
+
 namespace da4qi4
 {
 
 class Application;
-
-namespace net_detail
-{
-
-using ReadBuffer = std::array<char, 1024 * 4>;
-using WriteBuffer = boost::asio::streambuf;
-using ChunkedBuffer = std::string;
-
-using SocketCompletionCallback = std::function<void (errorcode const&, std::size_t)>;
-
-struct SocketInterface
-{
-    virtual ~SocketInterface() = 0;
-
-    virtual void close(errorcode& ec) = 0;
-
-    virtual IOC& get_ioc() = 0;
-    virtual Tcp::socket& get_socket() = 0;
-
-    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback) = 0;
-    virtual void async_write(WriteBuffer&, SocketCompletionCallback) = 0;
-    virtual void async_write(ChunkedBuffer const&, SocketCompletionCallback) = 0;
-};
-
-} //namespace net_detail
 
 class Connection
     : public std::enable_shared_from_this<Connection>
@@ -222,7 +195,7 @@ private:
 private:
     Request _request;
     Response _response;
-    std::shared_ptr<Application> _app = nullptr;
+    std::shared_ptr<Application> _app;
 };
 
 } //namespace da4qi4

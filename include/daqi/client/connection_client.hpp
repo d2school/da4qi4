@@ -7,8 +7,8 @@
 #include "llhttp/llhttp.h"
 
 #include "daqi/def/def.hpp"
-#include "daqi/def/boost_def.hpp"
-#include "daqi/def/asio_def.hpp"
+
+#include "daqi/net-detail/net_detail_client.hpp"
 
 #include "daqi/utilities/http_utilities.hpp"
 #include "daqi/utilities/string_utilities.hpp"
@@ -18,36 +18,6 @@ namespace da4qi4
 {
 namespace Client
 {
-namespace net_detail
-{
-
-using ReadBuffer = std::array<char, 1024 * 2>;
-using SocketConnectionCompletionCallback = std::function<void (errorcode const&)>;
-using SocketCompletionCallback = std::function<void (errorcode const&, std::size_t)>;
-
-struct SocketBase
-{
-    virtual ~SocketBase();
-
-    virtual void async_connect(Tcp::endpoint const&, SocketConnectionCompletionCallback) = 0;
-
-    virtual void async_read_some(ReadBuffer&, SocketCompletionCallback) = 0;
-
-    virtual void async_write(char const*, std::size_t, SocketCompletionCallback) = 0;
-
-    virtual errorcode sync_connect(Tcp::endpoint const&) = 0;
-    virtual errorcode sync_read_some(ReadBuffer&, std::size_t& bytes_transferred) = 0;
-    virtual errorcode sync_write(char const* write_buffer
-                                 , std::size_t write_buffer_size
-                                 , std::size_t& bytes_transferred) = 0;
-
-    virtual void close(errorcode& ec) = 0;
-
-    virtual Tcp::socket& get_socket() = 0;
-};
-
-
-} // namespace net_detail
 
 class Connection final
 {

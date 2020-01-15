@@ -40,7 +40,7 @@ bool IsNull(LoggerPtr logger)
     return (logger == nullptr) || (logger == the_null_log);
 }
 
-bool InitLogger(std::string const& name
+bool InitLogger(std::string const& name //logger's name
                 , std::string const& server_name
                 , std::string& error
                 , std::string const& log_dir
@@ -78,7 +78,7 @@ bool InitServerLogger(const std::string& log_dir, Level level
                       , size_t max_file_size_kb, size_t max_file_count)
 {
     std::string err;
-    bool ok = InitLogger(the_daqi_name, "server", err, log_dir, level, max_file_size_kb, max_file_count);
+    bool ok = InitLogger("server", the_daqi_name, err, log_dir, level, max_file_size_kb, max_file_count);
 
     if (!ok)
     {

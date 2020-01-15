@@ -10,123 +10,10 @@
 #include "daqi/def/asio_def.hpp"
 #include "daqi/application.hpp"
 
+#include "daqi/websocket/connection_websocket.hpp"
+
 namespace da4qi4
 {
-
-namespace net_detail
-{
-
-template <typename T>
-IOC& get_io_context_from(T& socket_obj)
-{
-#ifdef HAS_IO_CONTEXT
-    return socket_obj.get_executor().get_io_context();
-#else
-    return socket_obj.get_io_service();
-#endif
-}
-
-struct Socket : SocketInterface
-{
-    Socket(IOC& ioc)
-        : _socket(ioc)
-    {
-    }
-
-    ~Socket() override;
-
-    void close(errorcode& ec) override
-    {
-        _socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
-        _socket.close(ec);
-    }
-
-    IOC& get_ioc() override
-    {
-        return get_io_context_from(_socket);
-    }
-
-    Tcp::socket& get_socket() override
-    {
-        return _socket;
-    }
-
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override
-    {
-        _socket.async_read_some(boost::asio::buffer(read_buffer), on_read);
-    }
-
-    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback on_wrote) override
-    {
-        boost::asio::async_write(_socket, write_buffer, on_wrote);
-    }
-
-    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback on_wrote) override
-    {
-        boost::asio::async_write(_socket, boost::asio::buffer(chunked_buffer), on_wrote);
-    }
-
-private:
-    Tcp::socket _socket;
-};
-
-struct SocketWithSSL : SocketInterface
-{
-    SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
-        : _stream(ioc, ssl_ctx)
-    {
-    }
-
-    ~SocketWithSSL() override;
-
-    void close(errorcode& ec) override
-    {
-        _stream.lowest_layer().cancel();
-        _stream.shutdown(ec);
-        _stream.next_layer().close(ec);
-    }
-
-    IOC& get_ioc() override
-    {
-        return get_io_context_from(_stream);
-    }
-
-    Tcp::socket& get_socket() override
-    {
-        return _stream.next_layer();
-    }
-
-    void async_read_some(ReadBuffer& read_buffer, SocketCompletionCallback on_read) override
-    {
-        _stream.async_read_some(boost::asio::buffer(read_buffer), on_read);
-    }
-
-    void async_write(WriteBuffer& write_buffer, SocketCompletionCallback on_wrote) override
-    {
-        boost::asio::async_write(_stream, write_buffer, on_wrote);
-    }
-
-    void async_write(ChunkedBuffer const& chunked_buffer, SocketCompletionCallback on_wrote) override
-    {
-        boost::asio::async_write(_stream, boost::asio::buffer(chunked_buffer), on_wrote);
-    }
-
-public:
-    boost::asio::ssl::stream<Tcp::socket>& get_stream()
-    {
-        return _stream;
-    }
-
-private:
-    boost::asio::ssl::stream<Tcp::socket> _stream;
-};
-
-SocketInterface::~SocketInterface() {}
-Socket::~Socket() {}
-SocketWithSSL::~SocketWithSSL() {}
-
-} //namespace net_detail
-
 
 Connection::Connection(IOC& ioc, size_t ioc_index)
     : _with_ssl(false), _socket_ptr(new net_detail::Socket(ioc))
@@ -338,7 +225,7 @@ int Connection::on_message_begin(http_parser* parser)
     cnt->_read_complete = Connection::read_none_complete;
     cnt->_body_buffer.clear();
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_message_complete(http_parser* parser)
@@ -347,7 +234,7 @@ int Connection::on_message_complete(http_parser* parser)
     cnt->_request.SetBody(std::move(cnt->_body_buffer));
     cnt->_read_complete = Connection::read_message_complete;
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_header_field(http_parser* parser, char const* at, size_t length)
@@ -361,7 +248,7 @@ int Connection::on_header_field(http_parser* parser, char const* at, size_t leng
         cnt->_reading_header_field.append(at, length);
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_header_value(http_parser* parser, char const* at, size_t length)
@@ -384,7 +271,7 @@ int Connection::on_header_value(http_parser* parser, char const* at, size_t leng
         cnt->_reading_header_part = Connection::header_value_part;
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 
@@ -392,7 +279,8 @@ int Connection::on_url(http_parser* parser, char const* at, size_t length)
 {
     Connection* cnt = static_cast<Connection*>(parser->data);
     cnt->_url_buffer.append(at, length);
-    return 0;
+
+    return HPE_OK;
 }
 
 void Connection::try_fix_multipart_bad_request_without_boundary()
@@ -478,7 +366,7 @@ int Connection::on_body(http_parser* parser, char const* at, size_t length)
         }
     }
 
-    return 0;
+    return HPE_OK;
 }
 
 int Connection::on_multipart_header_field(multipart_parser* parser, char const* at, size_t length)
@@ -494,6 +382,7 @@ int Connection::on_multipart_header_field(multipart_parser* parser, char const* 
     }
 
     cnt->_reading_header_field.append(at, length);
+
     return 0;
 }
 
@@ -554,6 +443,7 @@ int Connection::on_multipart_data(multipart_parser* parser, char const* at, size
     Connection* cnt = static_cast<Connection*>(multipart_parser_get_data(parser));
     cnt->_multipart_parse_part = mp_parse_data;
     cnt->_reading_part_buffer.append(at, length);
+
     return 0;
 }
 
@@ -564,6 +454,7 @@ int Connection::on_multipart_data_end(multipart_parser* parser)
 
     cnt->_reading_part.SetData(std::move(cnt->_reading_part_buffer));
     cnt->_request.AddMultiPart(std::move(cnt->_reading_part));
+
     return 0;
 }
 
@@ -643,7 +534,7 @@ void Connection::do_handshake()
     {
         if (ec)
         {
-            log::Server()->error("Socket handshake for SSL fail. {}", ec.message());
+            log::Server()->error("Socket handshake on SSL fail. {}", ec.message());
             return;
         }
 
@@ -670,7 +561,7 @@ void Connection::do_read()
 
         auto parsed_errno = llhttp_execute(_parser.get(), _buffer.data(), bytes_transferred);
 
-        if (parsed_errno != HPE_OK)
+        if (parsed_errno != HPE_OK && parsed_errno != HPE_PAUSED_UPGRADE)
         {
             return;
         }
@@ -682,6 +573,21 @@ void Connection::do_read()
         }
 
         free_multipart_parser(will_free_mp_parser);
+
+        if (_parser->upgrade)
+        {
+            log::Server()->trace("~~CONNECTION UPGRADE~~");
+
+            auto url = FromUrlUnderApp(std::move(this->_request.GetUrl()));
+
+            auto ws_connection = Websocket::Connection::Create(this->_socket_ptr.release()
+                                                               , std::move(url)
+                                                               , std::move(this->_request.GetHeader()));
+
+            //TODO 依据 url path ，交给 特定的 app 管理?
+            ws_connection->Start();
+            return;
+        }
 
         assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER REQUEST READ MESSAGE COMPLETED.");
 
