@@ -11,7 +11,7 @@ namespace da4qi4
 
 namespace
 {
-bool get_url_part_value(unsigned int url_part_flag,  Url& url, std::string&& value)
+bool get_url_part_value(unsigned int url_part_flag,  UrlBase& url, std::string&& value)
 {
     switch (url_part_flag)
     {
@@ -50,7 +50,7 @@ bool get_url_part_value(unsigned int url_part_flag,  Url& url, std::string&& val
 }
 }
 
-bool Url::Parse(std::string&& url_value)
+bool UrlBase::Parse(std::string&& url_value)
 {
     http_parser_url r;
     http_parser_url_init(&r);
@@ -91,9 +91,9 @@ void UrlUnderApp::UnderApplication(std::string const& app_url_root)
     path_under_app = path.substr(app_url_root.size());
 }
 
-Url FromUrlUnderApp(UrlUnderApp&& src)
+UrlBase FromUrlUnderApp(UrlUnderApp&& src)
 {
-    Url dst;
+    UrlBase dst;
     dst.port = src.port;
 
 #define MOVE_FROM_APP_URL(D, I, S) D.I = std::move(S.I)
@@ -111,5 +111,30 @@ Url FromUrlUnderApp(UrlUnderApp&& src)
 
     return dst;
 }
+
+
+std::string JoinUrlPath(std::string const& app_root, std::string const& path)
+{
+    if (!path.empty() && !app_root.empty())
+    {
+        if (*app_root.rbegin() == '/' && *path.begin() == '/')
+        {
+            return app_root + path.substr(1, path.size() - 1);
+        }
+
+        if (*app_root.rbegin() != '/' && *path.begin() != '/')
+        {
+            return app_root + "/" + path;
+        }
+    }
+
+    return app_root + path;
+}
+
+std::string MakesureFullUrlPath(std::string const& path, UrlFlag flag, const std::string& app_root)
+{
+    return (flag == UrlFlag::url_full_path) ? path : JoinUrlPath(app_root, path);
+}
+
 
 } // namespace da4qi4

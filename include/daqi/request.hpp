@@ -381,7 +381,12 @@ public:
         return _headers;
     }
 
-    ICHeaders const& GetCookies() const
+    ICCookies const& GetCookies() const
+    {
+        return _cookies;
+    }
+
+    ICCookies& GetCookies()
     {
         return _cookies;
     }
@@ -564,7 +569,7 @@ private:
     std::string _boundary;
     std::vector<MultiPart> _multiparts;
 
-    ICHeaders _cookies;
+    ICCookies _cookies;
     std::vector<FormDataItem> _formdata;
 
     RoutingPathParameters _path_parameters;

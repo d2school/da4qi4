@@ -349,10 +349,9 @@ private:
 private:
     using Self = ContextIMP;
     typedef std::string const& (Self::*PSSFun)(std::string const&) const;
-    void regist_string_function_with_oneS_string_parameter(char const* function_name,
-                                                           PSSFun func,
-                                                           std::string defaultValue = Utilities::theEmptyString
-                                                          );
+    void regist_string_function_with_one_string_parameter(char const* function_name,
+                                                          PSSFun func,
+                                                          std::string defaultValue = Utilities::theEmptyString);
 
     typedef bool (Self::*PBSFun)(std::string const&) const;
     void regist_bool_function_with_one_string_parameter(char const* function_name,

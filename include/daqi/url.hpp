@@ -8,7 +8,7 @@
 namespace da4qi4
 {
 
-struct Url
+struct UrlBase
 {
     std::string full;
 
@@ -40,7 +40,7 @@ struct Url
     }
 };
 
-struct UrlUnderApp : public Url
+struct UrlUnderApp : public UrlBase
 {
     std::string full_under_app;
     std::string path_under_app;
@@ -48,7 +48,17 @@ struct UrlUnderApp : public Url
     void UnderApplication(std::string const& app_url_root);
 };
 
-Url FromUrlUnderApp(UrlUnderApp&& src);
+UrlBase FromUrlUnderApp(UrlUnderApp&& src);
+
+typedef UrlUnderApp Url;
+
+enum class UrlFlag
+{
+    url_full_path, url_without_app_root
+};
+
+std::string JoinUrlPath(std::string const& app_root, std::string const& path);
+std::string MakesureFullUrlPath(std::string const& path, UrlFlag flag, std::string const& app_root);
 
 } //namespace da4qi4
 

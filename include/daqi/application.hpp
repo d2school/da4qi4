@@ -13,6 +13,9 @@
 #include "daqi/templates.hpp"
 #include "daqi/intercepter.hpp"
 
+#include "daqi/websocket/handler_websocket.hpp"
+#include "daqi/websocket/connection_websocket.hpp"
+
 namespace da4qi4
 {
 
@@ -71,6 +74,7 @@ struct AppLoggerSetting
     size_t max_log_file_count;
 };
 
+
 class Application;
 using ApplicationPtr = std::shared_ptr<Application>;
 
@@ -125,6 +129,9 @@ public:
     }
 
     static ApplicationPtr Abortive();
+
+    Application(Application const&) = delete;
+    Application& operator()(Application const&) = delete;
 
     ~Application();
 
@@ -399,6 +406,21 @@ public:
     std::vector<UniformItem> GetStartsRouterUniformItems() const;
     std::vector<UniformRegexItem> GetRegexRouterUniformItems() const;
 
+public:
+    bool RegistWebSocket(std::string const& url, UrlFlag urlflag, Websocket::EventHandlersFactory factory);
+    bool IsWebSocketRegistered(std::string const& url, UrlFlag urlflag) const;
+
+    std::unique_ptr<Websocket::EventsHandler> CreateWebSocketHandler(std::string const& url, UrlFlag urlflag);
+public:
+    void AddWebSocketConnection(Websocket::Connection::Ptr connection);
+    Websocket::Connection::Ptr WebsocketConnection(std::string const& url, UrlFlag urlflag, std::string const& id);
+    bool RemoveWebSocketConnection(std::string const& url, UrlFlag urlflag, std::string const& id);
+    bool RenameWebSocketConnectionID(std::string const& url, UrlFlag urlflag
+                                     , std::string const& old_id, std::string const& new_id);
+
+    std::list<Websocket::Connection::Ptr> AllWebSocketConnections(std::string const& url, UrlFlag urlflag);
+    std::list<std::string> AllWebSocketConnectionsID(std::string const& url_full, UrlFlag urlflag);
+
 private:
     void default_init();
     void default_init_pathes();
@@ -445,6 +467,13 @@ private:
 #ifdef NDEBUG
     bool _is_abortive = false;
 #endif
+
+private:
+    std::map<std::string /* url-full */, Websocket::EventHandlersFactory> _websocket_handlers_factory;
+
+private:
+    std::mutex _m_4_websocket_connections;
+    std::map <std::string /* url-full */, Websocket::Connections> _websocket_connections;
 };
 
 using ApplicationPtr = std::shared_ptr<Application>;

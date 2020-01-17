@@ -61,9 +61,9 @@ log::LoggerPtr ContextIMP::logger()
     return _cnt->GetApplication()->GetLogger();
 }
 
-void ContextIMP::regist_string_function_with_oneS_string_parameter(char const* function_name,
-                                                                   PSSFun func,
-                                                                   std::string defaultValue)
+void ContextIMP::regist_string_function_with_one_string_parameter(char const* function_name,
+                                                                  PSSFun func,
+                                                                  std::string defaultValue)
 {
     _env.add_callback(function_name, 1
                       , [this, func, function_name, defaultValue](inja::Arguments & args) -> std::string
@@ -126,22 +126,22 @@ void ContextIMP::regist_bool_function_with_one_string_parameter(char const* func
 
 void ContextIMP::regist_template_enginer_common_functions()
 {
-    regist_string_function_with_oneS_string_parameter("_PARAMETER_", &Self::parameter);
+    regist_string_function_with_one_string_parameter("_PARAMETER_", &Self::parameter);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_PARAMETER_", &Self::is_exists_parameter);
 
-    regist_string_function_with_oneS_string_parameter("_HEADER_", &Self::header);
+    regist_string_function_with_one_string_parameter("_HEADER_", &Self::header);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_HEADER_", &Self::is_exists_header);
 
-    regist_string_function_with_oneS_string_parameter("_URL_PARAMETER_", &Self::url_parameter);
+    regist_string_function_with_one_string_parameter("_URL_PARAMETER_", &Self::url_parameter);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_URL_PARAMETER_", &Self::is_exists_url_parameter);
 
-    regist_string_function_with_oneS_string_parameter("_PATH_PARAMETER_", &Self::path_parameter);
+    regist_string_function_with_one_string_parameter("_PATH_PARAMETER_", &Self::path_parameter);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_PATH_PARAMETER_", &Self::is_exists_path_parameter);
 
-    regist_string_function_with_oneS_string_parameter("_FORM_DATA_", &Self::form_data);
+    regist_string_function_with_one_string_parameter("_FORM_DATA_", &Self::form_data);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_FORM_DATA_", &Self::is_exists_form_data);
 
-    regist_string_function_with_oneS_string_parameter("_COOKIE_", &Self::cookie);
+    regist_string_function_with_one_string_parameter("_COOKIE_", &Self::cookie);
     regist_bool_function_with_one_string_parameter("_IS_EXISTS_COOKIE_", &Self::is_exists_cookie);
 }
 

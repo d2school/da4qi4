@@ -11,6 +11,7 @@
 #include "daqi/application.hpp"
 
 #include "daqi/websocket/connection_websocket.hpp"
+#include "daqi/websocket/context_websocket.hpp"
 
 namespace da4qi4
 {
@@ -574,22 +575,13 @@ void Connection::do_read()
 
         free_multipart_parser(will_free_mp_parser);
 
+        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER REQUEST READ MESSAGE COMPLETED.");
+
         if (_parser->upgrade)
         {
-            log::Server()->trace("~~CONNECTION UPGRADE~~");
-
-            auto url = FromUrlUnderApp(std::move(this->_request.GetUrl()));
-
-            auto ws_connection = Websocket::Connection::Create(this->_socket_ptr.release()
-                                                               , std::move(url)
-                                                               , std::move(this->_request.GetHeader()));
-
-            //TODO 依据 url path ，交给 特定的 app 管理?
-            ws_connection->Start();
+            do_upgrade();
             return;
         }
-
-        assert((_app != nullptr) && "MUST HAVE A APPLICATION AFTER REQUEST READ MESSAGE COMPLETED.");
 
         if (_request.IsFormUrlEncoded())
         {
@@ -605,6 +597,62 @@ void Connection::do_read()
         _response.SetCharset(_app->GetDefaultCharset());
         ContextIMP::Make(shared_from_this())->Start(); //cnt -> app -> ctx
     });
+}
+
+void Connection::do_upgrade()
+{
+    assert(_request.IsUpgrade());
+
+    auto ws_upgrade_value = _request.GetHeader("Upgrade");
+
+    if (ws_upgrade_value.empty() || !Utilities::iEquals(ws_upgrade_value, "websocket"))
+    {
+        log::Server()->warn("Bad websocket upgrade header value {}. {}. connection will close."
+                            , ws_upgrade_value, _request.GetUrl().full);
+        return;
+    }
+
+    auto ws_key_value = _request.GetHeader("Sec-WebSocket-Key");
+
+    if (ws_key_value.empty())
+    {
+        log::Server()->warn("No found websocket Sec-WebSocket-Key. {}. connection will close."
+                            , _request.GetUrl().full);
+        return;
+    }
+
+    auto ws_evts_handler = _app->CreateWebSocketHandler(_request.GetUrl().full, UrlFlag::url_full_path);
+
+    if (!ws_evts_handler)
+    {
+        log::Server()->warn("No found websocket event handler. {}. connection will close."
+                            , _request.GetUrl().full);
+        return;
+    }
+
+    auto ws_connection = Websocket::Connection::Create(_ioc_index
+                                                       , _socket_ptr.release()
+                                                       , std::move(this->_request.GetUrl())
+                                                       , std::move(this->_request.GetHeader())
+                                                       , std::move(this->_request.GetCookies())
+                                                       , ws_evts_handler.release());
+
+    auto ctx = Websocket::ContextIMP::Create(ws_connection, _app);
+
+    if (!ws_connection->GetEventHandler()->OnOpen(ctx))
+    {
+        return;
+    }
+
+    if (ws_connection->GetID().empty())
+    {
+        ws_connection->SetID(Utilities::GetUUID(_app->GetName()));
+    }
+
+    _app->AddWebSocketConnection(ws_connection);
+    ws_connection->Start(ctx, ws_key_value);
+
+    return;
 }
 
 void Connection::prepare_response_headers_about_connection()
@@ -764,7 +812,7 @@ void Connection::reset()
     _multipart_parse_part = mp_parse_none;
     _request.Reset();
     _response.Reset();
-    _app = nullptr;
+    _app.reset();
 }
 
 } //namespace da4qi4

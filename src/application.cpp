@@ -182,24 +182,6 @@ ApplicationPtr const ApplicationMgr::FindByName(std::string const& name) const
     return nullptr;
 }
 
-std::string join_app_path(std::string const& app_root, std::string const& path)
-{
-    if (!path.empty() && !app_root.empty())
-    {
-        if (*app_root.rbegin() == '/' && *path.begin() == '/')
-        {
-            return app_root + path.substr(1, path.size() - 1);
-        }
-
-        if (*app_root.rbegin() != '/' && *path.begin() != '/')
-        {
-            return app_root + "/" + path;
-        }
-    }
-
-    return app_root + path;
-}
-
 void ApplicationMgr::Mount()
 {
     _mounted = true;
@@ -528,7 +510,7 @@ bool Application::AddHandler(HandlerMethod m, router_equals r, Handler h, std::s
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -549,7 +531,7 @@ bool Application::AddHandler(HandlerMethod m, router_starts r, Handler h, std::s
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -570,7 +552,7 @@ bool Application::AddHandler(HandlerMethod m, router_regex r, Handler h, std::st
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -591,7 +573,7 @@ bool Application::AddHandler(HandlerMethods ms, router_equals r, Handler h, std:
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -612,7 +594,7 @@ bool Application::AddHandler(HandlerMethods ms, router_starts r, Handler h, std:
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -633,7 +615,7 @@ bool Application::AddHandler(HandlerMethods ms, router_regex r, Handler h, std::
         return false;
     }
 
-    r.s = join_app_path(_root_url, r.s);
+    r.s = JoinUrlPath(_root_url, r.s);
 
     std::string error;
 
@@ -810,6 +792,131 @@ void Application::do_handle(Context& ctx)
     {
         _logger->error("Handler {} exception. {}", ctx->Req().GetUrl().full, e.what());
     }
+}
+
+bool Application::RegistWebSocket(std::string const& url, UrlFlag urlflag
+                                  , Websocket::EventHandlersFactory factory)
+{
+    if (IsRuning())
+    {
+        _logger->warn("Regist websocket-handlers-factory on {} fail. application is running.", url);
+        return false;
+    }
+
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+    _websocket_handlers_factory.insert(std::make_pair(fullpath, std::move(factory)));
+
+    return true;
+}
+
+bool Application::IsWebSocketRegistered(std::string const& url, UrlFlag urlflag) const
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+    return _websocket_handlers_factory.find(fullpath) != _websocket_handlers_factory.cend();
+}
+
+std::unique_ptr<Websocket::EventsHandler> Application::CreateWebSocketHandler(std::string const& url, UrlFlag urlflag)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+    auto it = _websocket_handlers_factory.find(fullpath);
+    return (it == _websocket_handlers_factory.end()) ? nullptr
+           : std::unique_ptr<Websocket::EventsHandler>(it->second());
+}
+
+void Application::AddWebSocketConnection(Websocket::Connection::Ptr connection)
+{
+    assert(connection != nullptr);
+    assert(!connection->GetID().empty());
+
+    auto full_url_path = connection->GetURLPath();
+    assert(!full_url_path.empty());
+
+    {
+        std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+        auto it = _websocket_connections.find(full_url_path);
+
+        if (it != _websocket_connections.end())
+        {
+            it->second.Add(connection);
+        }
+        else
+        {
+            Websocket::Connections storage(connection);
+            _websocket_connections.emplace(std::move(full_url_path), std::move(storage));
+        }
+    }
+}
+
+bool Application::RemoveWebSocketConnection(std::string const& url, UrlFlag urlflag, std::string const& id)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+
+    std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+
+    auto it = _websocket_connections.find(fullpath);
+
+    if (it == _websocket_connections.end())
+    {
+        return false;
+    }
+
+    return it->second.Remove(id);
+}
+
+bool Application::RenameWebSocketConnectionID(std::string const& url, UrlFlag urlflag
+                                              , std::string const& old_id, std::string const& new_id)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+
+    std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+
+    auto it = _websocket_connections.find(fullpath);
+
+    if (it == _websocket_connections.end())
+    {
+        return false;
+    }
+
+    return it->second.RenameID(old_id, new_id);
+}
+
+Websocket::Connection::Ptr Application::WebsocketConnection(std::string const& url, UrlFlag urlflag
+                                                            , std::string const& id)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+
+    std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+
+    auto it = _websocket_connections.find(fullpath);
+
+    if (it == _websocket_connections.end())
+    {
+        return nullptr;
+    }
+
+    return it->second.Get(id);
+}
+
+std::list<Websocket::Connection::Ptr> Application::AllWebSocketConnections(std::string const& url, UrlFlag urlflag)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+
+    std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+
+    auto it = _websocket_connections.find(fullpath);
+
+    return (it == _websocket_connections.end()) ? std::list<Websocket::Connection::Ptr>() : it->second.All();
+}
+
+std::list<std::string> Application::AllWebSocketConnectionsID(std::string const& url, UrlFlag urlflag)
+{
+    auto fullpath = MakesureFullUrlPath(url, urlflag, _root_url);
+
+    std::scoped_lock<std::mutex> lock(_m_4_websocket_connections);
+
+    auto it = _websocket_connections.find(fullpath);
+
+    return (it == _websocket_connections.end()) ? std::list<std::string>() : it->second.AllID();
 }
 
 log::LoggerPtr ApplicationMgr::GetApplicationLogger(std::string const& application_name)

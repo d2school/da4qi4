@@ -70,6 +70,7 @@ public:
     {
         return _app != nullptr;
     }
+
     std::shared_ptr<Application> GetApplication();
 
     size_t GetIOContextIndex() const
@@ -99,6 +100,7 @@ private:
     void do_write_next_chunked_body(clock_t start_wait_clock = 0);
     void do_write_chunked_body_finished(errorcode const& ec, size_t bytes_transferred);
 
+    void do_upgrade();
 private:
     void init_parser();
     void init_parser_setting();

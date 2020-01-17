@@ -22,6 +22,7 @@ enum PathResolve {is_relative, is_absolute}; //for url and dist-directory
 
 using Headers = std::map<std::string, std::string>;
 using ICHeaders = std::map<std::string, std::string, Utilities::IgnoreCaseCompare>;
+using ICCookies = ICHeaders;
 using UrlParameters = std::map<std::string, std::string>;
 
 } //namespace da4qi4
