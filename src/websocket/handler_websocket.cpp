@@ -7,38 +7,38 @@ namespace Websocket
 
 bool EventHandleFunctor::OnOpen(Context ctx)
 {
-    return (OnOpenFunctor) ? OnOpenFunctor(ctx) : true;
+    return (DoOnOpen) ? DoOnOpen(ctx) : true;
 }
 
 void EventHandleFunctor::OnText(Context ctx, std::string&& data, bool is_finished)
 {
-    if (OnTextFunctor)
+    if (DoOnText)
     {
-        OnTextFunctor(ctx, std::move(data), is_finished);
+        DoOnText(ctx, std::move(data), is_finished);
     }
 }
 
 void EventHandleFunctor::OnBinary(Context ctx, std::string&& data, bool is_finished)
 {
-    if (OnBinaryFunctor)
+    if (DoOnBinary)
     {
-        OnBinaryFunctor(ctx, std::move(data), is_finished);
+        DoOnBinary(ctx, std::move(data), is_finished);
     }
 }
 
 void EventHandleFunctor::OnError(Context ctx, EventOn evt, int code, std::string const& msg)
 {
-    if (OnErrorFunctor)
+    if (DoOnError)
     {
-        OnErrorFunctor(ctx, evt, code, msg);
+        DoOnError(ctx, evt, code, msg);
     }
 }
 
 void EventHandleFunctor::OnClose(Context ctx, EventOn evt)
 {
-    if (OnCloseFunctor)
+    if (DoOnClose)
     {
-        OnCloseFunctor(ctx, evt);
+        DoOnClose(ctx, evt);
     }
 }
 

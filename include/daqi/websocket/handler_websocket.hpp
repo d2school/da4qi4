@@ -52,11 +52,11 @@ public:
 
 struct EventHandleFunctor : public EventsHandler
 {
-    std::function < bool (Context) > OnOpenFunctor;
-    std::function < void (Context, std::string&&, bool) > OnTextFunctor;
-    std::function < void (Context, std::string&&, bool) > OnBinaryFunctor;
-    std::function < void (Context, EventOn, int, std::string const&) > OnErrorFunctor;
-    std::function < void (Context, EventOn) > OnCloseFunctor;
+    std::function < bool (Context) > DoOnOpen;
+    std::function < void (Context, std::string&&, bool) > DoOnText;
+    std::function < void (Context, std::string&&, bool) > DoOnBinary;
+    std::function < void (Context, EventOn, int, std::string const&) > DoOnError;
+    std::function < void (Context, EventOn) > DoOnClose;
 
     bool OnOpen(Context ctx) override;
     void OnText(Context ctx, std::string&& data, bool is_finished) override;
