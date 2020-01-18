@@ -12,7 +12,7 @@
   * [1.3 处理请求](#13-处理请求)
   * [1.4 引入Application](#14-引入application)
   * [1.5 运行日志](#15-运行日志)
-  * [1.6 HTML 模板](#16-html模板)
+  * [1.6 HTML模板](#16-html模板)
   * [1.7 WebSocket](#17-WebSocket)
     * [1.7.1 HTTP对比WebSocket](#171-http-对比-websocket)
     * [1.7.2 大器WebSocket后台实现特性](#172-大器WebSocket后台实现特性)
@@ -339,7 +339,7 @@ int main()
 
 看起来有点像个后台程序，可以申请领导过来视察你的工作成果了。
 
-## 1.6 HTML 模板
+## 1.6 HTML模板
 
 是时候解决在代码中直接写HTML的问题了。
 
