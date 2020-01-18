@@ -13,9 +13,13 @@
   * [1.4 引入Application](#14-引入application)
   * [1.5 运行日志](#15-运行日志)
   * [1.6 HTML 模板](#16-html模板)
-  * [1.7 更多](#17-更多)
-    + [1.7.1 框架更多集成功能](#171-框架更多集成功能)
-    + [1.7.2 框架外围可供集成的工具](#172-框架外围可供集成的工具)
+  * [1.7 WebSocket](#17-WebSocket)
+    * [1.7.1 HTTP对比WebSocket](#171-HTTP对比WebSocket)
+    * [1.7.2 大器WebSocket后台实现特性](#172-大器WebSocket后台实现特性)
+    * [1.7.3 使用示例](#173-使用示例)
+  * [1.8 更多](#18-更多)
+    + [1.8.1 框架更多集成功能](#181-框架更多集成功能)
+    + [1.8.2 框架外围可供集成的工具](#182-框架外围可供集成的工具)
 - [二、如何构建](#二如何构建)
   * [2.1 基于生产环境构建](#21-基于生产环境构建)
   * [2.2 准备编译工具](#22-准备编译工具)
@@ -89,7 +93,6 @@ da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关�
 | tomcat | 1000 | 350      | 337         | 872            | 1        | 879      | 0   | 886.7  | 273        |
 | da4qi4 | 1000 | 1        | 1           | 20             | 0        | 24       | 0   | 1233   | 286.6      |
 
-> 
 
 另，官网 www.d2school.com 一度以 1M带度、1核CPU、1G 内存的一台服务器作为运行环境（即：同时还运行MySQL、redis服务）；后因线上编译太慢，做了有限的升级。
 
@@ -575,9 +578,175 @@ ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.
 
 > main() 函数中如何初始化日志，已经演示过，不再给出代码。
 
-## 1.7 更多
 
-### 1.7.1 框架更多集成功能
+
+## 1.7 WebSocket
+
+### 1.7.1 HTTP 对比 WebSocket
+
+先简单说下在业务与技术上，传统HTTP访问和WebSocket访问的核心区别。
+
+
+
+HTTP访问讲究”无状态“，当然，一个业务系统怎么可能无状态，只不过是将状态都放在数据中（缓存、数据库），所谓的无状态是指业务逻辑相关的　”类/class“　应该无状态——这正好和“class/类”或“object/对象”本质是一个“状态机”相冲突——幸好C++和许多语言一样，支持多范式开发，所以在前面的例子中，我们几乎不设计“class”，而是使用自由函数。“类与对象”想写成不带状态的状态，难；而自由函数想写出带“状态”来，还真不简单。
+
+
+
+到了WebSocket，长连接，通常这时候就有状态——甚至此时底层的网络连接保持或断开本身就是一种状态。比如使用WebSocket写一个页面聊天室，有人连线，就是上线了（进聊天室）；有人断线，那就是下线了（出聊天室）。再比如，假设我们的“聊天室”要限制“潜水“用户，就至少得记录每个用户这些状态：上线多久了？上线之后有没有说过话？反过来，如果要限制话痨用户，也至少需要记录一个用户说话记录的记数——这些都是状态。
+
+
+
+对比结论：HTTP访问后端讲究无状态，所以很适合使用“面向过程”的自由函数，而WebSocket 的后端往往需要保持状态，所以这时候“面向对象”比较合适。da4qi4的WebSocket 在保持对无状态的支持下，增加并且主要使用“有状态”的类设计做支持。
+
+
+
+### 1.7.2 大器WebSocket后台实现特性
+
+- 支持直接接入WebSokcet支持，也支持从nginx继续反向代理。
+
+- 支持一个端口同时响应HTTP和WebSocket请求。
+
+- 支持ws和wss。
+
+- 支持服务端推送（其实是WebSocket的要求）。
+
+- 支持大报文分段传输（其实也是WebSocket的要求）。
+
+- 支持群发。
+
+- 保持和HTTP相对一致的概念与设计，比如上下文：Context。
+
+- WebSocket连接时，可以方便获得连接升级(upgrade)前的Cookie、HTTP报头、URL等信息。
+
+
+
+### 1.7.3 使用示例
+
+一、先演示面向对象思路的写法。
+
+1. 先写一个类，派生自 da4qi4::Websocket::EventsHandler。
+
+```C++
+using namespace da4qi4;
+
+class MyEventsHandler : public Websocket::EventsHandler
+{
+public:
+    bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
+    
+    void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
+    {
+        ctx->Logger()->info("收到： {}.", data);
+        ctx->SendText("已阅!"); 
+    }
+    
+    void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
+    {
+        //此时data是二进制数据，比如图片什么的，可以保存下来...
+    }
+    
+    void OnError(Websocket::Context ctx
+                , Websocket::EventOn evt //在哪个环节出错，读或写？
+                , int code //出错编号
+                , std::string const& msg //出错信息
+                )    
+    {
+        ctx->Logger()->error("出错了. {} - {}.", code, msg);
+    }
+    
+    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
+    {
+        ctx->Logger()->info("Websocket连接已经关闭.");
+    }   
+};
+```
+
+2. 在主函数中，在某个“Application”上注册一个WebSocket的后台处理方法。这个方法用来创建(new)出刚刚定义的那个“MyEventsHandler”的对象，我们使用lambda实现：
+
+```C++
+#include "daqi/da4qi4.hpp"
+#include "daqi/websocket/websocket.hpp" //引入websocket相关定义
+
+using namespace da4qi4;
+
+class MyEventsHandler : public Websocket::EventsHandler
+{
+    //见上
+};
+
+int main()
+{
+     auto svc = Server::Supply(4098);
+     auto app = svc->DefaultApp();
+　　　app->InitLogger("log/");
+　　　
+     //在某个app的指定URL下，挂接一个websocket响应处理
+     app->RegistWebSocket("/ws", UrlFlag::url_full_path, 
+             [](){ return new MyEventsHandler; }      
+         );
+    
+     svc->Run();
+}
+```
+
+现在，让你的前端开发人员，在ＨＴＭＬ页面里，用JS写一段代码，类似于：
+
+```javascript
+var ws = new WebSocket("ws://127.0.0.1:4098/ws");
+
+ws.onopen = function(evt) {
+    this.send("Hello WebSocket.");
+}
+
+ws.onmessage = function (evt) {
+    console.log(evt.data);
+}
+……
+```
+
+前后端就可以聊起来了。
+
+
+
+二、如果后台业务逻辑确实很简单，那写一个类，还派生什么的确实显得很笨。此时也可以使用简单的函数、labmbda来快速响应。
+
+方法是定义一个大器预定的　“ Websocket::EventHandleFunctor”　变量：
+
+```C++
+#include "daqi/da4qi4.hpp"
+#include "daqi/websocket/websocket.hpp" //引入websocket相关定义
+
+using namespace da4qi4;
+
+/*不需要类定义了*/
+
+int main()
+{
+　　　auto svc = Server::Supply(4098);
+　　　auto app = svc->DefaultApp();
+　　　app->InitLogger("log/");
+　　　
+　　　Websocket::EventHandleFunctor　functor;
+　　　functor.DoOnText = [] (Websocket::Context ctx, std::string&& data
+　　            , bool isfinished)
+     {
+         ctx->Logger()->info("收到： {}.", data);
+         ctx->SendText("已阅!");　　　                
+　　　}
+　　　
+     app->RegistWebSocket("/ws", UrlFlag::url_full_path, functor);
+          
+     svc->Run();
+}
+```
+
+
+
+
+
+## 1.8 更多
+
+### 1.8.1 框架更多集成功能
 
 1. cookie支持
 
@@ -609,7 +778,7 @@ ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.
 
 15. ……
 
-### 1.7.2 框架外围可供集成的工具
+### 1.8.2 框架外围可供集成的工具
 
 1. 数据库访问
 

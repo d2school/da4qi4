@@ -33,11 +33,11 @@ public:
 
 using EventHandlersFactory = std::function<EventsHandler * (void)>;
 
-class EmptyEventHandler : public EventsHandler
+class EmptyEventsHandler : public EventsHandler
 {
 public:
-    EmptyEventHandler() = default;
-    ~EmptyEventHandler() override = default;
+    EmptyEventsHandler() = default;
+    ~EmptyEventsHandler() override = default;
 
     bool OnOpen(Context) override
     {
