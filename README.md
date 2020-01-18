@@ -617,32 +617,31 @@ using namespace da4qi4;
 class MyEventsHandler : public Websocket::EventsHandler
 {
 public:
-    bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
-    
+    bool Open(Websocket::Context ctx) { return true; }   //允许该ws连接
     void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
     {
-        ctx->Logger()->info("收到： {}.", data);
-        ctx->SendText("已阅!"); 
+        ctx->Logger()->info("收到： {}.", data);
+        ctx->SendText("已阅!"); 
+    }
+
+    void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
+    {
+        //此时data是二进制数据，比如图片什么的，可以保存下来...
     }
     
-    void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
+    void OnError(Websocket::Context ctx
+                , Websocket::EventOn evt //在哪个环节出错，读或写？
+                , int code //出错编号
+                , std::string const& msg //出错信息
+                )    
     {
-        //此时data是二进制数据，比如图片什么的，可以保存下来...
+        ctx->Logger()->error("出错了. {} - {}.", code, msg);
     }
-    
-    void OnError(Websocket::Context ctx
-                , Websocket::EventOn evt //在哪个环节出错，读或写？
-                , int code //出错编号
-                , std::string const& msg //出错信息
-                )    
-    {
-        ctx->Logger()->error("出错了. {} - {}.", code, msg);
-    }
-    
-    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
-    {
-        ctx->Logger()->info("Websocket连接已经关闭.");
-    }   
+
+    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
+    {
+        ctx->Logger()->info("Websocket连接已经关闭.");
+    }
 };
 ```
 
@@ -656,21 +655,21 @@ using namespace da4qi4;
 
 class MyEventsHandler : public Websocket::EventsHandler
 {
-    //见上
+     //见上
 };
 
 int main()
 {
-     auto svc = Server::Supply(4098);
-     auto app = svc->DefaultApp();
-　　　app->InitLogger("log/");
-　　　
-     //在某个app的指定URL下，挂接一个websocket响应处理
-     app->RegistWebSocket("/ws", UrlFlag::url_full_path, 
-             [](){ return new MyEventsHandler; }      
-         );
+    auto svc = Server::Supply(4098);
+    auto app = svc->DefaultApp();
+　　app->InitLogger("log/");
+    　
+    //在某个app的指定URL下，挂接一个websocket响应处理
+    app->RegistWebSocket("/ws", UrlFlag::url_full_path, 
+           [](){ return new MyEventsHandler; }
+    );
 
-     svc->Run();
+    svc->Run();
 }
 ```
 
@@ -705,21 +704,21 @@ using namespace da4qi4;
 
 int main()
 {
-　　　auto svc = Server::Supply(4098);
-　　　auto app = svc->DefaultApp();
-　　　app->InitLogger("log/");
-　　　
-　　　Websocket::EventHandleFunctor　functor;
-　　　functor.DoOnText = [] (Websocket::Context ctx, std::string&& data
-　　            , bool isfinished)
-     {
-         ctx->Logger()->info("收到： {}.", data);
-         ctx->SendText("已阅!");　　　                
-　　　}
-　　　
-     app->RegistWebSocket("/ws", UrlFlag::url_full_path, functor);
+    auto svc = Server::Supply(4098);
+    auto app = svc->DefaultApp();
+    app->InitLogger("log/");
 
-     svc->Run();
+    Websocket::EventHandleFunctor functor;
+    functor.DoOnText = [] (Websocket::Context ctx, std::string&& data
+　　            , bool isfinished)
+    {
+        ctx->Logger()->info("收到： {}.", data);
+        ctx->SendText("已阅!");　　　                
+    }
+　
+    app->RegistWebSocket("/ws", UrlFlag::url_full_path, functor);
+
+    svc->Run();
 }
 ```
 
