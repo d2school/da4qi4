@@ -14,11 +14,11 @@ set(USE_LOCAL_BOOST_VERSION OFF)
 
 if (USE_LOCAL_BOOST_VERSION)
     SET(BOOST_INCLUDEDIR /usr/local/include)
-    SET(BOOST_LIBRARYDIR/usr/local/lib)
+    SET(BOOST_LIBRARYDIR /usr/local/lib)
     find_package(Boost 1.67.0 REQUIRED COMPONENTS filesystem system)
 else()
     SET(BOOST_INCLUDEDIR /usr/include)
-    SET(BOOST_LIBRARYDIR/usr/lib)
+    SET(BOOST_LIBRARYDIR /usr/lib)
     find_package(Boost 1.65.0 REQUIRED COMPONENTS filesystem system)
 endif()
 
