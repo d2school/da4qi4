@@ -885,6 +885,9 @@ cd build
 
 2. 执行CMake
 
+> 如果你使用的是1.66或更高版本的boost库，请先打开项目下的CMakefile.txt文件，找到第13行：set(USE_LOCAL_BOOST_VERSION OFF) 将OFF改为ON： set(USE_LOCAL_BOOST_VERSION ON)
+
+
 ```shell
 cmake -D_DAQI_TARGET_TYPE_=SHARED_LIB -DCMAKE_BUILD_TYPE=Release ../da4qi4/
 ```
