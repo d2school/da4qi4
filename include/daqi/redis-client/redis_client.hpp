@@ -80,7 +80,7 @@ private:
     bool start_reconnect_timer(std::function<void (boost::system::error_code const& ec)> on);
 
     void start_aysnc_read_and_parse(std::function<void(RedisValue value)> on);
-    void do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser, std::function<void(RedisValue value)> on);
+    void do_async_read_and_parse(std::shared_ptr<RedisParser> parser, std::function<void(RedisValue value)> on);
 
 private:
     void start_async_write();
