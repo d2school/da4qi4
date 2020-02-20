@@ -159,6 +159,7 @@ bool UploadFile::SaveTo(std::string const& dst_filename)
     else // in_memory
     {
         ofs.write(_memory.c_str(), static_cast<std::streamsize>(_memory.size()));
+        _memory.clear();
     }
 
     ofs.close();
