@@ -119,6 +119,52 @@ OptionalStringRefConst Request::TryGetUrlParameter(std::string const& name) cons
     return Utilities::TryGetHeader(_url.parameters, name);
 }
 
+bool UploadFile::SaveTo(std::string const& dst_filename)
+{
+    if (_status == no_found)
+    {
+        return false;
+    }
+
+    std::ofstream ofs(dst_filename);
+
+    if (!ofs)
+    {
+        return false;
+    }
+
+    if (_status == in_stream)
+    {
+        if (!_stream)
+        {
+            return false;
+        }
+
+        size_t const tmp_buf_size = 2048;
+        char buf[tmp_buf_size];
+
+        while (_stream)
+        {
+            _stream.read(buf, tmp_buf_size);
+            std::size_t rd = static_cast<std::size_t>(_stream.gcount());
+
+            if (rd > 0)
+            {
+                ofs.write(buf, static_cast<std::streamsize>(rd));
+            }
+        }
+
+        _stream.close();
+    }
+    else // in_memory
+    {
+        ofs.write(_memory.c_str(), static_cast<std::streamsize>(_memory.size()));
+    }
+
+    ofs.close();
+    return true;
+}
+
 bool UploadFile::ToMemory()
 {
     if ((_status == in_stream && !_stream) || (_status == no_found))
@@ -153,44 +199,44 @@ bool UploadFile::ToMemory()
     return true;
 }
 
-bool UploadFile::ToStream(std::string const& filename)
+bool UploadFile::ToStream(std::string const& temp_filename)
 {
     if (_status == no_found)
     {
         return false;
     }
 
-    if (_status == in_memory)
+    if (_status == in_stream)
     {
         return true;
     }
 
     std::string err;
 
-    if (!Utilities::SaveDataToFile(this->_memory, filename, err))
+    if (!Utilities::SaveDataToFile(this->_memory, temp_filename, err))
     {
         log::Server()->error("Try create temp file for upload fail. {}. {}. {}."
-                             , filename, _src_filename, err);
+                             , temp_filename, _src_filename, err);
         return false;
     }
 
-    std::ofstream ofs(filename.c_str(), std::ios_base::out | std::ios_base::binary);
+    std::ofstream ofs(temp_filename.c_str(), std::ios_base::out | std::ios_base::binary);
 
     if (_stream.is_open())
     {
         _stream.close();
     }
 
-    _stream.open(filename.c_str(), std::ios_base::in | std::ios_base::binary);
+    _stream.open(temp_filename.c_str(), std::ios_base::in | std::ios_base::binary);
 
     if (!_stream)
     {
         log::Server()->error("Try open temp file for upload fail. {}. {}."
-                             , filename, _src_filename);
+                             , temp_filename, _src_filename);
         return false;
     }
 
-    _saved_filename = filename;
+    _saved_filename = temp_filename;
     return  true;
 }
 
@@ -203,7 +249,7 @@ bool UploadFile::ToStream(const Application& app, std::string const& ext)
         return false;
     }
 
-    if (_status == in_memory)
+    if (_status == in_stream)
     {
         return true;
     }

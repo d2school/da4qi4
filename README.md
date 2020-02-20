@@ -617,13 +617,13 @@ using namespace da4qi4;
 class MyEventsHandler : public Websocket::EventsHandler
 {
 public:
-    bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
+    bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
     
-    void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
-    {
+    void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
+    {
         ctx->Logger()->info("收到： {}.", data);
         ctx->SendText("已阅!"); 
-    }
+    }
     
     void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
     {

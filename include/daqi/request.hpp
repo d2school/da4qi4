@@ -263,7 +263,9 @@ struct UploadFile
 
     bool ToMemory();
     bool ToStream(Application const& app, std::string const& ext);
-    bool ToStream(std::string const& filename);
+    bool ToStream(std::string const& temp_filename);
+
+    bool SaveTo(std::string const& dst_filename);
 
 private:
     enum Status {no_found, in_stream, in_memory};

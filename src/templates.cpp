@@ -43,6 +43,9 @@ void init_template_env(inja::Environment& env)
     env.set_line_statement("##");
 
     env.set_element_notation(inja::ElementNotation::Dot);
+
+    env.set_trim_blocks(true);
+    env.set_lstrip_blocks(true);
 }
 
 std::string remove_template_ext(std::string const& fn, std::string const& ext)
