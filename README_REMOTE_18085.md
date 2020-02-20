@@ -1,6 +1,6 @@
 - [零、几个原则](#零几个原则)
   * [0.1 自己的狗粮自己吃](#01-自己的狗粮自己吃)
-  * [0.2 站在巨人的肩膀上](#02-站在巨人的肩膀上)
+  * [0.2 坚持抱牛人大腿不放](#02-坚持抱牛人大腿不放)
   * [0.3 易用优于性能](#03-易用优于性能)
   * [0.4 简单胜过炫技](#04-简单胜过炫技)
   * [0.5 紧跟国内生产环境](#05-紧跟国内生产环境)
@@ -43,7 +43,7 @@
 
 样式丑，但这只和差劲的UI师，也就是我的美感有关，和后台使用什么Web框架没有关系。
 
-## 0.2 站在巨人的肩膀上
+## 0.2 坚持抱牛人大腿不放
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
@@ -617,32 +617,31 @@ using namespace da4qi4;
 class MyEventsHandler : public Websocket::EventsHandler
 {
 public:
-    bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
-    
+    bool Open(Websocket::Context ctx) { return true; }   //允许该ws连接
     void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
     {
         ctx->Logger()->info("收到： {}.", data);
         ctx->SendText("已阅!"); 
     }
-    
+
     void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
     {
         //此时data是二进制数据，比如图片什么的，可以保存下来...
     }
-    
+
     void OnError(Websocket::Context ctx
                 , Websocket::EventOn evt //在哪个环节出错，读或写？
                 , int code //出错编号
                 , std::string const& msg //出错信息
-                )    
+                )
     {
         ctx->Logger()->error("出错了. {} - {}.", code, msg);
     }
-    
-    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
+
+    void OnClose(Websocket::Context ctx, Websocket::EventOn evt)
     {
         ctx->Logger()->info("Websocket连接已经关闭.");
-    }   
+    }
 };
 ```
 

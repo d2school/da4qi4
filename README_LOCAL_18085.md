@@ -1,6 +1,6 @@
 - [零、几个原则](#零几个原则)
   * [0.1 自己的狗粮自己吃](#01-自己的狗粮自己吃)
-  * [0.2 站在巨人的肩膀上](#02-站在巨人的肩膀上)
+  * [0.2 坚持抱牛人大腿不放](#02-坚持抱牛人大腿不放)
   * [0.3 易用优于性能](#03-易用优于性能)
   * [0.4 简单胜过炫技](#04-简单胜过炫技)
   * [0.5 紧跟国内生产环境](#05-紧跟国内生产环境)
@@ -43,7 +43,7 @@
 
 样式丑，但这只和差劲的UI师，也就是我的美感有关，和后台使用什么Web框架没有关系。
 
-## 0.2 站在巨人的肩膀上
+## 0.2 坚持抱牛人大腿不放
 
 da4qi4 Web 框架优先使用成熟的、C/C++开源项目的搭建。它的关键组成：
 
@@ -543,7 +543,7 @@ void add(Context ctx)
     }
    catch(std::exception const& e)
    {
-        ctx->Logger()->warn("hand add exception. {}. {}. {}.", a, b, e.what());
+        ctx->Logger()->warn("hand add exception. {}. {}. {}.", a, b, e.what());                    
         ctx->ModelData()["c"] = std::string("同学，不要乱输入加数嘛！") + e.what();
    }
 
@@ -618,31 +618,31 @@ class MyEventsHandler : public Websocket::EventsHandler
 {
 public:
     bool Open(Websocket::Context ctx)　{ return　true; }   //允许该ws连接
-    
+    
     void OnText(Websocket::Context ctx, std::string&& data, bool isfinish)
     {
-        ctx->Logger()->info("收到： {}.", data);
-        ctx->SendText("已阅!"); 
+        ctx->Logger()->info("收到： {}.", data);
+        ctx->SendText("已阅!"); 
     }
-    
-    void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
-    {
-        //此时data是二进制数据，比如图片什么的，可以保存下来...
-    }
-    
-    void OnError(Websocket::Context ctx
-                , Websocket::EventOn evt //在哪个环节出错，读或写？
-                , int code //出错编号
-                , std::string const& msg //出错信息
-                )    
-    {
-        ctx->Logger()->error("出错了. {} - {}.", code, msg);
-    }
-    
-    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
-    {
-        ctx->Logger()->info("Websocket连接已经关闭.");
-    }   
+    
+    void OnBinary(Websocket::Context ctx, std::string&& data, bool isfinish)
+    {
+        //此时data是二进制数据，比如图片什么的，可以保存下来...
+    }
+    
+    void OnError(Websocket::Context ctx
+                , Websocket::EventOn evt //在哪个环节出错，读或写？
+                , int code //出错编号
+                , std::string const& msg //出错信息
+                )    
+    {
+        ctx->Logger()->error("出错了. {} - {}.", code, msg);
+    }
+    
+    void OnClose(Websocket::Context ctx, Websocket::EventOn evt) 
+    {
+        ctx->Logger()->info("Websocket连接已经关闭.");
+    }   
 };
 ```
 
@@ -656,21 +656,21 @@ using namespace da4qi4;
 
 class MyEventsHandler : public Websocket::EventsHandler
 {
-     //见上
+    //见上
 };
 
 int main()
 {
-    auto svc = Server::Supply(4098);
-    auto app = svc->DefaultApp();
-    app->InitLogger("log/");
-　
-    //在某个app的指定URL下，挂接一个websocket响应处理
-    app->RegistWebSocket("/ws", UrlFlag::url_full_path, 
-           [](){ return new MyEventsHandler; }
-    );
+     auto svc = Server::Supply(4098);
+     auto app = svc->DefaultApp();
+　　　app->InitLogger("log/");
+　　　
+     //在某个app的指定URL下，挂接一个websocket响应处理
+     app->RegistWebSocket("/ws", UrlFlag::url_full_path, 
+             [](){ return new MyEventsHandler; }      
+         );
 
-    svc->Run();
+     svc->Run();
 }
 ```
 
@@ -705,20 +705,21 @@ using namespace da4qi4;
 
 int main()
 {
-    auto svc = Server::Supply(4098);
-    auto app = svc->DefaultApp();
-    app->InitLogger("log/");
+　　　auto svc = Server::Supply(4098);
+　　　auto app = svc->DefaultApp();
+　　　app->InitLogger("log/");
+　　　
+　　　Websocket::EventHandleFunctor　functor;
+　　　functor.DoOnText = [] (Websocket::Context ctx, std::string&& data
+　　            , bool isfinished)
+     {
+         ctx->Logger()->info("收到： {}.", data);
+         ctx->SendText("已阅!");　　　                
+　　　}
+　　　
+     app->RegistWebSocket("/ws", UrlFlag::url_full_path, functor);
 
-    Websocket::EventHandleFunctor functor;
-    functor.DoOnText = [] (Websocket::Context ctx, std::string&& data, bool isfinished)
-    {
-        ctx->Logger()->info("收到： {}.", data);
-        ctx->SendText("已阅!");
-    }
-
-    app->RegistWebSocket("/ws", UrlFlag::url_full_path, functor);
-
-    svc->Run();
+     svc->Run();
 }
 ```
 
@@ -883,9 +884,6 @@ cd build
 ```
 
 2. 执行CMake
-
-> 如果你使用的是1.66或更高版本的boost库，请先打开项目下的CMakefile.txt文件，找到第13行：set(USE_LOCAL_BOOST_VERSION OFF) 将OFF改为ON： set(USE_LOCAL_BOOST_VERSION ON)
-
 
 ```shell
 cmake -D_DAQI_TARGET_TYPE_=SHARED_LIB -DCMAKE_BUILD_TYPE=Release ../da4qi4/

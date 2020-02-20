@@ -128,8 +128,8 @@ char const* get_async_handler_action_name(AsyncHandlerAction aha)
     return "";
 }
 
-template <typename On, typename Parame>
-void try_on_redis_handler(On on, Parame p, AsyncHandlerAction aha)
+void try_on_redis_handler(std::function<void (boost::system::error_code const& ec)> on
+                          , boost::system::error_code p, AsyncHandlerAction aha)
 {
     if (!on)
     {
@@ -143,6 +143,47 @@ void try_on_redis_handler(On on, Parame p, AsyncHandlerAction aha)
     catch (std::exception const& e)
     {
         log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), e.what());
+    }
+    catch (std::string const& s)
+    {
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), s);
+    }
+    catch (char const* s)
+    {
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), s);
+    }
+    catch (...)
+    {
+        log::Server()->error("Redis handle {} result unknown exception.", get_async_handler_action_name(aha));
+    }
+}
+
+void try_on_redis_handler(std::function<void(RedisValue value)> on, RedisValue p, AsyncHandlerAction aha)
+{
+    if (!on)
+    {
+        return;
+    }
+
+    //debug:
+    RedisValue debug_dump;
+    if (aha == AsyncHandlerAction::on_reply_parse)
+    {
+        debug_dump = p;
+    }
+
+    try
+    {
+        on(std::move(p));
+    }
+    catch (std::exception const& e)
+    {
+        log::Server()->error("Redis handle {} result exception. {}", get_async_handler_action_name(aha), e.what());
+
+        if (!debug_dump.IsNull())
+        {
+           log::Server()->debug("context read from redis: {}.", debug_dump.ToString());
+        }
     }
     catch (std::string const& s)
     {
@@ -229,8 +270,10 @@ void RedisClient::Disconnect()
 
 void RedisClient::do_disconnect()
 {
-    _socket.cancel();
-    _socket.close();
+    boost::system::error_code ec;
+    _socket.cancel(ec);
+    _socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    _socket.close(ec);
     _connect_status = not_connect;
 }
 
@@ -339,10 +382,10 @@ void RedisClient::Command(std::string cmd, std::deque<RedisBuffer> args,
     args.emplace_front(std::move(cmd));
     auto command_data = MakeCommand(args);
 
-    bool is_stopping_because_empty = _command_queue.empty();
+    bool is_stopped_because_empty = _command_queue.empty();
     _command_queue.emplace(command_data, on);
 
-    if (is_stopping_because_empty)
+    if (is_stopped_because_empty)
     {
         start_async_write();
     }
@@ -399,10 +442,10 @@ void RedisClient::start_aysnc_read_and_parse(std::function<void(RedisValue value
     _reply_parse_beg = 0;
 
     std::shared_ptr<RedisParser> parser(new RedisParser);
-    do_aysnc_read_and_parse(parser, on);
+    do_async_read_and_parse(parser, on);
 }
 
-void RedisClient::do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser,
+void RedisClient::do_async_read_and_parse(std::shared_ptr<RedisParser> parser,
                                           std::function<void(RedisValue value)> on)
 {
     _socket.async_read_some(boost::asio::buffer(_tmp_read_buf, _read_buffer_size_)
@@ -461,9 +504,9 @@ void RedisClient::do_aysnc_read_and_parse(std::shared_ptr<RedisParser> parser,
                 start_async_write();
                 return;
             }
-        } //read size byte.
+        } //read size (more than 0) byte.
 
-        do_aysnc_read_and_parse(parser, on);
+        do_async_read_and_parse(parser, on);
     });
 }
 
