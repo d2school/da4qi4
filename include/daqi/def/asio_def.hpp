@@ -3,6 +3,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/spawn.hpp>
 
 namespace da4qi4
 {
@@ -27,6 +28,10 @@ using Tcp = boost::asio::ip::tcp;
 #endif
 
 typedef boost::asio::ssl::context_base SSLContextBase;
+
+namespace asio_placeholders = boost::asio::placeholders;
+
+using asio_yield_ctx = boost::asio::yield_context;
 
 }
 

@@ -44,7 +44,135 @@ unsigned int redis_server_reconnect_interval_seconds(unsigned int const reconnec
     return 300; //reconnect 1 time per 5 minutes
 }
 
+RedisValue bad_redis_value()
+{
+    return RedisValue("bad redis-value. parse fail", RedisValue::ErrorTag());
+}
+
+RedisValue bad_redis_value(std::string const& content)
+{
+    return RedisValue("bad redis-value. parse fail [" + content + "]"
+                      , RedisValue::ErrorTag());
+}
+
 } //namespace
+
+void RedisClient::Disconnect()
+{
+    if (IsConnected())
+    {
+        do_disconnect();
+    }
+    else
+    {
+        boost::system::error_code ec;
+        _reconnect_timer.cancel(ec);
+    }
+}
+
+void RedisClient::do_disconnect()
+{
+    boost::system::error_code ec;
+    _socket.cancel(ec);
+    _socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    _socket.close(ec);
+    _connect_status = not_connect;
+}
+
+bool RedisSyncClient::do_connect()
+{
+    _connect_status = is_connectting;
+
+    boost::system::error_code ec;
+
+    boost::asio::ip::tcp::endpoint end_point(boost::asio::ip::address::from_string(_host), _port);
+
+    _socket.connect(end_point, ec);
+
+    if (ec)
+    {
+        _connect_status = not_connect;
+        return false;
+    }
+
+    _connect_status = is_connected;
+    return true;
+}
+
+RedisValue RedisSyncClient::Command(std::string cmd, std::deque<RedisBuffer> args)
+{
+    assert(!cmd.empty());
+
+    args.emplace_front(std::move(cmd));
+    auto send_data = MakeCommand(args);
+
+    boost::system::error_code ec;
+    boost::asio::write(_socket, boost::asio::buffer(send_data), ec);
+
+    if (ec)
+    {
+        return RedisValue(ec.message(), RedisValue::ErrorTag());
+    }
+
+    RedisParser parser;
+
+    std::size_t beg = 0;
+    bool completed = false;
+
+    std::string read_data;
+    read_data.reserve(_read_buffer_size_ << 1);
+
+    while (!completed)
+    {
+        char tmp_buf[_read_buffer_size_];
+        std::size_t read_size = _socket.read_some(boost::asio::buffer(tmp_buf, _read_buffer_size_), ec);
+
+        if (ec)
+        {
+            return RedisValue(ec.message(), RedisValue::ErrorTag());
+        }
+
+        if (read_size > 0)
+        {
+            read_data.append(tmp_buf, read_size);
+            size_t end = read_data.size();
+
+            while (!completed && (beg < end))
+            {
+                auto result = parser.Parse(read_data.c_str() + beg, end - beg);
+
+                switch (result.second)
+                {
+                    case RedisParser::Completed:
+                        completed = true;
+                        break;
+
+                    case RedisParser::Incompleted:
+                        beg += result.first;
+                        break;
+
+                    default :
+                        return bad_redis_value();
+                }
+            }
+        }
+    }
+
+    return (completed) ? parser.Result() : bad_redis_value();
+}
+
+bool RedisSyncClient::Connect(std::string const& host, unsigned short port)
+{
+    if (IsConnected() || IsConnectting())
+    {
+        return true;
+    }
+
+    _host = host;
+    _port = port;
+
+    return do_connect();
+}
 
 RedisClient::~RedisClient()
 {
@@ -255,260 +383,116 @@ bool RedisClient::start_reconnect_timer(std::function<void (boost::system::error
     return true;
 }
 
-void RedisClient::Disconnect()
-{
-    if (IsConnected())
-    {
-        do_disconnect();
-    }
-    else
-    {
-        boost::system::error_code ec;
-        _reconnect_timer.cancel(ec);
-    }
-}
 
-void RedisClient::do_disconnect()
-{
-    boost::system::error_code ec;
-    _socket.cancel(ec);
-    _socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-    _socket.close(ec);
-    _connect_status = not_connect;
-}
-
-#ifdef _DEBUG_REDIS_NEED_SYNC_OPERATOR_
-bool RedisClient::do_sync_connect()
-{
-    _connect_status = is_connectting;
-
-    boost::system::error_code ec;
-
-    boost::asio::ip::tcp::endpoint end_point(boost::asio::ip::address::from_string(_host), _port);
-
-    _socket.connect(end_point, ec);
-
-    if (ec)
-    {
-        _connect_status = not_connect;
-        return false;
-    }
-
-    _connect_status = is_connected;
-    return true;
-}
-
-RedisValue RedisClient::CommandSync(std::string cmd, std::deque<RedisBuffer> args)
-{
-    assert(!cmd.empty());
-
-    args.emplace_front(std::move(cmd));
-    auto send_data = MakeCommand(args);
-
-    boost::system::error_code ec;
-    boost::asio::write(_socket, boost::asio::buffer(send_data), ec);
-
-    if (ec)
-    {
-        return RedisValue(ec.message(), RedisValue::ErrorTag());
-    }
-
-    RedisParser parser;
-
-    std::size_t beg = 0;
-    bool completed = false;
-
-    std::string read_data;
-    read_data.reserve(_read_buffer_size_ << 1);
-
-    while (!completed)
-    {
-        char tmp_buf[_read_buffer_size_];
-        std::size_t read_size = _socket.read_some(boost::asio::buffer(tmp_buf, _read_buffer_size_), ec);
-
-        if (ec)
-        {
-            return RedisValue(ec.message(), RedisValue::ErrorTag());
-        }
-
-        if (read_size > 0)
-        {
-            read_data.append(tmp_buf, read_size);
-            size_t end = read_data.size();
-
-            while (!completed && (beg < end))
-            {
-                auto result = parser.Parse(read_data.c_str() + beg, end - beg);
-
-                switch (result.second)
-                {
-                    case RedisParser::Completed:
-                        completed = true;
-                        break;
-
-                    case RedisParser::Incompleted:
-                        beg += result.first;
-                        break;
-
-                    default :
-                        return RedisValue("parse fail", RedisValue::ErrorTag());
-                }
-            }
-        }
-    }
-
-    return (completed) ? parser.Result() : RedisValue("parse fail", RedisValue::ErrorTag());
-}
-
-bool RedisClient::ConnectSync(std::string const& host, unsigned short port)
-{
-    if (IsConnected() || IsConnectting())
-    {
-        return true;
-    }
-
-    _host = host;
-    _port = port;
-
-    return do_sync_connect();
-}
-#endif //_DEBUG_REDIS_NEED_SYNC_OPERATOR_
-
-void RedisClient::Command(std::string cmd, std::deque<RedisBuffer> args,
-                          std::function<void(RedisValue value)> on)
+RedisValue RedisClient::Command(std::string cmd, std::deque<RedisBuffer> args, asio_yield_ctx ytx)
 {
     assert(!cmd.empty());
 
     args.emplace_front(std::move(cmd));
     auto command_data = MakeCommand(args);
 
-    bool is_stopped_because_empty = _command_queue.empty();
-    _command_queue.emplace(command_data, on);
-
-    if (is_stopped_because_empty)
+    try
     {
-        start_async_write();
+        return do_yield_command(std::move(command_data), ytx);
+    }
+    catch (std::exception const& ex)
+    {
+        return RedisValue(std::string("yield redis command exception. ") + ex.what(), RedisValue::ErrorTag());
     }
 }
 
-void RedisClient::start_async_write()
+RedisValue RedisClient::do_yield_command(std::vector<char> command_data, boost::asio::yield_context ytx)
 {
-    if (_command_queue.empty())
+    boost::system::error_code ec;
+
+    boost::asio::async_write(_socket, boost::asio::buffer(command_data), ytx[ec]);
+
+    if (ec)
     {
-        return;
+        RedisValue error_value(ec.message(), RedisValue::ErrorTag());
+
+        if (_error_handle_policy == RedisClientErrorHandlePolicy::auto_reconnect)
+        {
+            Reconnect();
+        }
+
+        return error_value;
     }
 
-    boost::asio::async_write(_socket, boost::asio::buffer(_command_queue.front().first)
-                             , [this](boost::system::error_code const & ec,  std::size_t /*bytes*/)
-    {
-        assert(!_command_queue.empty());
+    std::string reply_buf;
+    reply_buf.reserve(1024 + 512);
+    std::size_t reply_parse_beg = 0;
 
-        auto node(std::move(_command_queue.front()));
-        auto on = node.second;
+    bool io_error = false;
+    RedisParser parser;
+    RedisValue value;
+
+    for(;;)
+    {
+        size_t const  tmp_read_buffer = 1024;
+        char tmp_read_buf[tmp_read_buffer];
+
+        std::size_t bytes = _socket.async_read_some(boost::asio::buffer(tmp_read_buf, tmp_read_buffer), ytx[ec]);
 
         if (ec)
         {
-            RedisValue error_value(ec.message(), RedisValue::ErrorTag());
-            try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_async_write);
-            _command_queue.pop();
+            io_error = true;
+            value = RedisValue(ec.message(), RedisValue::ErrorTag());
+            break;
+        }
 
-            if (_error_handle_policy == RedisClientErrorHandlePolicy::auto_reconnect)
+        if (bytes == 0)
+        {
+            continue;
+        }
+
+        reply_buf.append(tmp_read_buf, bytes);
+
+        size_t end = reply_buf.size();
+
+        bool completed = false, error = false;
+
+        while (!completed && !error && (reply_parse_beg < end))
+        {
+            auto result = parser.Parse(reply_buf.c_str() + reply_parse_beg, end - reply_parse_beg);
+            reply_parse_beg += result.first;
+
+            switch (result.second)
             {
-                Reconnect();
+                case RedisParser::Completed:
+                    completed = true;
+                    break;
+
+                case RedisParser::Incompleted:
+                    break;
+
+                default :
+                    error = true;
+                    break;
             }
-
-            return;
         }
 
-        start_aysnc_read_and_parse(on);
-    });
-
-}
-
-void RedisClient::start_aysnc_read_and_parse(std::function<void(RedisValue value)> on)
-{
-    if (!_reply_buf.empty())
-    {
-        if (_reply_buf.size() <= _reply_parse_beg)
+        if (completed)
         {
-            _reply_buf.clear();
+            value = parser.Result();
+            break;
         }
-        else
+
+        if (error)
         {
-            _reply_buf = _reply_buf.substr(_reply_parse_beg);
+            value = bad_redis_value(reply_buf);
+            break;
         }
     }
 
-    _reply_parse_beg = 0;
-
-    std::shared_ptr<RedisParser> parser(new RedisParser);
-    do_async_read_and_parse(parser, on);
-}
-
-void RedisClient::do_async_read_and_parse(std::shared_ptr<RedisParser> parser,
-                                          std::function<void(RedisValue value)> on)
-{
-    _socket.async_read_some(boost::asio::buffer(_tmp_read_buf, _read_buffer_size_)
-                            , [this, parser, on](boost::system::error_code const & ec, size_t size)
+    if (io_error && (_error_handle_policy == RedisClientErrorHandlePolicy::auto_reconnect))
     {
-        if (ec)
-        {
-            RedisValue error_value(ec.message(), RedisValue::ErrorTag());
-            try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_async_read);
-            _command_queue.pop();
+        Reconnect();
+    }
 
-            return;
-        }
-
-        if (size > 0)
-        {
-            _reply_buf.append(_tmp_read_buf, size);
-            size_t end = _reply_buf.size();
-
-            bool completed = false, error = false;
-
-            while (!completed && !error && (_reply_parse_beg < end))
-            {
-                auto result = parser->Parse(_reply_buf.c_str() + _reply_parse_beg, end - _reply_parse_beg);
-                _reply_parse_beg += result.first;
-
-                switch (result.second)
-                {
-                    case RedisParser::Completed:
-                        completed = true;
-                        break;
-
-                    case RedisParser::Incompleted:
-                        break;
-
-                    default :
-                        error = true;
-                        break;
-                }
-            }
-
-            if (completed)
-            {
-                RedisValue value = parser->Result();
-                try_on_redis_handler(on, std::move(value), AsyncHandlerAction::on_reply_parse);
-                _command_queue.pop();
-                start_async_write();
-                return;
-            }
-
-            if (error)
-            {
-                RedisValue error_value("parse error. " + _reply_buf, RedisValue::ErrorTag());
-                try_on_redis_handler(on, std::move(error_value), AsyncHandlerAction::on_reply_parse);
-                _command_queue.pop();
-                start_async_write();
-                return;
-            }
-        } //read size (more than 0) byte.
-
-        do_async_read_and_parse(parser, on);
-    });
+    return value;
 }
+
 
 } // namespace da4qi4
 

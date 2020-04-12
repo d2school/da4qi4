@@ -59,48 +59,50 @@ void SessionOnRedis::on_request(Context& ctx) const
 
     if (auto redis = ctx->Redis())
     {
-        redis->Command("GET", {session_id}, [session_id, ctx, this](RedisValue value)
+        boost::asio::spawn(redis->Strand(), [session_id, ctx, this, redis](asio_yield_ctx ytx)
         {
-            if (value.IsError())
-            {
-                ctx->Logger()->error("Get session cache fail. {}. {}",
-                                     session_id, value.ToString());
+              RedisValue value = redis->Command("GET", {session_id}, ytx);
 
-                ctx->RenderInternalServerError();
-                ctx->Stop();
-                return;
-            }
+              if (value.IsError())
+              {
+                  ctx->Logger()->error("Get session cache fail. {}. {}",
+                                       session_id, value.ToString());
 
-            Json session;
+                  ctx->RenderInternalServerError();
+                  ctx->Stop();
+                  return;
+              }
 
-            try
-            {
-                if (!value.ToString().empty())
-                {
-                    session = Json::parse(value.ToString());
-                }
+              Json session;
 
-                if (session.empty())
-                {
-                    session = create_new_session();
-                }
-            }
-            catch (Json::parse_error const& e)
-            {
-                ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
-                ctx->RenderInternalServerError();
-                ctx->Stop();
-            }
-            catch (std::exception const& e)
-            {
-                ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
-                ctx->RenderInternalServerError();
-                ctx->Stop();
-            }
+              try
+              {
+                  if (!value.ToString().empty())
+                  {
+                      session = Json::parse(value.ToString());
+                  }
 
-            ctx->SaveSessionData(std::move(session));
-            ctx->Pass();
-        });
+                  if (session.empty())
+                  {
+                      session = create_new_session();
+                  }
+              }
+              catch (Json::parse_error const& e)
+              {
+                  ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
+                  ctx->RenderInternalServerError();
+                  ctx->Stop();
+              }
+              catch (std::exception const& e)
+              {
+                  ctx->Logger()->error("Parse session data exception. {}. {}", session_id, e.what());
+                  ctx->RenderInternalServerError();
+                  ctx->Stop();
+              }
+
+              ctx->SaveSessionData(std::move(session));
+              ctx->Pass();
+          });
     }
 }
 
@@ -131,10 +133,10 @@ void SessionOnRedis::on_response(Context& ctx) const
 
     if (auto redis = ctx->Redis())
     {
-        redis->Command("SETEX"
-                       , {session_id, session_timeout_s, session_value}
-                       , [ctx](RedisValue value)
+        boost::asio::spawn(redis->Strand(), [ctx, redis, session_id, session_timeout_s, session_value](asio_yield_ctx ytx)
         {
+            RedisValue value = redis->Command("SETEX", {session_id, session_timeout_s, session_value}, ytx);
+
             if (value.IsError())
             {
                 ctx->Logger()->critical("Cache session data fail. {}", value.ToString());

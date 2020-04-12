@@ -20,8 +20,6 @@ using OptionalString = boost::optional<std::string>;
 using OptionalStringRef = boost::optional<std::string&>;
 using OptionalStringRefConst = boost::optional<std::string const&>;
 
-namespace asio_placeholders = boost::asio::placeholders;
-
 } //namesapce da4qi4
 
 #endif // DAQI_BOOST_DEF_HPP

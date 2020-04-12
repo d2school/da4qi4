@@ -27,6 +27,8 @@ if (Boost_FOUND)
     message(STATUS ${Boost_INCLUDE_DIRS})
     message(STATUS ${Boost_LIBRARY_DIRS})
     
+    add_definitions(-D BOOST_COROUTINES_NO_DEPRECATION_WARNING)
+
     if ((Boost_VERSION EQUAL 106600) OR (Boost_VERSION GREATER 106600))
         add_definitions(-D_USE_BOOST_VERSION_GE_1_66_=1)
     endif()
