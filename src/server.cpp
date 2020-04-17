@@ -181,6 +181,7 @@ void Server::Run()
 
     _ioc_pool.Run();
 
+    _running = false;
     log::Server()->info("Stopped.");
 }
 

@@ -13,9 +13,9 @@ include_directories(nlohmann_json/include/)
 set(USE_LOCAL_BOOST_VERSION OFF)
 
 if (USE_LOCAL_BOOST_VERSION)
-    find_package(Boost 1.67.0 REQUIRED COMPONENTS filesystem system)
+    find_package(Boost 1.67.0 REQUIRED COMPONENTS coroutine filesystem system)
 else()
-    find_package(Boost 1.65.0 REQUIRED COMPONENTS filesystem system)
+    find_package(Boost 1.65.0 REQUIRED COMPONENTS coroutine filesystem system)
 endif()
 
 if (Boost_FOUND)

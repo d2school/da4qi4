@@ -157,6 +157,16 @@ public:
     void Run();
     void Stop();
 
+    bool IsRunning() const
+    {
+        return _running;
+    }
+
+    bool IsStopping() const
+    {
+        return _stopping;
+    }
+
 public:
     void PauseIdleTimer();
     void ResumeIdleTimer();
