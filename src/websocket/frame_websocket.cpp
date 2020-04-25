@@ -90,7 +90,7 @@ void FrameParser::reset()
     _payload_len_offset = 0;
     _payload.clear();
 
-    memset(&_frame_header, 0, sizeof(_frame_header));
+    _frame_header.Reset();
 }
 
 void FrameParser::move_reset(FrameParser&& parser)
@@ -111,7 +111,8 @@ void FrameParser::move_reset(FrameParser&& parser)
 uint32_t FrameParser::parse_fixed_header(const char* data)
 {
     const uint8_t* ptr = reinterpret_cast<const uint8_t*>(data);
-    memset(&_frame_header, 0, sizeof(_frame_header));
+
+    _frame_header.Reset();
 
     _payload_len_offset = 0;
 

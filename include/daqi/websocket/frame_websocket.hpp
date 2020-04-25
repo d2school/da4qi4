@@ -51,6 +51,16 @@ struct FrameHeader
     uint64_t EXT_PAYLOAD_LEN_64 = 0; //extended payload length 64
     uint64_t PAYLOAD_REALY_LEN = 0;
     uint32_t MASKING_KEY = 0;
+
+    void Reset()
+    {
+        FIN = 0;
+        RSV1 = RSV2 = RSV3 = 0;
+        OPCODE =  e_continuation;
+        MASK = 0;
+        PAYLOAD_LEN = EXT_PAYLOAD_LEN_16 = EXT_PAYLOAD_LEN_64 = PAYLOAD_REALY_LEN = 0;
+        MASKING_KEY = 0;
+    }
 };
 
 class FrameBuilder
