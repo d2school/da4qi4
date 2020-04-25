@@ -51,6 +51,11 @@ public:
         return _socket_ptr->get_socket();
     }
 
+    IOC& GetIOC()
+    {
+        return _socket_ptr->get_ioc();
+    }
+
 public:
     std::string GetURLPath() const;
 

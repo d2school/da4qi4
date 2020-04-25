@@ -79,6 +79,11 @@ public:
     }
 
 public:
+    IOC& GetIOC()
+    {
+        return _socket_ptr->get_ioc();
+    }
+
     Tcp::socket& GetSocket()
     {
         return _socket_ptr->get_socket();

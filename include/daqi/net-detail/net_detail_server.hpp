@@ -19,11 +19,16 @@ using SocketCompletionCallback = std::function<void (errorcode const&, std::size
 
 struct SocketInterface
 {
+    SocketInterface(IOC& ioc)
+        : _ioc(ioc)
+    {
+
+    }
     virtual ~SocketInterface();
 
     virtual void close(errorcode& ec) = 0;
 
-    virtual IOC& get_ioc() = 0;
+    IOC& get_ioc();
     virtual Tcp::socket& get_socket() = 0;
 
     virtual void async_read_some(ReadBuffer&, SocketCompletionCallback) = 0;
@@ -31,12 +36,15 @@ struct SocketInterface
     virtual void async_write(ChunkedBuffer const&, SocketCompletionCallback) = 0;
 
     virtual bool IsWithSSL() const = 0;
+
+private:
+    IOC& _ioc;
 };
 
 struct Socket : SocketInterface
 {
     Socket(IOC& ioc)
-        : _socket(ioc)
+        : SocketInterface(ioc), _socket(ioc)
     {
     }
 
@@ -52,8 +60,6 @@ struct Socket : SocketInterface
     {
         return false;
     }
-
-    IOC& get_ioc() override;
 
     Tcp::socket& get_socket() override
     {
@@ -82,7 +88,7 @@ private:
 struct SocketWithSSL : SocketInterface
 {
     SocketWithSSL(IOC& ioc, boost::asio::ssl::context& ssl_ctx)
-        : _stream(ioc, ssl_ctx)
+        : SocketInterface(ioc), _stream(ioc, ssl_ctx)
     {
     }
 
@@ -99,8 +105,6 @@ struct SocketWithSSL : SocketInterface
     {
         return true;
     }
-
-    IOC& get_ioc() override;
 
     Tcp::socket& get_socket() override
     {

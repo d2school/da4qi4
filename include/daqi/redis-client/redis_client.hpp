@@ -6,6 +6,7 @@
 #include <deque>
 
 #include <boost/noncopyable.hpp>
+#include <boost/asio/strand.hpp>
 
 #include "daqi/def/asio_def.hpp"
 #include "daqi/redis-client/redis_buffer.hpp"
@@ -22,7 +23,7 @@ class RedisSyncClient
 {
 public:
     RedisSyncClient(IOC& ioc,
-                RedisClientErrorHandlePolicy policy = RedisClientErrorHandlePolicy::do_nothing)
+                    RedisClientErrorHandlePolicy policy = RedisClientErrorHandlePolicy::do_nothing)
         : _socket(ioc), _reconnect_timer(ioc), _error_handle_policy(policy)
     {
     }
@@ -83,13 +84,13 @@ class RedisClient
 public:
     RedisClient(IOC& ioc,
                 RedisClientErrorHandlePolicy policy = RedisClientErrorHandlePolicy::do_nothing)
-        : _socket(ioc), _strand(ioc), _reconnect_timer(ioc), _error_handle_policy(policy)
+        : _ioc(ioc), _socket(_ioc), _strand(_ioc), _reconnect_timer(_ioc), _error_handle_policy(policy)
     {
     }
 
     ~RedisClient();
 
-    boost::asio::strand& Strand()
+    IOC::strand& Strand()
     {
         return _strand;
     }
@@ -127,8 +128,9 @@ private:
     void start_async_write();
 
 private:
+    IOC& _ioc;
     boost::asio::ip::tcp::socket _socket;
-    boost::asio::strand _strand;
+    IOC::strand _strand;
 
     boost::asio::deadline_timer _reconnect_timer;
     RedisClientErrorHandlePolicy _error_handle_policy;

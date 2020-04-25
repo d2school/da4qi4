@@ -170,11 +170,7 @@ Application const& ContextIMP::App() const
 
 IOC& ContextIMP::IOContext()
 {
-#ifdef HAS_IO_CONTEXT
-    return _cnt->GetSocket().get_executor().context();
-#else
-    return _cnt->GetSocket().get_io_service();
-#endif
+    return _cnt->GetIOC();
 }
 
 void ContextIMP::InitRequestPathParameters(std::vector<std::string> const& names
